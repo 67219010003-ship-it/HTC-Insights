@@ -1,0 +1,50 @@
+export const getToken = () => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("htc_token");
+};
+
+export const setToken = (token: string, role: string, isSuperAdmin?: boolean, userObj?: any) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("htc_token", token);
+  localStorage.setItem("htc_role", role);
+  if (isSuperAdmin !== undefined) {
+    localStorage.setItem("htc_is_super", isSuperAdmin ? "true" : "false");
+  }
+  if (userObj) {
+    localStorage.setItem("htc_user", JSON.stringify(userObj));
+  }
+  window.dispatchEvent(new Event("htc-auth-change"));
+};
+
+export const clearToken = () => {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("htc_token");
+  localStorage.removeItem("htc_role");
+  localStorage.removeItem("htc_is_super");
+  localStorage.removeItem("htc_user");
+  window.dispatchEvent(new Event("htc-auth-change"));
+};
+
+export const getRole = () => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("htc_role");
+};
+
+export const getUser = () => {
+  if (typeof window === "undefined") return null;
+  const str = localStorage.getItem("htc_user");
+  try {
+    return str ? JSON.parse(str) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const isStudent = () => ["student", "admin"].includes(getRole() || "");
+export const isEmployer = () => getRole() === "employer";
+export const isExternal = () => getRole() === "external" || getRole() === "employer";
+export const isAdmin = () => getRole() === "admin";
+export const isSuperAdmin = () => {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem("htc_is_super") === "true";
+};
