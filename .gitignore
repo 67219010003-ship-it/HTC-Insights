@@ -26,3 +26,6 @@ frontend/build/
 frontend/.env.local
 frontend/.env*.local
 frontend/tsconfig.tsbuildinfo
+
+# Utility / Executables
+run.bat
