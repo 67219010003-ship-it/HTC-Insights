@@ -439,13 +439,13 @@ export default function WriteReviewPage() {
                 <span className="text-[11px] text-on-surface-variant">จำกัด 0 - 99,999 บาท</span>
               </div>
               <input
-                type="number"
-                min={0}
-                max={99999}
+                type="text"
+                inputMode="numeric"
+                maxLength={5}
                 placeholder="เช่น 300 (ใส่ 0 หรือเว้นว่างได้ถ้าไม่มีเบี้ยเลี้ยง)"
                 value={dailyAllowance}
                 onChange={(e) => {
-                  const val = e.target.value;
+                  const val = e.target.value.replace(/\D/g, "");
                   if (val === "" || (Number(val) >= 0 && Number(val) <= 99999)) {
                     setDailyAllowance(val);
                   }
@@ -470,7 +470,7 @@ export default function WriteReviewPage() {
                     if (val.length === 2 && !val.includes(":") && workStartTime.length < 2) val = val + ":";
                     if (val.length <= 5) setWorkStartTime(val);
                   }}
-                  className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary focus:ring-2 focus:ring-secondary font-mono tracking-widest"
+                  className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary focus:ring-2 focus:ring-secondary"
                 />
                 <p className="text-[10px] text-on-surface-variant mt-1">รูปแบบ 24 ชั่วโมง เช่น 08:00 หรือ 13:30</p>
               </div>
@@ -488,7 +488,7 @@ export default function WriteReviewPage() {
                     if (val.length === 2 && !val.includes(":") && workEndTime.length < 2) val = val + ":";
                     if (val.length <= 5) setWorkEndTime(val);
                   }}
-                  className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary focus:ring-2 focus:ring-secondary font-mono tracking-widest"
+                  className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary focus:ring-2 focus:ring-secondary"
                 />
                 <p className="text-[10px] text-on-surface-variant mt-1">รูปแบบ 24 ชั่วโมง เช่น 17:00 หรือ 18:30</p>
               </div>
