@@ -9,9 +9,15 @@ load_dotenv()
 # กำหนด URL ของฐานข้อมูล MySQL จาก environment variables
 raw_db_url = os.getenv("DATABASE_URL", "mysql+pymysql://root:@localhost:3306/htc_insights")
 if raw_db_url.startswith("mysql://"):
-    DATABASE_URL = raw_db_url.replace("mysql://", "mysql+pymysql://", 1)
-else:
-    DATABASE_URL = raw_db_url
+    raw_db_url = raw_db_url.replace("mysql://", "mysql+pymysql://", 1)
+
+# Ensure default database name '/test' is present for TiDB Cloud Serverless
+if "tidbcloud.com" in raw_db_url:
+    import re
+    if re.search(r":4000/?(\?|$)", raw_db_url):
+        raw_db_url = re.sub(r":4000/?(\?|$)", r":4000/test\1", raw_db_url)
+
+DATABASE_URL = raw_db_url
 
 def create_db_engine():
     """ สร้าง SQLAlchemy Engine สำหรับการเชื่อมต่อฐานข้อมูล (รองรับทั้ง SQLite สำหรับการทดสอบ และ MySQL) """
