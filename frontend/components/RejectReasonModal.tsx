@@ -80,16 +80,20 @@ export default function RejectReasonModal({
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              เหตุผลในการปฏิเสธ <span className="text-rose-500">*</span>
-            </label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                เหตุผลในการปฏิเสธ <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">{reason.length}/300</span>
+            </div>
             <textarea
               value={reason}
+              maxLength={300}
               onChange={(e) => {
                 setReason(e.target.value);
                 if (error && e.target.value.trim()) setError(false);
               }}
-              placeholder="ระบุเหตุผลในการปฏิเสธ เพื่อแจ้งให้ผู้ใช้ทราบ..."
+              placeholder="ระบุเหตุผลในการปฏิเสธ เพื่อแจ้งให้ผู้ใช้ทราบ (สูงสุด 300 ตัวอักษร)..."
               rows={4}
               disabled={loading}
               autoFocus

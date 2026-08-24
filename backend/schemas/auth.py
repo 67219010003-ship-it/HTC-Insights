@@ -1,11 +1,12 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
+import re
 
 class StudentRegister(BaseModel):
     email: EmailStr
-    password: str
-    name: str
-    department: str
-    level: str  # "pvc" or "pvs"
+    password: str = Field(..., min_length=8, max_length=100, description="รหัสผ่านอย่างน้อย 8 ตัวอักษร")
+    name: str = Field(..., min_length=2, max_length=100, description="ชื่อ-นามสกุล 2-100 ตัวอักษร")
+    department: str = Field(..., min_length=2, max_length=100)
+    level: str = Field(..., pattern=r"^(pvc|pvs)$", description="ระดับชั้น pvc หรือ pvs")
 
     @field_validator("email")
     @classmethod
@@ -23,18 +24,18 @@ class StudentRegister(BaseModel):
 
 class EmployerRegister(BaseModel):
     email: EmailStr
-    password: str = "default_password123"
-    company_name: str
-    address: str
-    industry: str = "ทั่วไป"
-    contact_person: str | None = None
-    phone: str | None = None
-    line_id: str | None = None
-    website: str | None = None
+    password: str = Field("default_password123", min_length=8, max_length=100)
+    company_name: str = Field(..., min_length=3, max_length=150, description="ชื่อสถานประกอบการ 3-150 ตัวอักษร")
+    address: str = Field(..., min_length=5, max_length=300, description="ที่อยู่ 5-300 ตัวอักษร")
+    industry: str = Field("ทั่วไป", max_length=100)
+    contact_person: str | None = Field(None, max_length=100)
+    phone: str | None = Field(None, max_length=30)
+    line_id: str | None = Field(None, max_length=100)
+    website: str | None = Field(None, max_length=200)
     departments: list[str] | None = None
-    daily_allowance: str | None = None
-    benefits: str | None = None
-    notes: str | None = None
+    daily_allowance: str | None = Field(None, max_length=50)
+    benefits: str | None = Field(None, max_length=300)
+    notes: str | None = Field(None, max_length=500)
     latitude: float | None = None
     longitude: float | None = None
 

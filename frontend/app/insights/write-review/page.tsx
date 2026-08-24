@@ -130,18 +130,37 @@ export default function WriteReviewPage() {
   }, []);
 
   const validateStep = (s: number): string | null => {
-    if (s === 1 && !companyId) {
+    if (s === 1 && !companyId && !selectedCompany) {
       return "กรุณาค้นหาและเลือกสถานประกอบการก่อนดำเนินการต่อ";
     }
     if (s === 2) {
-      if (dailyAllowance !== "" && parseInt(dailyAllowance) < 0) {
-        return "เบี้ยเลี้ยงรายวันไม่สามารถมีค่าติดลบได้";
+      if (dailyAllowance !== "") {
+        const allowanceNum = parseInt(dailyAllowance);
+        if (isNaN(allowanceNum) || allowanceNum < 0 || allowanceNum > 2000) {
+          return "เบี้ยเลี้ยงรายวันต้องอยู่ระหว่าง 0 - 2,000 บาท/วัน";
+        }
+      }
+      if (periodStart && periodEnd && periodStart > periodEnd) {
+        return "วันที่เริ่มต้นฝึกงานต้องไม่เกินวันที่สิ้นสุดฝึกงาน";
+      }
+      const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+      if (workStartTime && !timeRegex.test(workStartTime)) {
+        return "เวลาเข้างานต้องอยู่ในรูปแบบ HH:MM (เช่น 08:30)";
+      }
+      if (workEndTime && !timeRegex.test(workEndTime)) {
+        return "เวลาเลิกงานต้องอยู่ในรูปแบบ HH:MM (เช่น 17:00)";
       }
     }
     if (s === 4) {
-      if (textWork.length < 50) {
-        return `รายละเอียดงานต้องมีความยาวอย่างน้อย 50 ตัวอักษร (ปัจจุบันมี ${textWork.length} ตัวอักษร)`;
+      if (textWork.trim().length < 30) {
+        return `รายละเอียดงานต้องมีความยาวอย่างน้อย 30 ตัวอักษร (ปัจจุบันมี ${textWork.trim().length} ตัวอักษร)`;
       }
+      if (textWork.length > 1000) {
+        return "รายละเอียดงานต้องไม่เกิน 1,000 ตัวอักษร";
+      }
+      if (textPros.length > 500) return "ข้อดีต้องไม่เกิน 500 ตัวอักษร";
+      if (textCons.length > 500) return "ข้อเสียต้องไม่เกิน 500 ตัวอักษร";
+      if (textAdvice.length > 500) return "คำแนะนำต้องไม่เกิน 500 ตัวอักษร";
     }
     return null;
   };
@@ -415,8 +434,24 @@ export default function WriteReviewPage() {
             </div>
 
             <div>
-              <label className="block font-label-md text-label-md font-bold text-primary mb-xs">เบี้ยเลี้ยงรายวัน (บาท/วัน)</label>
-              <input type="number" placeholder="เช่น 300 (ใส่ 0 หรือเว้นว่างได้ถ้าไม่มีเบี้ยเลี้ยง)" value={dailyAllowance} onChange={(e) => setDailyAllowance(e.target.value)} className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary" />
+              <div className="flex justify-between items-center mb-xs">
+                <label className="block font-label-md text-label-md font-bold text-primary">เบี้ยเลี้ยงรายวัน (บาท/วัน)</label>
+                <span className="text-[11px] text-on-surface-variant">จำกัด 0 - 2,000 บาท</span>
+              </div>
+              <input
+                type="number"
+                min={0}
+                max={2000}
+                placeholder="เช่น 300 (ใส่ 0 หรือเว้นว่างได้ถ้าไม่มีเบี้ยเลี้ยง)"
+                value={dailyAllowance}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || (Number(val) >= 0 && Number(val) <= 2000)) {
+                    setDailyAllowance(val);
+                  }
+                }}
+                className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary"
+              />
             </div>
 
             {/* Work Hours Inputs */}
@@ -424,8 +459,7 @@ export default function WriteReviewPage() {
               <div>
                 <label className="block font-label-md text-label-md font-bold text-primary mb-xs">เวลาเข้างาน</label>
                 <input
-                  type="text"
-                  placeholder="เช่น 08:00"
+                  type="time"
                   value={workStartTime}
                   onChange={(e) => setWorkStartTime(e.target.value)}
                   className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary focus:ring-2 focus:ring-secondary"
@@ -434,8 +468,7 @@ export default function WriteReviewPage() {
               <div>
                 <label className="block font-label-md text-label-md font-bold text-primary mb-xs">เวลาเลิกงาน</label>
                 <input
-                  type="text"
-                  placeholder="เช่น 17:00"
+                  type="time"
                   value={workEndTime}
                   onChange={(e) => setWorkEndTime(e.target.value)}
                   className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary focus:ring-2 focus:ring-secondary"
@@ -480,13 +513,14 @@ export default function WriteReviewPage() {
           <div className="space-y-md">
             <div>
               <div className="flex justify-between items-center mb-xs">
-                <label className="block font-label-md text-label-md font-bold text-primary">ลักษณะงานที่ปฏิบัติจริง*</label>
-                <span className={`text-xs font-bold ${textWork.length >= 50 && textWork.length <= 1000 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  (ปัจจุบันมี {textWork.length}/1000 ตัวอักษร)
+                <label className="block font-label-md text-label-md font-bold text-primary">ลักษณะงานที่ปฏิบัติจริง* (30-1,000 ตัวอักษร)</label>
+                <span className={`text-xs font-bold ${textWork.trim().length >= 30 && textWork.length <= 1000 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  ({textWork.length}/1000 ตัวอักษร {textWork.trim().length < 30 ? `(ขาดอีก ${30 - textWork.trim().length})` : ''})
                 </span>
               </div>
               <textarea
                 rows={5}
+                minLength={30}
                 maxLength={1000}
                 placeholder="เขียนรายละเอียดวงกว้าง เช่น ลักษณะแผนก หน้าที่งานหลัก และการดูแลของทีมงาน..."
                 value={textWork}

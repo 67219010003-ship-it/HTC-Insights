@@ -179,16 +179,20 @@ export default function ReportModal({
 
             {/* Additional Details */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                รายละเอียดเพิ่มเติม {selectedReason === "อื่นๆ" ? <span className="text-rose-500">*</span> : "(ไม่บังคับ)"}
-              </label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  รายละเอียดเพิ่มเติม {selectedReason === "อื่นๆ" ? <span className="text-rose-500">*</span> : "(ไม่บังคับ)"}
+                </label>
+                <span className="text-[10px] text-slate-400 font-medium">{details.length}/300</span>
+              </div>
               <textarea
                 value={details}
+                maxLength={300}
                 onChange={(e) => {
                   setDetails(e.target.value);
                   if (errorMessage) setErrorMessage(null);
                 }}
-                placeholder="อธิบายรายละเอียดเพิ่มเติมเกี่ยวกับรายงานนี้..."
+                placeholder="อธิบายรายละเอียดเพิ่มเติมเกี่ยวกับรายงานนี้ (สูงสุด 300 ตัวอักษร)..."
                 rows={3}
                 disabled={submitting}
                 className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:border-amber-500 focus:ring-amber-500 outline-none focus:ring-2 transition-all resize-none text-slate-800 font-medium placeholder:text-slate-400"

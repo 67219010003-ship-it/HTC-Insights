@@ -605,15 +605,25 @@ export default function AdminDashboardPage() {
                             {/* Author Info */}
                             <div className="text-xs text-on-surface-variant bg-surface-container-low/70 p-2.5 rounded-xl border border-outline-variant/30 flex items-center justify-between flex-wrap gap-2">
                               <span>
-                                ผู้เขียนจริง: <strong className="text-on-surface">{rev.real_author}</strong> ({rev.real_email})
+                                ผู้เขียนจริง:{" "}
+                                {rev.is_anonymous ? (
+                                  <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 text-[11px]">
+                                    <span className="material-symbols-outlined text-[13px]">lock</span>
+                                    ไม่ระบุตัวตน (ข้อมูลถูกเข้ารหัส)
+                                  </span>
+                                ) : (
+                                  <>
+                                    <strong className="text-on-surface">{rev.real_author}</strong> ({rev.real_email})
+                                  </>
+                                )}
                               </span>
                               {rev.is_anonymous && (
                                 <button
                                   onClick={() => setRevealTargetId(rev.id)}
-                                  className="text-[11px] font-bold text-secondary hover:underline flex items-center gap-1 cursor-pointer"
+                                  className="text-[11px] font-bold text-secondary hover:underline flex items-center gap-1 cursor-pointer bg-surface-container px-2.5 py-1 rounded-lg border border-outline-variant/40 hover:bg-secondary/10 transition-colors"
                                 >
                                   <span className="material-symbols-outlined text-[13px]">lock_open</span>
-                                  ถอดรหัสตัวตน
+                                  ถอดรหัสตัวตน (Audit Log)
                                 </button>
                               )}
                             </div>
@@ -962,10 +972,19 @@ export default function AdminDashboardPage() {
                               </span>
                             </td>
                             <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant">
-                              <div>{rev.real_author}</div>
-                              <div className="text-[10px] font-mono text-on-surface-variant/70">
-                                {rev.real_email}
-                              </div>
+                              {rev.is_anonymous ? (
+                                <span className="inline-flex items-center gap-1 font-bold text-amber-700 text-[11px]">
+                                  <span className="material-symbols-outlined text-[14px]">lock</span>
+                                  ไม่ระบุตัวตน
+                                </span>
+                              ) : (
+                                <>
+                                  <div>{rev.real_author}</div>
+                                  <div className="text-[10px] font-mono text-on-surface-variant/70">
+                                    {rev.real_email}
+                                  </div>
+                                </>
+                              )}
                             </td>
                             <td className="py-3 px-3 text-on-surface max-w-xs truncate">
                               {rev.text_work}

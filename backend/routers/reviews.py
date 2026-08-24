@@ -57,8 +57,8 @@ def create_review(data: ReviewCreate,
     """ บันทึกรีวิวประสบการณ์ฝึกงานใหม่ของนักศึกษา พร้อมระบบจำกัด 1 รีวิว/บริษัท/ปีการศึกษา """
     if not db.query(Company).filter(Company.id == data.company_id).first():
         raise HTTPException(404, "ไม่พบสถานประกอบการ")
-    if len(data.text_work) < 50:
-        raise HTTPException(400, "รายละเอียดลักษณะงานต้องมีอย่างน้อย 50 ตัวอักษร")
+    if len(data.text_work.strip()) < 30:
+        raise HTTPException(400, "รายละเอียดลักษณะงานต้องมีอย่างน้อย 30 ตัวอักษร")
     if len(data.text_work) > 1000:
         raise HTTPException(400, "รายละเอียดลักษณะงานต้องไม่เกิน 1000 ตัวอักษร")
     if data.text_pros and len(data.text_pros) > 500:

@@ -73,12 +73,19 @@ def list_reviews(status: str = Query(None),
     reviews = query.order_by(Review.created_at.desc()).all()
     result = []
     for r in reviews:
+        if r.is_anonymous:
+            author_name = "นักศึกษาไม่ระบุตัวตน (ข้อมูลถูกเข้ารหัส)"
+            author_email = "anonymous@encrypted"
+        else:
+            author_name = r.user.name if r.user else "Unknown"
+            author_email = r.user.email if r.user else "Unknown"
+
         result.append({
             "id": r.id,
             "company_id": r.company_id,
             "company_name": r.company.name if r.company else "Unknown",
-            "real_author": r.user.name if r.user else "Unknown",
-            "real_email": r.user.email if r.user else "Unknown",
+            "real_author": author_name,
+            "real_email": author_email,
             "is_anonymous": r.is_anonymous,
             "score_overall": r.score_overall,
             "text_work": r.text_work,

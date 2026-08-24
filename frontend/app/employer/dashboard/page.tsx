@@ -39,18 +39,44 @@ export default function EmployerDashboardPage() {
 
   const handleCreatePosting = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (title.trim().length < 5 || title.trim().length > 120) {
+      setToast({
+        isOpen: true,
+        message: "ตำแหน่งงานต้องมีความยาวระหว่าง 5 - 120 ตัวอักษร",
+        type: "error",
+      });
+      return;
+    }
+    if (description.trim().length < 20 || description.trim().length > 2000) {
+      setToast({
+        isOpen: true,
+        message: "รายละเอียดงานต้องมีความยาวระหว่าง 20 - 2,000 ตัวอักษร",
+        type: "error",
+      });
+      return;
+    }
+    const allowanceNum = parseInt(dailyAllowance) || 0;
+    if (allowanceNum < 0 || allowanceNum > 5000) {
+      setToast({
+        isOpen: true,
+        message: "เบี้ยเลี้ยงรายวันต้องอยู่ระหว่าง 0 - 5,000 บาท/วัน",
+        type: "error",
+      });
+      return;
+    }
     try {
       await api.post("/employer/postings", {
-        title,
+        title: title.trim(),
         department,
-        description,
-        daily_allowance: parseInt(dailyAllowance) || 0,
-        location,
-        deadline,
+        description: description.trim(),
+        daily_allowance: allowanceNum,
+        location: location || "หาดใหญ่, สงขลา",
+        deadline: deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
       });
       setShowModal(false);
       setTitle("");
       setDescription("");
+      setDailyAllowance("");
       setToast({
         isOpen: true,
         message: "สร้างประกาศรับสมัครสำเร็จ! กำลังรอ Admin ตรวจสอบและอนุมัติ",
@@ -129,8 +155,20 @@ export default function EmployerDashboardPage() {
             <h3 className="text-lg font-bold text-primary font-headline mb-4">สร้างประกาศงานใหม่</h3>
             <form onSubmit={handleCreatePosting} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-primary mb-1">ตำแหน่งงาน*</label>
-                <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-2 border rounded text-xs" />
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold text-primary">ตำแหน่งงาน* (5 - 120 ตัวอักษร)</label>
+                  <span className="text-[10px] text-on-surface-variant">{title.length}/120</span>
+                </div>
+                <input
+                  type="text"
+                  required
+                  minLength={5}
+                  maxLength={120}
+                  placeholder="เช่น ช่างซ่อมบำรุงฝึกหัด (PLC/ไฟฟ้า)"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full p-2 border rounded text-xs"
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-primary mb-1">แผนกวิชาที่ต้องการ</label>
@@ -142,16 +180,43 @@ export default function EmployerDashboardPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-primary mb-1">เบี้ยเลี้ยง (บาท/วัน)</label>
-                <input type="number" value={dailyAllowance} onChange={(e) => setDailyAllowance(e.target.value)} className="w-full p-2 border rounded text-xs" />
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold text-primary">เบี้ยเลี้ยง (บาท/วัน)</label>
+                  <span className="text-[10px] text-on-surface-variant">0 - 5,000 บาท</span>
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  max={5000}
+                  placeholder="เช่น 350 (ระบุ 0 ถ้าไม่มีเบี้ยเลี้ยง)"
+                  value={dailyAllowance}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || (Number(val) >= 0 && Number(val) <= 5000)) {
+                      setDailyAllowance(val);
+                    }
+                  }}
+                  className="w-full p-2 border rounded text-xs"
+                />
               </div>
               <div>
-                <label className="block text-xs font-bold text-primary mb-1">รายละเอียดงาน</label>
-                <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full p-2 border rounded text-xs" />
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold text-primary">รายละเอียดงาน (20 - 2,000 ตัวอักษร)</label>
+                  <span className="text-[10px] text-on-surface-variant">{description.length}/2000</span>
+                </div>
+                <textarea
+                  rows={4}
+                  minLength={20}
+                  maxLength={2000}
+                  placeholder="ระบุหน้าที่ความรับผิดชอบ คุณสมบัติ และสวัสดิการ..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full p-2 border rounded text-xs"
+                />
               </div>
               <div className="flex justify-end gap-2 pt-3">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded text-xs font-bold">ยกเลิก</button>
-                <button type="submit" className="px-5 py-2 bg-primary text-white rounded text-xs font-bold hover:bg-secondary">บันทึกประกาศ</button>
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded text-xs font-bold cursor-pointer">ยกเลิก</button>
+                <button type="submit" className="px-5 py-2 bg-primary text-white rounded text-xs font-bold hover:bg-secondary cursor-pointer">บันทึกประกาศ</button>
               </div>
             </form>
           </div>

@@ -47,10 +47,18 @@ export default function NewPostPage() {
       return;
     }
 
-    if (!title.trim() || !content.trim()) {
+    if (title.trim().length < 5 || title.trim().length > 120) {
       setToast({
         isOpen: true,
-        message: "กรุณากรอกหัวข้อและเนื้อหากระทู้ให้ครบถ้วน",
+        message: "หัวข้อกระทู้ต้องมีความยาวระหว่าง 5 - 120 ตัวอักษร",
+        type: "error",
+      });
+      return;
+    }
+    if (content.trim().length < 10 || content.trim().length > 2500) {
+      setToast({
+        isOpen: true,
+        message: "เนื้อหากระทู้ต้องมีความยาวระหว่าง 10 - 2,500 ตัวอักษร",
         type: "error",
       });
       return;
@@ -188,11 +196,18 @@ export default function NewPostPage() {
 
           {/* Title */}
           <div>
-            <label className="block text-xs font-bold text-primary mb-1.5 uppercase tracking-wider">
-              หัวข้อกระทู้*
-            </label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-xs font-bold text-primary uppercase tracking-wider">
+                หัวข้อกระทู้* (5 - 120 ตัวอักษร)
+              </label>
+              <span className={`text-[11px] font-bold ${title.trim().length >= 5 && title.length <= 120 ? 'text-emerald-600' : 'text-on-surface-variant'}`}>
+                {title.length}/120
+              </span>
+            </div>
             <input
               type="text"
+              minLength={5}
+              maxLength={120}
               placeholder="เช่น ขอสอบถามพี่ๆ ช่างอิเล็กทรอนิกส์ เรื่องสอบสัมภาษณ์บริษัท..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -202,11 +217,18 @@ export default function NewPostPage() {
 
           {/* Content */}
           <div>
-            <label className="block text-xs font-bold text-primary mb-1.5 uppercase tracking-wider">
-              เนื้อหากระทู้*
-            </label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-xs font-bold text-primary uppercase tracking-wider">
+                เนื้อหากระทู้* (10 - 2,500 ตัวอักษร)
+              </label>
+              <span className={`text-[11px] font-bold ${content.trim().length >= 10 && content.length <= 2500 ? 'text-emerald-600' : 'text-on-surface-variant'}`}>
+                {content.length}/2500
+              </span>
+            </div>
             <textarea
               rows={6}
+              minLength={10}
+              maxLength={2500}
               placeholder="เขียนรายละเอียด สิ่งที่ต้องการสอบถาม หรือประสบการณ์ที่อยากแชร์ให้เพื่อนๆ ฟัง..."
               value={content}
               onChange={(e) => setContent(e.target.value)}

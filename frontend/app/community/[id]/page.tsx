@@ -54,10 +54,14 @@ export default function ThreadDetailPage() {
   }, [postId, router]);
 
   const handleAddComment = async () => {
-    if (!comment) return;
+    if (!comment.trim()) return;
+    if (comment.trim().length < 2 || comment.trim().length > 600) {
+      setToast({ isOpen: true, message: "ความคิดเห็นต้องมีความยาวระหว่าง 2 - 600 ตัวอักษร", type: "error" });
+      return;
+    }
     try {
       await api.post(`/community/posts/${postId}/comments`, {
-        content: comment,
+        content: comment.trim(),
         is_anonymous: isAnonymous,
       });
       setComment("");
@@ -65,7 +69,9 @@ export default function ThreadDetailPage() {
       setPost(updated.data);
       setToast({ isOpen: true, message: "แสดงความคิดเห็นเรียบร้อยแล้ว", type: "success" });
     } catch (err: any) {
-      setToast({ isOpen: true, message: "เกิดข้อผิดพลาดในการส่งความคิดเห็น", type: "error" });
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : "เกิดข้อผิดพลาดในการส่งความคิดเห็น";
+      setToast({ isOpen: true, message: msg, type: "error" });
     }
   };
 
@@ -140,9 +146,16 @@ export default function ThreadDetailPage() {
 
       {/* Add Comment Section */}
       <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 mb-6 shadow-sm">
-        <h3 className="text-sm font-bold text-primary mb-3">เขียนความคิดเห็น</h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-sm font-bold text-primary">เขียนความคิดเห็น (2 - 600 ตัวอักษร)</h3>
+          <span className={`text-[11px] font-bold ${comment.trim().length >= 2 && comment.length <= 600 ? 'text-emerald-600' : 'text-on-surface-variant'}`}>
+            {comment.length}/600
+          </span>
+        </div>
         <textarea
           rows={3}
+          minLength={2}
+          maxLength={600}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder="พิมพ์ข้อความตอบกลับ..."

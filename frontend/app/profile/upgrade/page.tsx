@@ -32,7 +32,26 @@ export default function ProfileUpgradePage() {
       return;
     }
     if (!cardFile) {
-      setStatus({ text: "กรุณาแนบรูปภาพหลักฐานบัตรประจำตัวนักศึกษา", isError: true });
+      setStatus({ text: "กรุณาเลือกไฟล์ภาพหลักฐานบัตรประจำตัวนักศึกษา", isError: true });
+      return;
+    }
+
+    const cleanStudentId = studentId.replace(/\D/g, "");
+    if (cleanStudentId.length !== 11) {
+      setStatus({ text: "รหัสนักศึกษาต้องเป็นตัวเลข 11 หลัก (เช่น 67219010003)", isError: true });
+      return;
+    }
+
+    if (phone.trim()) {
+      const cleanPhone = phone.replace(/\D/g, "");
+      if (cleanPhone.length < 9 || cleanPhone.length > 10) {
+        setStatus({ text: "เบอร์โทรศัพท์ต้องเป็นตัวเลข 9 - 10 หลัก", isError: true });
+        return;
+      }
+    }
+
+    if (reason.trim().length > 300) {
+      setStatus({ text: "เหตุผลเพิ่มเติมต้องมีความยาวไม่เกิน 300 ตัวอักษร", isError: true });
       return;
     }
 
@@ -64,10 +83,10 @@ export default function ProfileUpgradePage() {
           Authorization: `Bearer ${getToken()}`,
         },
         body: JSON.stringify({
-          student_id: studentId,
+          student_id: cleanStudentId,
           department,
-          phone,
-          reason,
+          phone: phone.trim() || undefined,
+          reason: reason.trim() || undefined,
           card_image_url: cardImageUrl,
         }),
       });
