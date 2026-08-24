@@ -6,12 +6,14 @@ import { isAdmin } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import RejectReasonModal from "@/components/RejectReasonModal";
+import RevealAnonymousModal from "@/components/RevealAnonymousModal";
 
 export default function AdminReviewModerationPage() {
   const router = useRouter();
   const [pendingReviews, setPendingReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectModalItem, setRejectModalItem] = useState<{ id: number; title: string } | null>(null);
+  const [revealTargetId, setRevealTargetId] = useState<number | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
 
@@ -60,17 +62,6 @@ export default function AdminReviewModerationPage() {
     }
   };
 
-  const handleReveal = async (id: number) => {
-    const reason = prompt("กรุณาระบุเหตุผลการดึงตัวตนจริงของ Anonymous (เพื่อบันทึก Audit Log):");
-    if (!reason) return;
-    try {
-      const res = await api.get(`/admin/anonymous-reveal/${id}?reason=${encodeURIComponent(reason)}`);
-      alert(`ตัวตนจริงของผู้รีวิว: ${res.data.real_name} (${res.data.real_email})`);
-    } catch (err: any) {
-      alert("เกิดข้อผิดพลาด");
-    }
-  };
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center gap-2 mb-6">
@@ -112,8 +103,9 @@ export default function AdminReviewModerationPage() {
                     {r.is_anonymous && <span className="ml-2 text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded">[โหมดไม่ระบุตัวตน]</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg text-amber-800 font-bold text-sm">
-                  ★ {r.score_overall}
+                <div className="flex items-center gap-1 bg-secondary-container/20 border border-secondary/30 px-2.5 py-1 rounded-lg text-secondary font-bold text-sm">
+                  <span className="material-symbols-outlined text-[16px] text-secondary active-tab">star</span>
+                  {r.score_overall}
                 </div>
               </div>
 
@@ -132,9 +124,10 @@ export default function AdminReviewModerationPage() {
               <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                 {r.is_anonymous ? (
                   <button
-                    onClick={() => handleReveal(r.id)}
-                    className="text-xs text-amber-800 font-bold underline hover:text-amber-900"
+                    onClick={() => setRevealTargetId(r.id)}
+                    className="text-xs text-amber-800 font-bold underline hover:text-amber-900 flex items-center gap-1 cursor-pointer"
                   >
+                    <span className="material-symbols-outlined text-[14px]">lock_open</span>
                     Unlock Identity (Audit Logged)
                   </button>
                 ) : <div />}
@@ -142,13 +135,13 @@ export default function AdminReviewModerationPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setRejectModalItem({ id: r.id, title: `รีวิว ${r.company_name} โดย ${r.real_author}` })}
-                    className="px-4 py-2 border border-rose-300 text-rose-700 text-xs font-bold rounded-xl hover:bg-rose-50 transition-colors"
+                    className="px-4 py-2 border border-rose-300 text-rose-700 text-xs font-bold rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
                   >
                     ปฏิเสธรีวิว
                   </button>
                   <button
                     onClick={() => handleApprove(r.id)}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors"
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
                   >
                     อนุมัติรีวิว
                   </button>
@@ -169,6 +162,13 @@ export default function AdminReviewModerationPage() {
           onConfirm={handleConfirmReject}
         />
       )}
+
+      {/* Reveal Anonymous Modal */}
+      <RevealAnonymousModal
+        isOpen={!!revealTargetId}
+        reviewId={revealTargetId}
+        onClose={() => setRevealTargetId(null)}
+      />
     </div>
   );
 }

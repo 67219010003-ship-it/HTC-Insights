@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { isEmployer } from "@/lib/auth";
 import ReportModal from "@/components/ReportModal";
+import Toast from "@/components/Toast";
 
 export default function ThreadDetailPage() {
   const params = useParams();
@@ -13,6 +14,11 @@ export default function ThreadDetailPage() {
   const [post, setPost] = useState<any>(null);
   const [comment, setComment] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(true);
+  const [toast, setToast] = useState<{ isOpen: boolean; message: string; type: "success" | "error" | "info" }>({
+    isOpen: false,
+    message: "",
+    type: "info",
+  });
 
   // Report Modal state
   const [reportModal, setReportModal] = useState<{
@@ -28,13 +34,24 @@ export default function ThreadDetailPage() {
   });
 
   useEffect(() => {
-    if (isEmployer()) {
-      router.push("/");
+    // Check if external user
+    const token = typeof window !== "undefined" ? localStorage.getItem("htc_token") : null;
+    const role = typeof window !== "undefined" ? localStorage.getItem("htc_role") : null;
+    const userStr = typeof window !== "undefined" ? localStorage.getItem("htc_user") : null;
+    let userEmail = "";
+    try {
+      if (userStr) userEmail = JSON.parse(userStr)?.email || "";
+    } catch {}
+
+    const isInternal = role === "admin" || (role === "student" && (!userEmail || userEmail.endsWith("@htc.ac.th")));
+    if (!token || (!isInternal && role === "external")) {
+      router.replace("/");
       return;
     }
+
     if (!postId) return;
     api.get(`/community/posts/${postId}`).then((res) => setPost(res.data)).catch(() => {});
-  }, [postId]);
+  }, [postId, router]);
 
   const handleAddComment = async () => {
     if (!comment) return;
@@ -46,8 +63,9 @@ export default function ThreadDetailPage() {
       setComment("");
       const updated = await api.get(`/community/posts/${postId}`);
       setPost(updated.data);
+      setToast({ isOpen: true, message: "แสดงความคิดเห็นเรียบร้อยแล้ว", type: "success" });
     } catch (err: any) {
-      alert("เกิดข้อผิดพลาดในการส่งความคิดเห็น");
+      setToast({ isOpen: true, message: "เกิดข้อผิดพลาดในการส่งความคิดเห็น", type: "error" });
     }
   };
 
@@ -198,6 +216,14 @@ export default function ThreadDetailPage() {
         targetType={reportModal.targetType}
         targetId={reportModal.targetId}
         onClose={() => setReportModal((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Toast Notification */}
+      <Toast
+        isOpen={toast.isOpen}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

@@ -10,25 +10,26 @@ export interface DepartmentOption {
 
 export const ALL_DEPARTMENTS: DepartmentOption[] = [
   { value: "", label: "แผนกวิชาทั้งหมด", icon: "category" },
+  { value: "แผนกวิชาเทคโนโลยีสารสนเทศ", label: "แผนกวิชาเทคโนโลยีสารสนเทศ", icon: "laptop_chromebook" },
+  { value: "แผนกวิชาช่างอิเล็กทรอนิกส์", label: "แผนกวิชาช่างอิเล็กทรอนิกส์", icon: "memory" },
+  { value: "แผนกวิชาช่างไฟฟ้ากำลัง", label: "แผนกวิชาช่างไฟฟ้ากำลัง", icon: "bolt" },
   { value: "แผนกวิชาช่างยนต์", label: "แผนกวิชาช่างยนต์", icon: "directions_car" },
   { value: "แผนกวิชาช่างกลโรงงาน", label: "แผนกวิชาช่างกลโรงงาน", icon: "precision_manufacturing" },
   { value: "แผนกวิชาช่างเชื่อมโลหะ", label: "แผนกวิชาช่างเชื่อมโลหะ", icon: "hvac" },
-  { value: "แผนกวิชาช่างไฟฟ้ากำลัง", label: "แผนกวิชาช่างไฟฟ้ากำลัง", icon: "bolt" },
-  { value: "แผนกวิชาช่างอิเล็กทรอนิกส์", label: "แผนกวิชาช่างอิเล็กทรอนิกส์", icon: "memory" },
   { value: "แผนกวิชาช่างก่อสร้าง", label: "แผนกวิชาช่างก่อสร้าง", icon: "construction" },
   { value: "แผนกวิชาช่างโยธา", label: "แผนกวิชาช่างโยธา", icon: "architecture" },
   { value: "แผนกวิชาเทคนิคสถาปัตยกรรม", label: "แผนกวิชาเทคนิคสถาปัตยกรรม", icon: "domain" },
   { value: "แผนกวิชาช่างสำรวจ", label: "แผนกวิชาช่างสำรวจ", icon: "square_foot" },
   { value: "แผนกวิชาเครื่องทำความเย็นและปรับอากาศ", label: "แผนกวิชาเครื่องทำความเย็นและปรับอากาศ", icon: "ac_unit" },
   { value: "แผนกวิชาช่างเครื่องเรือนและตกแต่งภายใน", label: "แผนกวิชาช่างเครื่องเรือนและตกแต่งภายใน", icon: "chair" },
+  { value: "แผนกวิชาเมคคาทรอนิกส์และหุ่นยนต์", label: "แผนกวิชาเมคคาทรอนิกส์และหุ่นยนต์", icon: "smart_toy" },
+  { value: "แผนกวิชาการจัดการโลจิสติกส์และซัพลายเชน", label: "แผนกวิชาการจัดการโลจิสติกส์", icon: "local_shipping" },
+  { value: "แผนกวิชาการบัญชี", label: "แผนกวิชาการบัญชี", icon: "receipt_long" },
+  { value: "แผนกวิชาการตลาด", label: "แผนกวิชาการตลาด", icon: "storefront" },
+  { value: "แผนกวิชาคอมพิวเตอร์ธุรกิจ", label: "แผนกวิชาคอมพิวเตอร์ธุรกิจ", icon: "desktop_windows" },
   { value: "แผนกวิชาเทคนิคควบคุมและซ่อมบำรุงระบบขนส่งทางราง", label: "แผนกวิชาเทคนิคซ่อมบำรุงระบบขนส่งทางราง", icon: "train" },
   { value: "แผนกวิชาเทคโนโลยีเครื่องมือวัดและควบคุมปิโตรเลียม", label: "แผนกวิชาเทคโนโลยีปิโตรเลียม", icon: "oil_barrel" },
-  { value: "แผนกวิชาเทคโนโลยีสารสนเทศ", label: "แผนกวิชาเทคโนโลยีสารสนเทศ", icon: "laptop_chromebook" },
-  { value: "แผนกวิชาการจัดการโลจิสติกส์และซัพพลายเชน", label: "แผนกวิชาการจัดการโลจิสติกส์", icon: "local_shipping" },
-  { value: "แผนกวิชาเทคนิคพื้นฐาน", label: "แผนกวิชาเทคนิคพื้นฐาน", icon: "build" },
-  { value: "แผนกวิชาสามัญสัมพันธ์", label: "แผนกวิชาสามัญสัมพันธ์", icon: "menu_book" },
   { value: "แผนกวิชาเทคนิคพลังงาน", label: "แผนกวิชาเทคนิคพลังงาน", icon: "solar_power" },
-  { value: "แผนกวิชาเมคคาทรอนิกส์และหุ่นยนต์", label: "แผนกวิชาเมคคาทรอนิกส์และหุ่นยนต์", icon: "smart_toy" },
   { value: "แผนกวิชาธุรกิจการบิน", label: "แผนกวิชาธุรกิจการบิน", icon: "flight_takeoff" },
 ];
 
@@ -60,7 +61,7 @@ export default function DepartmentDropdown({ value, onChange, className }: Props
     return d.value === value || d.label === value || cleanD === cleanValue;
   }) || ALL_DEPARTMENTS[0];
   const displayIcon = mounted ? selectedDept.icon : ALL_DEPARTMENTS[0].icon;
-  const displayLabel = mounted ? selectedDept.label : ALL_DEPARTMENTS[0].label;
+  const displayLabel = mounted ? selectedDept.label.replace("แผนกวิชา", "").trim() : ALL_DEPARTMENTS[0].label;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

@@ -148,11 +148,11 @@ export default function StudentProfilePage() {
           <div className="space-y-1 min-w-0 flex-1">
             <div className="flex items-center justify-center sm:justify-start gap-2">
               <h1 className="text-2xl font-bold text-primary font-headline truncate">
-                {userProfile?.name || "นักศึกษาวิทยาลัยเทคนิคหาดใหญ่"}
+                {userProfile?.name || (isStudent() ? "นักศึกษาวิทยาลัยเทคนิคหาดใหญ่" : "ผู้ใช้ภายนอก")}
               </h1>
               <span className="inline-flex items-center gap-1 text-[11px] bg-secondary-container text-on-secondary-container px-2.5 py-0.5 rounded-full font-bold">
                 <span className="material-symbols-outlined text-[13px]">verified</span>
-                Google Account
+                {isStudent() ? "HTC Student" : "External Account"}
               </span>
             </div>
             <p className="text-body-sm text-body-sm text-on-surface-variant font-medium flex items-center gap-1">
@@ -174,42 +174,64 @@ export default function StudentProfilePage() {
           </div>
         </div>
 
-        {/* Profile Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-surface-container-low p-4 rounded-2xl text-center border border-outline-variant/60 mt-6">
-          <div>
-            <div className="text-2xl font-bold text-primary">{reviews.length}</div>
-            <div className="text-xs font-bold text-on-surface-variant">รีวิวที่ส่งทั้งหมด</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-secondary">
-              {reviews.filter((r) => r.status === "approved").length}
+        {/* Profile Statistics (Student only) */}
+        {isStudent() ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-surface-container-low p-4 rounded-2xl text-center border border-outline-variant/60 mt-6">
+            <div>
+              <div className="text-2xl font-bold text-primary">{reviews.length}</div>
+              <div className="text-xs font-bold text-on-surface-variant">รีวิวที่ส่งทั้งหมด</div>
             </div>
-            <div className="text-xs font-bold text-on-surface-variant">อนุมัติแล้ว</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-amber-600">
-              {reviews.filter((r) => r.status === "pending").length}
+            <div>
+              <div className="text-2xl font-bold text-secondary">
+                {reviews.filter((r) => r.status === "approved").length}
+              </div>
+              <div className="text-xs font-bold text-on-surface-variant">อนุมัติแล้ว</div>
             </div>
-            <div className="text-xs font-bold text-on-surface-variant">รอการตรวจสอบ</div>
+            <div>
+              <div className="text-2xl font-bold text-amber-600">
+                {reviews.filter((r) => r.status === "pending").length}
+              </div>
+              <div className="text-xs font-bold text-on-surface-variant">รอการตรวจสอบ</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-emerald-600">Active</div>
+              <div className="text-xs font-bold text-on-surface-variant">สถานะบัญชี Google</div>
+            </div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-emerald-600">Active</div>
-            <div className="text-xs font-bold text-on-surface-variant">สถานะบัญชี Google</div>
+        ) : (
+          <div className="bg-sky-50 border border-sky-200 rounded-2xl p-5 mt-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-bold">
+                <span className="material-symbols-outlined text-[20px]">school</span>
+              </div>
+              <div>
+                <h4 className="font-bold text-primary text-sm">คุณใช้อีเมลส่วนตัว</h4>
+                <p className="text-xs text-on-surface-variant">หากเป็นนักศึกษา วท.หาดใหญ่ สามารถยื่นบัตรนักศึกษาเพื่อเปิดสิทธิ์การใช้งานของนักศึกษาได้</p>
+              </div>
+            </div>
+            <Link
+              href="/"
+              className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-opacity-95 shrink-0"
+            >
+              ยื่นคำขอสิทธิ์นักศึกษาที่หน้าหลัก
+            </Link>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Review History Header & Add Review CTA */}
-      <div className="flex items-center justify-between pt-2">
-        <h2 className="text-lg font-bold text-primary font-headline">ประวัติการเขียนรีวิวของคุณ</h2>
-        <Link
-          href="/insights/write-review"
-          className="text-xs bg-secondary text-white px-4 py-2 rounded-xl font-bold hover:bg-opacity-90 transition-opacity shadow-sm flex items-center gap-1"
-        >
-          <span className="material-symbols-outlined text-[16px]">rate_review</span>
-          + เขียนรีวิวใหม่
-        </Link>
-      </div>
+      {/* Review History Header & Add Review CTA (Student only) */}
+      {isStudent() && (
+        <>
+          <div className="flex items-center justify-between pt-2">
+            <h2 className="text-lg font-bold text-primary font-headline">ประวัติการเขียนรีวิวของคุณ</h2>
+            <Link
+              href="/insights/write-review"
+              className="text-xs bg-secondary text-white px-4 py-2 rounded-xl font-bold hover:bg-opacity-90 transition-opacity shadow-sm flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-[16px]">rate_review</span>
+              + เขียนรีวิวใหม่
+            </Link>
+          </div>
 
       {/* Review History Cards */}
       <div className="space-y-4">
@@ -275,6 +297,8 @@ export default function StudentProfilePage() {
           ))
         )}
       </div>
+      </>
+      )}
 
       {/* Custom Reusable Confirm Modal */}
       <ConfirmModal

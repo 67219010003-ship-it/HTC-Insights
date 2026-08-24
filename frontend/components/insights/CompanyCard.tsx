@@ -45,17 +45,6 @@ export default function CompanyCard({ company }: CompanyCardProps) {
               </div>
             )}
 
-            {/* Verified Badge */}
-            {company.is_verified && (
-              <div className="absolute top-3 left-3 bg-surface-container-lowest/95 backdrop-blur-md px-2.5 py-1 rounded-full border border-secondary/20 flex items-center gap-1 shadow-sm">
-                <span className="material-symbols-outlined text-secondary text-[16px]">
-                  verified
-                </span>
-                <span className="font-label-sm text-[11px] font-bold text-secondary">
-                  Verified Partner
-                </span>
-              </div>
-            )}
 
             {/* Allowance Tag */}
             {company.avg_daily_allowance && (
@@ -96,13 +85,6 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                 ({company.review_count} รีวิว)
               </span>
             </div>
-
-            {/* Description snippet */}
-            {company.description && (
-              <p className="text-xs text-on-surface-variant line-clamp-2 leading-relaxed">
-                {company.description}
-              </p>
-            )}
           </div>
         </div>
 

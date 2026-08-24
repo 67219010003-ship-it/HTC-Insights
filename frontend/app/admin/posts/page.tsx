@@ -5,6 +5,7 @@ import { isAdmin, getToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import RejectReasonModal from "@/components/RejectReasonModal";
+import { API_URL } from "@/lib/api";
 
 interface PostItem {
   id: number;
@@ -30,7 +31,7 @@ export default function AdminPostsPage() {
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/admin/posts?status=pending", {
+      const res = await fetch(`${API_URL}/admin/posts?status=pending`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (res.ok) {
@@ -54,7 +55,7 @@ export default function AdminPostsPage() {
 
   const handleApprove = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:8000/admin/posts/${id}`, {
+      const res = await fetch(`${API_URL}/admin/posts/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -78,7 +79,7 @@ export default function AdminPostsPage() {
     if (!rejectModalItem) return;
     setRejecting(true);
     try {
-      const res = await fetch(`http://localhost:8000/admin/posts/${rejectModalItem.id}`, {
+      const res = await fetch(`${API_URL}/admin/posts/${rejectModalItem.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

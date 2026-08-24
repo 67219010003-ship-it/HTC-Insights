@@ -24,6 +24,21 @@ function InsightsPageContent() {
   const pageSize = 9;
 
   useEffect(() => {
+    // Check if external user
+    const token = typeof window !== "undefined" ? localStorage.getItem("htc_token") : null;
+    const role = typeof window !== "undefined" ? localStorage.getItem("htc_role") : null;
+    const userStr = typeof window !== "undefined" ? localStorage.getItem("htc_user") : null;
+    let userEmail = "";
+    try {
+      if (userStr) userEmail = JSON.parse(userStr)?.email || "";
+    } catch {}
+
+    const isInternal = role === "admin" || (role === "student" && (!userEmail || userEmail.endsWith("@htc.ac.th")));
+    if (!token || (!isInternal && role === "external")) {
+      router.replace("/auth/login");
+      return;
+    }
+
     const qParam = searchParams.get("q") || "";
     const deptParam = searchParams.get("department") || "";
     const scoresParam = searchParams.getAll("scores");
@@ -31,7 +46,7 @@ function InsightsPageContent() {
     setSelectedDept(deptParam);
     setSelectedStars(scoresParam.length > 0 ? new Set(scoresParam.map(Number)) : new Set());
     setPage(1);
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -104,10 +119,6 @@ function InsightsPageContent() {
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-3xl p-6 md:p-10 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-2 text-center md:text-left">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-bold text-secondary-fixed">
-            <span className="material-symbols-outlined text-[16px]">verified</span>
-            HTC Verified Insights
-          </span>
           <h1 className="font-headline-lg text-2xl md:text-4xl font-bold tracking-tight">
             ค้นหาสถานที่ฝึกงาน & อ่านรีวิวจริง
           </h1>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getToken, getUser } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { API_URL } from "@/lib/api";
 
 export default function ProfileUpgradePage() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function ProfileUpgradePage() {
       // 1. Upload proof card first
       const formData = new FormData();
       formData.append("file", cardFile);
-      const uploadRes = await fetch("http://localhost:8000/auth/upload-proof", {
+      const uploadRes = await fetch(`${API_URL}/auth/upload-proof`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${getToken()}`,
@@ -56,7 +57,7 @@ export default function ProfileUpgradePage() {
       const { url: cardImageUrl } = await uploadRes.json();
 
       // 2. Submit request with card_image_url
-      const res = await fetch("http://localhost:8000/auth/request-student-verification", {
+      const res = await fetch(`${API_URL}/auth/request-student-verification`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

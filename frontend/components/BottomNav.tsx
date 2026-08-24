@@ -22,6 +22,9 @@ export default function BottomNav() {
   }, [pathname]);
 
   const isEmp = role === "employer";
+  const isAdmin = role === "admin";
+  const isStudent = role === "student";
+  const isExternal = !isStudent && !isAdmin;
 
   return (
     <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-2 md:hidden bg-surface shadow-lg border-t border-outline-variant rounded-t-xl">
@@ -39,21 +42,23 @@ export default function BottomNav() {
         <span className="text-[11px]">Home</span>
       </Link>
 
-      <Link
-        href="/insights"
-        className={`flex flex-col items-center justify-center ${
-          pathname.startsWith("/insights")
-            ? "text-secondary font-bold"
-            : "text-on-surface-variant"
-        }`}
-      >
-        <span className={`material-symbols-outlined ${pathname.startsWith("/insights") ? "active-tab" : ""}`}>
-          rate_review
-        </span>
-        <span className="text-[11px]">Insights</span>
-      </Link>
+      {!isExternal && (
+        <Link
+          href="/insights"
+          className={`flex flex-col items-center justify-center ${
+            pathname.startsWith("/insights")
+              ? "text-secondary font-bold"
+              : "text-on-surface-variant"
+          }`}
+        >
+          <span className={`material-symbols-outlined ${pathname.startsWith("/insights") ? "active-tab" : ""}`}>
+            rate_review
+          </span>
+          <span className="text-[11px]">Insights</span>
+        </Link>
+      )}
 
-      {!isEmp && (
+      {!isExternal && (
         <Link
           href="/community"
           className={`flex flex-col items-center justify-center ${

@@ -2,10 +2,15 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 
-export default function LoginPage() {
+interface HomeLoginGateProps {
+  onLoginSuccess?: (role: string) => void;
+}
+
+export default function HomeLoginGate({ onLoginSuccess }: HomeLoginGateProps) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,7 +23,7 @@ export default function LoginPage() {
       process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
       "YOUR_GOOGLE_CLIENT_ID";
 
-    // โหลด Google GSI Script สำหรับปุ่มล็อกอิน
+    // Load Google Identity Services script if not already present
     if (!document.getElementById("google-gsi-script")) {
       const script = document.createElement("script");
       script.id = "google-gsi-script";
@@ -45,7 +50,7 @@ export default function LoginPage() {
           auto_select: false,
         });
 
-        const container = document.getElementById("google-signin-container");
+        const container = document.getElementById("home-google-signin-container");
         if (container) {
           (window as any).google.accounts.id.renderButton(container, {
             theme: "filled_blue",
@@ -57,7 +62,7 @@ export default function LoginPage() {
           });
         }
       } catch (err) {
-        // ละเว้นข้อผิดพลาดกรณีโหลดซ้ำ
+        // Ignored
       }
     }
   };
@@ -73,10 +78,11 @@ export default function LoginPage() {
         res.data.is_super_admin ?? false,
         res.data.user ?? null
       );
-      if (res.data.role === "admin" || res.data.is_super_admin) {
+
+      if (res.data.role === "admin") {
         router.push("/admin");
-      } else {
-        router.push("/");
+      } else if (onLoginSuccess) {
+        onLoginSuccess(res.data.role);
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || "เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google Account");
@@ -86,9 +92,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-margin-mobile py-12">
+    <div className="min-h-[75vh] flex items-center justify-center px-margin-mobile py-16">
       <div className="w-full max-w-md bg-surface border border-outline-variant rounded-3xl p-8 shadow-2xl space-y-6 text-center">
-        {/* ส่วนหัวแสดงโลโก้และชื่อเว็บ */}
+        {/* Brand Header */}
         <div className="flex flex-col items-center space-y-2">
           <img
             src="/logo-htc.png"
@@ -103,19 +109,14 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {error && (
-          <div className="p-3 bg-error-container text-on-error-container rounded-xl text-xs font-bold">
-            {error}
-          </div>
-        )}
-
-        {/* ปุ่มล็อกอิน Google */}
-        <div className="py-4 flex flex-col items-center justify-center min-h-[50px]">
-          <div id="google-signin-container" className="flex justify-center"></div>
+        {/* Info Pill */}
+        <div className="inline-flex items-center gap-xs px-3.5 py-1 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold">
+          <span className="material-symbols-outlined text-[14px]">lock</span>
+          กรุณาเข้าสู่ระบบเพื่อเริ่มต้นใช้งาน
         </div>
 
-        {/* กล่องคำแนะนำสำหรับนักศึกษาและบุคคลภายนอก */}
-        <div className="bg-sky-50 border border-sky-200 text-sky-950 rounded-xl p-4 text-xs leading-relaxed text-left space-y-2">
+        {/* Notice Alert for students & external */}
+        <div className="bg-sky-50 border border-sky-200 text-sky-950 rounded-xl p-3 text-xs leading-relaxed text-left space-y-1.5">
           <div className="flex items-center gap-1.5 font-bold text-primary">
             <span className="material-symbols-outlined text-[16px] text-secondary">info</span>
             <span>คำแนะนำการเข้าสู่ระบบ:</span>
@@ -126,6 +127,29 @@ export default function LoginPage() {
           <p className="text-[11px] text-on-surface-variant">
             • <strong>ผู้ใช้ภายนอก / ผู้ประกอบการ:</strong> เข้าสู่ระบบด้วย <span className="text-primary font-semibold">Google Account ทั่วไป</span> เพื่อเข้าสู่โหมดผู้ใช้ภายนอก (หากเป็นนักศึกษาที่ใช้อีเมลส่วนตัว สามารถยื่นเรื่องยืนยันตัวตนได้ในระบบ)
           </p>
+        </div>
+
+        {error && (
+          <div className="p-3 bg-error-container text-on-error-container rounded-xl text-xs font-bold">
+            {error}
+          </div>
+        )}
+
+        {/* Google Authentication Button Mount */}
+        <div className="py-2 flex flex-col items-center justify-center min-h-[50px]">
+          <div id="home-google-signin-container" className="flex justify-center"></div>
+        </div>
+
+        {/* Security & Features */}
+        <div className="pt-4 border-t border-outline-variant space-y-2 text-left">
+          <div className="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
+            <span className="material-symbols-outlined text-secondary text-[18px]">verified</span>
+            <span>ความปลอดภัยระดับสูง ยืนยันตัวตนผ่าน Google Identity</span>
+          </div>
+          <div className="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
+            <span className="material-symbols-outlined text-secondary text-[18px]">domain</span>
+            <span>แยกระบบการใช้งานอัตโนมัติตามประเภทบัญชีผู้ใช้</span>
+          </div>
         </div>
       </div>
     </div>

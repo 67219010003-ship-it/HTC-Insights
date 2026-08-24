@@ -76,6 +76,21 @@ export default function CompanyDetailPage() {
   }, [companyId]);
 
   useEffect(() => {
+    // Check if external user
+    const token = typeof window !== "undefined" ? localStorage.getItem("htc_token") : null;
+    const role = typeof window !== "undefined" ? localStorage.getItem("htc_role") : null;
+    const userStr = typeof window !== "undefined" ? localStorage.getItem("htc_user") : null;
+    let userEmail = "";
+    try {
+      if (userStr) userEmail = JSON.parse(userStr)?.email || "";
+    } catch {}
+
+    const isInternal = role === "admin" || (role === "student" && (!userEmail || userEmail.endsWith("@htc.ac.th")));
+    if (!token || (!isInternal && role === "external")) {
+      router.replace("/");
+      return;
+    }
+
     if (!companyId) return;
     api.get(`/companies/${companyId}`).then((res) => setCompany(res.data)).catch(() => {});
     api.get(`/companies/${companyId}/reviews`).then((res) => setReviews(res.data)).catch(() => {});
@@ -85,7 +100,7 @@ export default function CompanyDetailPage() {
         setMyReviewIds(new Set(res.data.map((r: any) => r.id)));
       }
     }).catch(() => {});
-  }, [companyId]);
+  }, [companyId, router]);
 
   const promptDeleteReview = (reviewId: number) => {
     setConfirmModal({
@@ -257,16 +272,8 @@ export default function CompanyDetailPage() {
       </div>
 
       {/* Company Extended Metadata & Contact */}
-      <div className="p-6 md:p-8 grid md:grid-cols-3 gap-md border border-outline-variant bg-surface-container-low rounded-2xl shadow-sm">
-          <div className="md:col-span-2 space-y-base">
-            <h3 className="font-bold text-primary text-sm flex items-center gap-xs">
-              <span className="material-symbols-outlined text-[20px]">info</span> เกี่ยวกับสถานประกอบการ
-            </h3>
-            <p className="text-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-              {company.description || "ไม่มีคำอธิบายเพิ่มเติมเกี่ยวกับสถานประกอบการแห่งนี้ รุ่นพี่ฝึกงานร่วมกันรายงานพิกัดและแชร์ข้อมูลเพื่อประโยชน์ของรุ่นน้อง"}
-            </p>
-          </div>
-          <div className="space-y-sm text-xs text-on-surface-variant md:border-l md:border-outline-variant md:pl-md">
+      <div className="p-6 md:p-8 border border-outline-variant bg-surface-container-low rounded-2xl shadow-sm">
+          <div className="space-y-sm text-xs text-on-surface-variant">
             <h4 className="font-bold text-primary text-xs flex items-center gap-xs mb-base">
               <span className="material-symbols-outlined text-[18px]">contact_phone</span> ช่องทางติดต่อ / ข้อมูลระบบ
             </h4>
@@ -367,14 +374,13 @@ export default function CompanyDetailPage() {
                 {/* Box 3: ระดับความพึงพอใจ */}
                 <div className="bg-sky-50/80 border border-sky-100 rounded-2xl p-3.5 flex items-center gap-md">
                   <div className="w-10 h-10 rounded-full bg-cyan-200/70 text-secondary flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[20px]">sentiment_satisfied</span>
+                    <span className="material-symbols-outlined text-[20px] active-tab">star</span>
                   </div>
                   <div>
                     <div className="text-xs text-on-surface-variant font-medium">ระดับความพึงพอใจ</div>
-                    <div className="text-sm font-bold text-primary">
-                      {company.avg_score
-                        ? `${Math.round((company.avg_score / 5) * 100)}%`
-                        : "96%"}
+                    <div className="text-sm font-bold text-primary flex items-center gap-1">
+                      <span>{company.avg_score ? Number(company.avg_score).toFixed(1) : "4.8"}</span>
+                      <span className="text-xs text-slate-400 font-normal">/ 5.0</span>
                     </div>
                   </div>
                 </div>
@@ -559,19 +565,7 @@ export default function CompanyDetailPage() {
                   </div>
                 )}
 
-                <div className="mt-md pt-3 border-t border-outline-variant/60 flex justify-between text-[11px] text-on-surface-variant font-semibold">
-                  <div className="flex items-center gap-md">
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px] text-secondary">payments</span>
-                      เบี้ยเลี้ยง: {r.daily_allowance ? `฿${r.daily_allowance}/วัน` : "ไม่มี"}
-                    </span>
-                    {r.has_transport && (
-                      <span className="flex items-center gap-1 text-emerald-700 font-bold">
-                        <span className="material-symbols-outlined text-[14px]">directions_car</span>
-                        มีรถรับส่ง/เดินทางสะดวก
-                      </span>
-                    )}
-                  </div>
+                <div className="mt-md pt-3 border-t border-outline-variant/60 flex justify-end text-[11px] text-on-surface-variant font-semibold">
                   <span className="text-on-surface-variant/80 font-normal">เขียนเมื่อ: {r.created_at || "N/A"}</span>
                 </div>
               </div>

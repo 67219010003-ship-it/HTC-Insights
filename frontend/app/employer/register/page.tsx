@@ -119,49 +119,7 @@ export default function EmployerRegisterPage() {
     setSubmitting(true);
     setError("");
 
-    // Create job object to display immediately on /jobs page
-    const newJob: JobData = {
-      id: Date.now(),
-      title: `นักศึกษาฝึกงาน (${companyName})`,
-      company_name: companyName,
-      location: `${address} อ.${district} จ.${province}`,
-      work_type: "ฝึกงาน (Internship)",
-      allowance_range: dailyAllowance ? `${dailyAllowance} / วัน` : undefined,
-      daily_allowance: parseInt(dailyAllowance) || 400,
-      logo_url: "",
-      highlights: [
-        `แผนกที่เปิดรับ: ${targetDepartments.join(", ")}`,
-        `สวัสดิการ: ${benefits || "เบี้ยเลี้ยงรายวัน"}`,
-        `ผู้ติดต่อ: ${contactPerson} (${phone})`,
-      ],
-      responsibilities: [
-        `ปฏิบัติงานตามสาขาวิชาช่าง ${targetDepartments.join(", ")}`,
-        "เรียนรู้ทักษะการทำงานจริงร่วมกับทีมช่างเทคนิคผู้เชี่ยวชาญ",
-        "ปฏิบัติตามกฎระเบียบและความปลอดภัยของสถานประกอบการ",
-      ],
-      qualifications: [
-        `เป็นนักศึกษา วท.หาดใหญ่ สาขา ${targetDepartments.join(", ")} หรือที่เกี่ยวข้อง`,
-        "มีความตรงต่อเวลา ขยัน ซื่อสัตย์ และพร้อมเรียนรู้สิ่งใหม่ๆ",
-      ],
-      benefits: [
-        `เบี้ยเลี้ยงรายวัน ฿${dailyAllowance || "400"}/วัน`,
-        ...(benefits ? benefits.split(",").map((b) => b.trim()) : ["สวัสดิการมาตรฐานสถานประกอบการ"]),
-      ],
-      posted_time: "เพิ่งลงประกาศเมื่อครู่",
-      latitude: lat || 7.0088,
-      longitude: lng || 100.4747,
-      phone,
-      email,
-      contact_person: contactPerson,
-      line_id: lineId,
-    };
-
-    // Save job into localStorage for persistent display on /jobs
-    try {
-      const existingStr = localStorage.getItem("htc_registered_jobs");
-      const existing = existingStr ? JSON.parse(existingStr) : [];
-      localStorage.setItem("htc_registered_jobs", JSON.stringify([newJob, ...existing]));
-    } catch {}
+    // Submit directly to API database backend
 
     try {
       await api.post("/auth/register/employer", {
@@ -213,7 +171,7 @@ export default function EmployerRegisterPage() {
             className="px-6 py-3 bg-primary text-on-primary font-bold rounded-xl text-xs hover:bg-primary/90 shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
           >
             <span className="material-symbols-outlined text-[18px]">work</span>
-            ไปที่หน้ารายการตำแหน่งงาน (Jobs)
+            ไปที่หน้ารายการตำแหน่งงาน
           </button>
           <button
             type="button"

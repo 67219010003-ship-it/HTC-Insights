@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { isAdmin, getToken, isSuperAdmin } from "@/lib/auth";
+import { useEffect, useState, useCallback } from "react";
+import { isAdmin, isSuperAdmin } from "@/lib/auth";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import AdminHeader from "@/components/AdminHeader";
+import { api } from "@/lib/api";
 
 interface UserItem {
   id: number;
@@ -25,27 +26,24 @@ export default function AdminUsersPage() {
   const [filterRole, setFilterRole] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      let url = "http://localhost:8000/admin/users?";
+      let url = "/admin/users?";
       if (filterRole) url += `role=${filterRole}&`;
-      if (searchTerm) url += `q=${encodeURIComponent(searchTerm)}`;
+      if (searchTerm.trim()) url += `q=${encodeURIComponent(searchTerm.trim())}`;
 
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data);
-      }
+      const res = await api.get(url);
+      setUsers(res.data || []);
     } catch (err) {
       console.error("Failed to load users:", err);
+      setMsg({ text: "ไม่สามารถโหลดข้อมูลผู้ใช้ได้", isError: true });
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterRole, searchTerm]);
 
   useEffect(() => {
     setMounted(true);
@@ -54,220 +52,251 @@ export default function AdminUsersPage() {
       return;
     }
     fetchUsers();
-  }, [router, filterRole]);
+  }, [router, fetchUsers]);
 
   const handleRoleChange = async (userId: number, newRole: string) => {
     setMsg(null);
+    setActionLoading(userId);
     try {
-      const res = await fetch(`http://localhost:8000/admin/users/${userId}/role`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ role: newRole }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMsg({ text: data.message });
-        fetchUsers();
-      } else {
-        setMsg({ text: data.detail || "เกิดข้อผิดพลาดในการเปลี่ยน Role", isError: true });
-      }
-    } catch (err) {
-      setMsg({ text: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้", isError: true });
+      const res = await api.patch(`/admin/users/${userId}/role`, { role: newRole });
+      setMsg({ text: res.data.message || "อัปเดตบทบาทผู้ใช้สำเร็จ" });
+      fetchUsers();
+    } catch (err: any) {
+      setMsg({ text: err.response?.data?.detail || "เกิดข้อผิดพลาดในการเปลี่ยน Role", isError: true });
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleToggleSuperAdmin = async (userId: number, currentIsSuper: boolean) => {
     setMsg(null);
+    setActionLoading(userId);
     try {
-      const res = await fetch(`http://localhost:8000/admin/users/${userId}/super-admin`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ is_super_admin: !currentIsSuper }),
+      const res = await api.patch(`/admin/users/${userId}/super-admin`, {
+        is_super_admin: !currentIsSuper,
       });
-      const data = await res.json();
-      if (res.ok) {
-        setMsg({ text: data.message });
-        fetchUsers();
-      } else {
-        setMsg({ text: data.detail || "เกิดข้อผิดพลาดในการอัปเดต Super Admin", isError: true });
-      }
-    } catch (err) {
-      setMsg({ text: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้", isError: true });
+      setMsg({ text: res.data.message || "อัปเดตสิทธิ์ Super Admin สำเร็จ" });
+      fetchUsers();
+    } catch (err: any) {
+      setMsg({ text: err.response?.data?.detail || "เกิดข้อผิดพลาดในการอัปเดต Super Admin", isError: true });
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleToggleBan = async (userId: number) => {
     setMsg(null);
+    setActionLoading(userId);
     try {
-      const res = await fetch(`http://localhost:8000/admin/users/${userId}/ban`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ reason: "แอดมินดำเนินการผ่านหน้าจัดการผู้ใช้" }),
+      const res = await api.patch(`/admin/users/${userId}/ban`, {
+        reason: "แอดมินดำเนินการผ่านหน้าจัดการผู้ใช้",
       });
-      const data = await res.json();
-      if (res.ok) {
-        setMsg({ text: data.message });
-        fetchUsers();
-      } else {
-        setMsg({ text: data.detail || "เกิดข้อผิดพลาดในการปรับสถานะบัญชี", isError: true });
-      }
-    } catch (err) {
-      setMsg({ text: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้", isError: true });
+      setMsg({ text: res.data.message || "ปรับสถานะการใช้งานบัญชีสำเร็จ" });
+      fetchUsers();
+    } catch (err: any) {
+      setMsg({ text: err.response?.data?.detail || "เกิดข้อผิดพลาดในการปรับสถานะบัญชี", isError: true });
+    } finally {
+      setActionLoading(null);
     }
   };
 
+  if (!mounted) return null;
+
+  const totalStudents = users.filter((u) => u.role === "student").length;
+  const totalAdmins = users.filter((u) => u.role === "admin").length;
+  const totalExternal = users.filter((u) => u.role === "external").length;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-      <div className="flex items-center gap-2 mb-6">
-        <Link href="/admin" className="text-gray-500 hover:text-gray-900 flex items-center gap-1 text-sm font-medium">
-          <span className="material-symbols-outlined text-base">arrow_back</span> กลับ Admin Center
-        </Link>
-      </div>
+    <div className="min-h-screen bg-background text-on-surface pb-xl">
+      {/* Top Admin Navigation Suite Header (NO SIDEBAR) */}
+      <AdminHeader
+        title="จัดการบัญชีผู้ใช้และสิทธิ์ (Users & Roles)"
+        subtitle="ตรวจสอบ กำหนดบทบาทสิทธิ์การใช้งาน และระงับบัญชีผู้ใช้ในระบบ HTC Insight"
+        onRefresh={fetchUsers}
+        refreshing={loading}
+      />
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">จัดการผู้ใช้และสิทธิ์การใช้งาน (Users & Roles)</h1>
-          <p className="text-sm text-gray-500 mt-1">กำหนด Role และระงับบัญชีผู้ใช้ในระบบ</p>
-        </div>
-      </div>
-
-      {msg && (
-        <div className={`p-4 rounded-xl mb-6 text-sm flex items-center justify-between ${msg.isError ? "bg-red-50 text-red-800 border border-red-200" : "bg-emerald-50 text-emerald-800 border border-emerald-200"}`}>
-          <span>{msg.text}</span>
-          <button onClick={() => setMsg(null)} className="text-gray-400 hover:text-gray-600">✕</button>
-        </div>
-      )}
-
-      {/* Filter and Search controls */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="ค้นหาตามชื่อ หรือ อีเมล..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && fetchUsers()}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div className="flex gap-2">
-          <select
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <div className="max-w-container-max mx-auto px-margin-mobile space-y-lg">
+        {/* Flash Message Banner */}
+        {msg && (
+          <div
+            className={`p-4 rounded-2xl text-xs md:text-sm font-semibold flex items-center justify-between shadow-xs border transition-all ${
+              msg.isError
+                ? "bg-rose-50 text-rose-900 border-rose-200"
+                : "bg-emerald-50 text-emerald-900 border-emerald-200"
+            }`}
           >
-            <option value="">ทั้งหมดทุก Role</option>
-            <option value="student">นักศึกษา (Student)</option>
-            <option value="external">บุคคลภายนอก (External)</option>
-            <option value="admin">ผู้ดูแลระบบ (Admin)</option>
-          </select>
-          <button
-            onClick={fetchUsers}
-            className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg text-sm hover:bg-blue-700 transition-colors"
-          >
-            ค้นหา
-          </button>
-        </div>
-      </div>
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-[20px]">
+                {msg.isError ? "error" : "check_circle"}
+              </span>
+              <span>{msg.text}</span>
+            </div>
+            <button
+              onClick={() => setMsg(null)}
+              className="p-1 hover:bg-black/5 rounded-lg transition-colors font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
-      {/* Users Table */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
-        <table className="w-full text-left text-sm border-collapse">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold">
-              <th className="py-3.5 px-4">ชื่อ - นามสกุล</th>
-              <th className="py-3.5 px-4">อีเมล</th>
-              <th className="py-3.5 px-4">แผนกวิชา</th>
-              <th className="py-3.5 px-4">Role สิทธิ์ปัจจุบัน</th>
-              <th className="py-3.5 px-4">Super Admin</th>
-              <th className="py-3.5 px-4">สถานะบัญชี</th>
-              <th className="py-3.5 px-4 text-right">การจัดการ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="py-8 text-center text-gray-500">กำลังโหลดข้อมูล...</td>
-              </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-8 text-center text-gray-500">ไม่พบผู้ใช้งาน</td>
-              </tr>
-            ) : (
-              users.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="py-3 px-4 font-medium text-gray-900">{u.name}</td>
-                  <td className="py-3 px-4 text-gray-600 font-mono text-xs">{u.email}</td>
-                  <td className="py-3 px-4 text-gray-600">{u.department || "-"}</td>
-                  <td className="py-3 px-4">
-                    <select
-                      value={u.role}
-                      onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold border ${
-                        u.role === "admin"
-                          ? "bg-amber-50 text-amber-800 border-amber-300"
-                          : u.role === "student"
-                          ? "bg-blue-50 text-blue-800 border-blue-300"
-                          : "bg-gray-100 text-gray-700 border-gray-300"
-                      }`}
-                    >
-                      <option value="student">Student</option>
-                      <option value="external">External</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </td>
-                  <td className="py-3 px-4">
-                    <button
-                      onClick={() => handleToggleSuperAdmin(u.id, u.is_super_admin)}
-                      disabled={!(mounted && isSuperAdmin())}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors flex items-center gap-1 ${
-                        u.is_super_admin
-                          ? "bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200"
-                          : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
-                      } ${!(mounted && isSuperAdmin()) ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      {u.is_super_admin ? (
-                        <>
-                          <span className="material-symbols-outlined text-[14px]">shield_person</span>
-                          Super Admin
-                        </>
-                      ) : (
-                        "ปกติ"
-                      )}
-                    </button>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${u.is_verified ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
-                      {u.is_verified ? "ปกติ (Active)" : "ระงับสิทธิ์ (Banned)"}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      onClick={() => handleToggleBan(u.id)}
-                      disabled={u.is_super_admin}
-                      className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                        u.is_verified
-                          ? "border-rose-300 text-rose-700 hover:bg-rose-50"
-                          : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                      } ${u.is_super_admin && "opacity-40 cursor-not-allowed"}`}
-                    >
-                      {u.is_verified ? "ระงับบัญชี" : "คืนสิทธิ์ใช้งาน"}
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+
+
+        {/* Filter and Search controls */}
+        <div className="bg-surface-container-lowest border border-outline-variant/40 p-5 rounded-3xl shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="relative w-full md:w-96">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
+              search
+            </span>
+            <input
+              type="text"
+              placeholder="ค้นหาตามชื่อ, อีเมล, แผนกวิชา..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && fetchUsers()}
+              className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary font-medium"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="px-4 py-2.5 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs font-bold text-on-surface focus:outline-none focus:border-primary flex-1 md:flex-none"
+            >
+              <option value="">ทั้งหมดทุกสิทธิ์ (All Roles)</option>
+              <option value="student">นักศึกษา (Student)</option>
+              <option value="external">บุคคลภายนอก (External)</option>
+              <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+            </select>
+
+            <button
+              onClick={fetchUsers}
+              className="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl shadow-xs hover:bg-primary-container transition-all cursor-pointer whitespace-nowrap"
+            >
+              ค้นหา
+            </button>
+          </div>
+        </div>
+
+        {/* Users Table */}
+        <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-6 shadow-xs space-y-4">
+          <div className="border-b border-outline-variant/30 pb-3 flex items-center justify-between">
+            <h3 className="text-base font-bold font-headline-sm text-primary">
+              รายชื่อผู้ใช้งานในระบบ ({users.length} รายการ)
+            </h3>
+            <span className="text-xs text-on-surface-variant">
+              เปลี่ยน Role หรือปรับสิทธิ์ Super Admin ได้ทันที
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="py-16 text-center text-xs text-on-surface-variant font-semibold space-y-2">
+              <span className="material-symbols-outlined text-3xl animate-spin text-primary">
+                progress_activity
+              </span>
+              <p>กำลังโหลดรายชื่อผู้ใช้...</p>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="py-16 text-center text-xs text-on-surface-variant font-semibold">
+              ไม่พบผู้ใช้งานที่ตรงกับเงื่อนไขค้นหา
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-outline-variant/40 bg-surface-container-low/60 font-bold font-label-md text-on-surface">
+                    <th className="py-3.5 px-4">ชื่อ - นามสกุล</th>
+                    <th className="py-3.5 px-4">อีเมล</th>
+                    <th className="py-3.5 px-4">แผนกวิชา / ระดับ</th>
+                    <th className="py-3.5 px-4">Role สิทธิ์ปัจจุบัน</th>
+                    <th className="py-3.5 px-4">Super Admin</th>
+                    <th className="py-3.5 px-4">สถานะบัญชี</th>
+                    <th className="py-3.5 px-4 text-right">การจัดการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/20 font-body-sm">
+                  {users.map((u) => (
+                    <tr key={u.id} className="hover:bg-surface-container-low/40 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-primary whitespace-nowrap">
+                        {u.name}
+                      </td>
+                      <td className="py-3.5 px-4 text-on-surface-variant font-mono text-[11px] whitespace-nowrap">
+                        {u.email}
+                      </td>
+                      <td className="py-3.5 px-4 text-on-surface whitespace-nowrap">
+                        {u.department || "-"} {u.level ? `(${u.level})` : ""}
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <select
+                          value={u.role}
+                          onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                          disabled={actionLoading === u.id}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
+                            u.role === "admin"
+                              ? "bg-amber-50 text-amber-800 border-amber-300"
+                              : u.role === "student"
+                              ? "bg-primary/10 text-primary border-primary/20"
+                              : "bg-surface-container text-on-surface-variant border-outline-variant/50"
+                          }`}
+                        >
+                          <option value="student">Student</option>
+                          <option value="external">External</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <button
+                          onClick={() => handleToggleSuperAdmin(u.id, u.is_super_admin)}
+                          disabled={!(mounted && isSuperAdmin()) || actionLoading === u.id}
+                          className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1 cursor-pointer ${
+                            u.is_super_admin
+                              ? "bg-purple-100 text-purple-900 border-purple-300 hover:bg-purple-200"
+                              : "bg-surface-container text-on-surface-variant border-outline-variant/40 hover:bg-surface-container-high"
+                          } ${!(mounted && isSuperAdmin()) ? "opacity-40 cursor-not-allowed" : ""}`}
+                        >
+                          {u.is_super_admin ? (
+                            <>
+                              <span className="material-symbols-outlined text-[14px]">shield_person</span>
+                              Super Admin
+                            </>
+                          ) : (
+                            "ปกติ"
+                          )}
+                        </button>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                            u.is_verified
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : "bg-rose-50 text-rose-800 border-rose-200"
+                          }`}
+                        >
+                          {u.is_verified ? "ปกติ (Active)" : "ระงับสิทธิ์ (Banned)"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => handleToggleBan(u.id)}
+                          disabled={u.is_super_admin || actionLoading === u.id}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                            u.is_verified
+                              ? "border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100"
+                              : "border-emerald-200 bg-emerald-50/70 text-emerald-700 hover:bg-emerald-100"
+                          } ${u.is_super_admin ? "opacity-30 cursor-not-allowed" : ""}`}
+                        >
+                          {u.is_verified ? "ระงับบัญชี" : "คืนสิทธิ์ใช้งาน"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

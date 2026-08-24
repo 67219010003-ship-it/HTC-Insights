@@ -27,8 +27,8 @@ export default function NewPostPage() {
   });
 
   useEffect(() => {
-    // Redirect employer away from student community posting
-    if (isEmployer()) {
+    // Redirect external/employer away from student community posting
+    if (!isStudent()) {
       router.push("/");
     }
   }, [router]);
@@ -68,17 +68,13 @@ export default function NewPostPage() {
 
       setToast({
         isOpen: true,
-        message: "สร้างกระทู้สำเร็จ!",
+        message: "สร้างกระทู้สำเร็จ! โพสต์ของคุณอยู่ระหว่างรอผู้ดูแลระบบ (Admin) ตรวจสอบและอนุมัติ",
         type: "success",
       });
 
       setTimeout(() => {
-        if (res.data?.post_id) {
-          router.push(`/community/${res.data.post_id}`);
-        } else {
-          router.push("/community");
-        }
-      }, 1000);
+        router.push("/community");
+      }, 2000);
     } catch (err: any) {
       console.error("Create post error:", err);
       const detail = err.response?.data?.detail;
@@ -126,6 +122,19 @@ export default function NewPostPage() {
             </h1>
             <p className="text-xs text-on-surface-variant mt-0.5">
               แชร์ประสบการณ์ ถามคำถาม หรือค้นหาเพื่อนร่วมฝึกงานในวิทยาลัย
+            </p>
+          </div>
+        </div>
+
+        {/* Approval Notice Banner */}
+        <div className="bg-sky-50 border border-sky-200 text-sky-950 rounded-xl p-3.5 text-xs leading-relaxed flex items-start gap-2.5 shadow-xs">
+          <span className="material-symbols-outlined text-secondary text-[20px] shrink-0 mt-0.5">
+            verified_user
+          </span>
+          <div className="space-y-0.5">
+            <p className="font-bold text-primary">การตรวจสอบและอนุมัติเนื้อหา</p>
+            <p className="text-on-surface-variant text-[11px]">
+              กระทู้ที่ตั้งจะถูกส่งไปยังระบบตรวจสอบของเจ้าหน้าที่ Admin ก่อน เพื่อความปลอดภัยและมารยาทในชุมชน และจะแสดงผลสู่สาธารณะทันทีเมื่อได้รับการอนุมัติ
             </p>
           </div>
         </div>

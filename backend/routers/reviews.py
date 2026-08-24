@@ -3,18 +3,22 @@ from sqlalchemy.orm import Session
 from datetime import date
 import os
 from database import get_db
-from models import Review, ReviewPhoto, Company, User, ReviewStatus, Gender
+from models import Review, ReviewPhoto, Company, User, ReviewStatus, Gender, UserRole
 from schemas.reviews import ReviewCreate, ReviewPublic
 from dependencies import require_student
 from auth import encrypt_identity
 from services.cloudinary_service import upload_review_photo
+from routers.notifications import create_notification
 
 router = APIRouter(tags=["reviews"])
-AUTO_APPROVE = os.getenv("AUTO_APPROVE_REVIEWS", "false").lower() == "true"
 
+def is_auto_approve() -> bool:
+    """ ตรวจสอบว่าระบบเปิดโหมดอนุมัติรีวิวอัตโนมัติหรือไม่ """
+    return os.getenv("AUTO_APPROVE_REVIEWS", "false").lower() in ("true", "1", "yes")
 
 @router.get("/reviews", response_model=list[ReviewPublic])
 def get_all_reviews(skip: int = 0, limit: int = 20, db: Session = Depends(get_db), current_user: User = Depends(require_student)):
+    """ ดึงรายการรีวิวทั้งหมดที่ได้รับการอนุมัติแล้วในระบบ เรียงจากล่าสุด """
     reviews = db.query(Review).filter(
         Review.status == ReviewStatus.approved,
     ).order_by(Review.created_at.desc()).offset(skip).limit(limit).all()
@@ -50,6 +54,7 @@ def get_all_reviews(skip: int = 0, limit: int = 20, db: Session = Depends(get_db
 def create_review(data: ReviewCreate,
                   current_user: User = Depends(require_student),
                   db: Session = Depends(get_db)):
+    """ บันทึกรีวิวประสบการณ์ฝึกงานใหม่ของนักศึกษา พร้อมระบบจำกัด 1 รีวิว/บริษัท/ปีการศึกษา """
     if not db.query(Company).filter(Company.id == data.company_id).first():
         raise HTTPException(404, "ไม่พบสถานประกอบการ")
     if len(data.text_work) < 50:
@@ -63,7 +68,6 @@ def create_review(data: ReviewCreate,
     if data.text_advice and len(data.text_advice) > 500:
         raise HTTPException(400, "คำแนะนำแก่น้องๆ ต้องไม่เกิน 500 ตัวอักษร")
 
-    # 1 review per user per company per academic year (May - Apr)
     today = date.today()
     academic_year_start = date(today.year if today.month >= 5 else today.year - 1, 5, 1)
     existing = db.query(Review).filter(
@@ -99,13 +103,28 @@ def create_review(data: ReviewCreate,
         text_advice=data.text_advice,
         is_anonymous=data.is_anonymous,
         anon_identity_enc=anon_enc,
-        status=ReviewStatus.approved if AUTO_APPROVE else ReviewStatus.pending,
+        status=ReviewStatus.approved if is_auto_approve() else ReviewStatus.pending,
     )
     db.add(review)
     db.commit()
     db.refresh(review)
+
+    # ส่งการแจ้งเตือนไปยัง Admin ทุกคนเมื่อมีรีวิวใหม่รอการอนุมัติ
+    if review.status == ReviewStatus.pending:
+        admins = db.query(User).filter(User.role == UserRole.admin).all()
+        comp_obj = db.query(Company).filter(Company.id == data.company_id).first()
+        comp_name = comp_obj.name if comp_obj else "สถานประกอบการ"
+        for adm in admins:
+            create_notification(
+                db=db,
+                user_id=adm.id,
+                title="มีรีวิวใหม่รอการอนุมัติ",
+                message=f"มีนักศึกษาส่งรีวิวสำหรับ '{comp_name}' รอการตรวจสอบจาก Admin",
+                type="info",
+                link="/admin"
+            )
     
-    msg = "ส่งรีวิวสำเร็จและอนุมัติแล้ว" if AUTO_APPROVE else "ส่งรีวิวสำเร็จ รอ Admin อนุมัติ"
+    msg = "ส่งรีวิวสำเร็จและอนุมัติแล้ว" if review.status == ReviewStatus.approved else "ส่งรีวิวสำเร็จ รอ Admin อนุมัติ"
     return {"message": msg, "review_id": review.id}
 
 @router.post("/reviews/{review_id}/photos", status_code=201)
@@ -115,6 +134,7 @@ def upload_photos(
     current_user: User = Depends(require_student),
     db: Session = Depends(get_db),
 ):
+    """ อัปโหลดรูปภาพประกอบรีวิวไปยัง Cloudinary (สูงสุด 5 รูป) """
     review = db.query(Review).filter(
         Review.id == review_id, Review.user_id == current_user.id
     ).first()
@@ -143,6 +163,7 @@ def get_company_reviews(company_id: int,
                          skip: int = 0, limit: int = 20,
                          db: Session = Depends(get_db),
                          current_user: User = Depends(require_student)):
+    """ ดึงรายการรีวิวทั้งหมดของสถานประกอบการที่ระบุ (เฉพาะที่อนุมัติแล้ว) """
     reviews = db.query(Review).filter(
         Review.company_id == company_id,
         Review.status == ReviewStatus.approved,
@@ -178,6 +199,7 @@ def get_company_reviews(company_id: int,
 @router.get("/reviews/my", response_model=list[ReviewPublic])
 def get_my_reviews(current_user: User = Depends(require_student),
                    db: Session = Depends(get_db)):
+    """ ดึงประวัติรีวิวทั้งหมดที่ตนเองเคยเขียนไว้ """
     reviews = db.query(Review).filter(Review.user_id == current_user.id).order_by(Review.created_at.desc()).all()
     result = []
     for r in reviews:
@@ -210,6 +232,7 @@ def update_review(
     current_user: User = Depends(require_student),
     db: Session = Depends(get_db),
 ):
+    """ แก้ไขข้อมูลรีวิวของตนเอง (การแก้ไขจะส่งกลับไปรอ Admin อนุมัติใหม่) """
     review = db.query(Review).filter(Review.id == review_id).first()
     if not review:
         raise HTTPException(404, "ไม่พบรีวิวในระบบ")
@@ -249,11 +272,12 @@ def update_review(
     review.text_advice = data.text_advice
     review.is_anonymous = data.is_anonymous
     review.anon_identity_enc = anon_enc
-    review.status = ReviewStatus.approved if AUTO_APPROVE else ReviewStatus.pending
+    auto_appr = is_auto_approve()
+    review.status = ReviewStatus.approved if auto_appr else ReviewStatus.pending
 
     db.commit()
     db.refresh(review)
-    return {"message": "แก้ไขรีวิวเรียบร้อยแล้ว (รอผู้ดูแลระบบอนุมัติใหม่)" if not AUTO_APPROVE else "แก้ไขรีวิวเรียบร้อยแล้ว"}
+    return {"message": "แก้ไขรีวิวเรียบร้อยแล้ว" if auto_appr else "แก้ไขรีวิวเรียบร้อยแล้ว (รอผู้ดูแลระบบอนุมัติใหม่)"}
 
 @router.delete("/reviews/{review_id}")
 def delete_review(
@@ -261,13 +285,13 @@ def delete_review(
     current_user: User = Depends(require_student),
     db: Session = Depends(get_db),
 ):
+    """ ลบรีวิวของตนเอง พร้อมลบรูปภาพประกอบทั้งหมด """
     review = db.query(Review).filter(Review.id == review_id).first()
     if not review:
         raise HTTPException(404, "ไม่พบรีวิวในระบบ")
     if review.user_id != current_user.id and current_user.role.value != "admin":
         raise HTTPException(403, "ไม่มีสิทธิ์ลบรีวิวนี้เนื่องจากไม่ใช่เจ้าของรีวิว")
     
-    # Remove associated photos
     db.query(ReviewPhoto).filter(ReviewPhoto.review_id == review.id).delete()
     db.delete(review)
     db.commit()

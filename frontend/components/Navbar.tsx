@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
-import { getToken, getRole, getUser, clearToken } from "@/lib/auth";
+import { getToken, getRole, getUser, clearToken, isSuperAdmin } from "@/lib/auth";
 import { api } from "@/lib/api";
 import StudentVerificationModal from "./StudentVerificationModal";
 
@@ -27,6 +27,7 @@ export default function Navbar() {
     avatar_url: string;
   } | null>(null);
 
+  const [mounted, setMounted] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
@@ -38,6 +39,29 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const fetchNotifications = () => {
+    const currentToken = getToken();
+    if (!currentToken) return;
+    api
+      .get("/notifications")
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setNotifications(
+            res.data.map((n: any) => ({
+              id: n.id,
+              title: n.title,
+              message: n.message,
+              type: n.type || "info",
+              time: n.created_at ? new Date(n.created_at).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit" }) : "",
+              isRead: Boolean(n.is_read),
+              link: n.link,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  };
 
   const fetchAuth = () => {
     const currentToken = getToken();
@@ -66,10 +90,12 @@ export default function Navbar() {
             setUserProfile(null);
           }
         });
+      fetchNotifications();
     }
   };
 
   useEffect(() => {
+    setMounted(true);
     fetchAuth();
 
     const handleAuthChange = () => {
@@ -79,9 +105,13 @@ export default function Navbar() {
     window.addEventListener("htc-auth-change", handleAuthChange);
     window.addEventListener("storage", handleAuthChange);
 
+    // Polling notifications every 15s
+    const interval = setInterval(fetchNotifications, 15000);
+
     return () => {
       window.removeEventListener("htc-auth-change", handleAuthChange);
       window.removeEventListener("storage", handleAuthChange);
+      clearInterval(interval);
     };
   }, [pathname]);
 
@@ -100,7 +130,13 @@ export default function Navbar() {
   }, []);
 
   const markAllAsRead = () => {
+    api.patch("/notifications/read-all").catch(() => {});
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
+
+  const markSingleAsRead = (id: number) => {
+    api.patch(`/notifications/${id}/read`).catch(() => {});
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
   };
 
   const handleLogout = () => {
@@ -109,11 +145,13 @@ export default function Navbar() {
     setRoleState(null);
     setUserProfile(null);
     setIsDropdownOpen(false);
-    window.location.href = "/";
+    window.location.href = "/auth/login";
   };
 
   const isEmp = role === "employer";
-  const isAdmin = role === "admin";
+  const isAdmin = role === "admin" || isSuperAdmin();
+  const isStudentUser = !isAdmin && (role === "student" || (userProfile?.email && userProfile.email.endsWith("@htc.ac.th")));
+  const isExternalUser = !isStudentUser && !isAdmin && !isEmp;
   const isNonHtcUser = userProfile?.email && !userProfile.email.endsWith("@htc.ac.th");
 
   const userAvatar =
@@ -141,78 +179,85 @@ export default function Navbar() {
 
           {/* Navigation Links - Perfectly Centered */}
           <nav className="hidden md:flex items-center justify-center gap-lg">
-            <Link
-              href="/"
-              className={`font-body-md text-body-md ${
-                pathname === "/"
-                  ? "text-secondary font-bold border-b-2 border-secondary pb-1"
-                  : "text-on-surface-variant hover:text-primary transition-colors duration-200"
-              }`}
-            >
-              Home
-            </Link>
+            {mounted && token && (
+              <>
+                <Link
+                  href="/"
+                  className={`font-body-md text-body-md ${
+                    pathname === "/"
+                      ? "text-secondary font-bold border-b-2 border-secondary pb-1"
+                      : "text-on-surface-variant hover:text-primary transition-colors duration-200"
+                  }`}
+                >
+                  Home
+                </Link>
 
-            <Link
-              href="/insights"
-              className={`font-body-md text-body-md ${
-                pathname.startsWith("/insights")
-                  ? "text-secondary font-bold border-b-2 border-secondary pb-1"
-                  : "text-on-surface-variant hover:text-primary transition-colors duration-200"
-              }`}
-            >
-              Insights
-            </Link>
+                {!isExternalUser && (
+                  <Link
+                    href="/insights"
+                    className={`font-body-md text-body-md ${
+                      pathname.startsWith("/insights")
+                        ? "text-secondary font-bold border-b-2 border-secondary pb-1"
+                        : "text-on-surface-variant hover:text-primary transition-colors duration-200"
+                    }`}
+                  >
+                    Insights
+                  </Link>
+                )}
 
-            {!isEmp && (
-              <Link
-                href="/community"
-                className={`font-body-md text-body-md ${
-                  pathname.startsWith("/community")
-                    ? "text-secondary font-bold border-b-2 border-secondary pb-1"
-                    : "text-on-surface-variant hover:text-primary transition-colors duration-200"
-                }`}
-              >
-                Community
-              </Link>
-            )}
+                {!isExternalUser && (
+                  <Link
+                    href="/community"
+                    className={`font-body-md text-body-md ${
+                      pathname.startsWith("/community")
+                        ? "text-secondary font-bold border-b-2 border-secondary pb-1"
+                        : "text-on-surface-variant hover:text-primary transition-colors duration-200"
+                    }`}
+                  >
+                    Community
+                  </Link>
+                )}
 
-            <Link
-              href="/jobs"
-              className={`font-body-md text-body-md ${
-                pathname.startsWith("/jobs")
-                  ? "text-secondary font-bold border-b-2 border-secondary pb-1"
-                  : "text-on-surface-variant hover:text-primary transition-colors duration-200"
-              }`}
-            >
-              Jobs
-            </Link>
+                <Link
+                  href="/jobs"
+                  className={`font-body-md text-body-md ${
+                    pathname.startsWith("/jobs")
+                      ? "text-secondary font-bold border-b-2 border-secondary pb-1"
+                      : "text-on-surface-variant hover:text-primary transition-colors duration-200"
+                  }`}
+                >
+                  Jobs
+                </Link>
 
-            {isEmp && (
-              <Link
-                href="/employer/dashboard"
-                className={`font-body-md text-body-md ${
-                  pathname.startsWith("/employer")
-                    ? "text-secondary font-bold border-b-2 border-secondary pb-1"
-                    : "text-on-surface-variant hover:text-primary transition-colors duration-200"
-                }`}
-              >
-                Portal
-              </Link>
-            )}
+                {isEmp && (
+                  <Link
+                    href="/employer/dashboard"
+                    className={`font-body-md text-body-md ${
+                      pathname.startsWith("/employer")
+                        ? "text-secondary font-bold border-b-2 border-secondary pb-1"
+                        : "text-on-surface-variant hover:text-primary transition-colors duration-200"
+                    }`}
+                  >
+                    Portal
+                  </Link>
+                )}
 
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="font-body-md text-body-md text-error font-bold hover:underline"
-              >
-                Admin
-              </Link>
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className="font-body-md text-body-md text-error font-bold hover:underline"
+                  >
+                    Admin
+                  </Link>
+                )}
+              </>
             )}
           </nav>
 
           {/* Right Section: Notifications + Profile Avatar */}
           <div className="flex items-center justify-end gap-2">
-            {token ? (
+            {mounted && (
+              token ? (
               <>
                 {/* Notification Bell Icon & Popover Dropdown */}
                 <div className="relative flex items-center" ref={notifRef}>
@@ -265,21 +310,17 @@ export default function Navbar() {
 
                       {/* Notification Items List */}
                       <div className="space-y-2 max-h-80 overflow-y-auto hide-scrollbar">
-                        {notifications.length === 0 ? (
+                        {notifications.filter((n) => !n.isRead).length === 0 ? (
                           <div className="text-center py-6 text-xs text-on-surface-variant">
                             ไม่มีการแจ้งเตือนในขณะนี้
                           </div>
                         ) : (
-                          notifications.map((item) => (
+                          notifications.filter((n) => !n.isRead).map((item) => (
                             <Link
                               key={item.id}
                               href={item.link || "#"}
                               onClick={() => {
-                                setNotifications((prev) =>
-                                  prev.map((n) =>
-                                    n.id === item.id ? { ...n, isRead: true } : n
-                                  )
-                                );
+                                markSingleAsRead(item.id);
                                 setIsNotifOpen(false);
                               }}
                               className={`block p-3 rounded-xl transition-all border ${
@@ -411,7 +452,7 @@ export default function Navbar() {
                           จัดการบัญชี
                         </Link>
 
-                        {!isEmp && (
+                        {!isExternalUser && (
                           <Link
                             href="/community"
                             onClick={() => setIsDropdownOpen(false)}
@@ -492,7 +533,8 @@ export default function Navbar() {
                 </svg>
                 เข้าสู่ระบบด้วย Google
               </Link>
-            )}
+            )
+          )}
           </div>
         </div>
       </header>

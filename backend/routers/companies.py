@@ -13,12 +13,13 @@ router = APIRouter(prefix="/companies", tags=["companies"])
 def list_companies(
     q: str = Query(None),
     department: str = Query(None),
-    scores: List[int] = Query(None),   # multi-select star bands: 1,2,3,4,5
+    scores: List[int] = Query(None),
     skip: int = 0,
     limit: int = 20,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student)
 ):
+    """ ค้นหาและแสดงรายการสถานประกอบการ พร้อมคำนวณคะแนนเฉลี่ยและจำนวนรีวิว """
     avg_expr = func.avg(Review.score_overall)
 
     query = db.query(
@@ -28,7 +29,9 @@ def list_companies(
         func.avg(Review.daily_allowance).label("avg_daily_allowance"),
     ).outerjoin(Review, (Review.company_id == Company.id) &
                         (Review.status == ReviewStatus.approved)
-    ).group_by(Company.id)
+    ).group_by(Company.id).having(
+        (func.count(Review.id) > 0) | (Company.is_verified == True)
+    )
 
     if q and isinstance(q, str) and q.strip():
         q_strip = q.strip()
@@ -59,8 +62,6 @@ def list_companies(
         )
         query = query.filter(Company.id.in_(dept_subquery))
 
-    # Multi-select star band filter
-    # Each selected star s matches: s <= avg < s+1  (special: 5 means avg >= 5.0)
     if scores:
         band_clauses = []
         for s in scores:
@@ -102,6 +103,7 @@ def create_company(
     current_user: User = Depends(require_student),
     db: Session = Depends(get_db)
 ):
+    """ เพิ่มข้อมูลสถานประกอบการใหม่เข้าสู่ระบบฐานข้อมูล """
     existing = db.query(Company).filter(Company.name.ilike(data.name)).first()
     if existing:
         updated = False
@@ -141,6 +143,7 @@ def create_company(
 
 @router.get("/{company_id}", response_model=CompanyDetail)
 def get_company(company_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_student)):
+    """ ดึงรายละเอียดข้อมูลสถานประกอบการ พร้อมพิกัด แผนที่ และสถิติต่างๆ """
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(404, "ไม่พบสถานประกอบการ")

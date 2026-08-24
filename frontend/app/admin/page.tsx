@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import { isAdmin, getToken, isSuperAdmin } from "@/lib/auth";
+import { isAdmin } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import RejectReasonModal from "@/components/RejectReasonModal";
+import RevealAnonymousModal from "@/components/RevealAnonymousModal";
+import AdminHeader from "@/components/AdminHeader";
+import { api } from "@/lib/api";
 
 interface StatsData {
   users: { total: number; students: number; external: number; admins: number };
@@ -14,7 +17,7 @@ interface StatsData {
   upgrades: { pending: number };
 }
 
-interface PendingReview {
+interface AdminReview {
   id: number;
   company_name: string;
   real_author: string;
@@ -22,24 +25,33 @@ interface PendingReview {
   is_anonymous?: boolean;
   score_overall: number;
   text_work: string;
+  text_pros?: string;
+  text_cons?: string;
+  photo_urls?: string[];
+  status: string;
+  rejection_reason?: string;
   created_at: string;
 }
 
-interface PendingPost {
+interface AdminPost {
   id: number;
   author_name: string;
   type: string;
   title: string;
   content: string;
+  status: string;
+  rejection_reason?: string;
   created_at: string;
 }
 
-interface PendingJob {
+interface AdminJob {
   id: number;
   title: string;
   employer_name: string;
   description: string;
   location: string | null;
+  status: string;
+  rejection_reason?: string;
   created_at: string;
 }
 
@@ -62,8 +74,19 @@ interface PendingReport {
   created_at: string;
 }
 
+interface AuditLogItem {
+  id: number;
+  admin_name: string;
+  action: string;
+  target_type: string;
+  target_id: number;
+  reason: string | null;
+  created_at: string;
+}
+
 type ItemType = "review" | "post" | "job" | "upgrade";
-type TabType = "overview" | "reviews" | "community" | "jobs" | "upgrades" | "reports";
+type TabType = "moderation" | "all_reviews" | "all_posts" | "all_jobs" | "reports" | "audit";
+type ModerationCategory = "all" | "review" | "post" | "job" | "upgrade";
 
 interface RejectTarget {
   type: ItemType;
@@ -74,44 +97,61 @@ interface RejectTarget {
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [activeTab, setActiveTab] = useState<TabType>("moderation");
+  const [modCategory, setModCategory] = useState<ModerationCategory>("all");
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Lists
-  const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
-  const [pendingPosts, setPendingPosts] = useState<PendingPost[]>([]);
-  const [pendingJobs, setPendingJobs] = useState<PendingJob[]>([]);
+  // Search & Filter states
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<string>("all");
+  const [postSearch, setPostSearch] = useState("");
+  const [postStatusFilter, setPostStatusFilter] = useState<string>("all");
+  const [jobSearch, setJobSearch] = useState("");
+  const [jobStatusFilter, setJobStatusFilter] = useState<string>("all");
+  const [auditSearch, setAuditSearch] = useState("");
+  const [auditActionFilter, setAuditActionFilter] = useState<string>("all");
+
+  // Lists for moderation and management
+  const [reviews, setReviews] = useState<AdminReview[]>([]);
+  const [posts, setPosts] = useState<AdminPost[]>([]);
+  const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [pendingUpgrades, setPendingUpgrades] = useState<PendingUpgrade[]>([]);
   const [pendingReports, setPendingReports] = useState<PendingReport[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
 
-  // Modal & notification state
+  // Modals & Action status
   const [rejectTarget, setRejectTarget] = useState<RejectTarget | null>(null);
+  const [revealTargetId, setRevealTargetId] = useState<number | null>(null);
   const [rejecting, setRejecting] = useState(false);
+  const [deleting, setDeleting] = useState<{ type: string; id: number } | null>(null);
+  const [actionLoading, setActionLoading] = useState<{ type: string; id: number } | null>(null);
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
 
+  // Fetch all dashboard data
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
-    const headers = { Authorization: `Bearer ${getToken()}` };
-
     try {
-      const [statsRes, reviewsRes, postsRes, jobsRes, upgradesRes, reportsRes] = await Promise.all([
-        fetch("http://localhost:8000/admin/stats", { headers }),
-        fetch("http://localhost:8000/admin/reviews/pending", { headers }),
-        fetch("http://localhost:8000/admin/posts?status=pending", { headers }),
-        fetch("http://localhost:8000/admin/jobs?status=pending", { headers }),
-        fetch("http://localhost:8000/admin/upgrades?status=pending", { headers }),
-        fetch("http://localhost:8000/admin/reports?status=pending", { headers }),
+      const [statsRes, reviewsRes, postsRes, jobsRes, upgradesRes, reportsRes, logsRes] = await Promise.all([
+        api.get("/admin/stats"),
+        api.get("/admin/reviews?status=all"),
+        api.get("/admin/posts"),
+        api.get("/admin/jobs"),
+        api.get("/admin/upgrades?status=pending"),
+        api.get("/admin/reports"),
+        api.get("/admin/audit-logs"),
       ]);
 
-      if (statsRes.ok) setStats(await statsRes.json());
-      if (reviewsRes.ok) setPendingReviews(await reviewsRes.json());
-      if (postsRes.ok) setPendingPosts(await postsRes.json());
-      if (jobsRes.ok) setPendingJobs(await jobsRes.json());
-      if (upgradesRes.ok) setPendingUpgrades(await upgradesRes.json());
-      if (reportsRes.ok) setPendingReports(await reportsRes.json());
+      setStats(statsRes.data);
+      setReviews(reviewsRes.data || []);
+      setPosts(postsRes.data || []);
+      setJobs(jobsRes.data || []);
+      setPendingUpgrades(upgradesRes.data || []);
+      setPendingReports(reportsRes.data || []);
+      setAuditLogs(logsRes.data || []);
     } catch (err) {
       console.error("Failed to load admin data:", err);
+      setMsg({ text: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์หรือโหลดข้อมูลได้", isError: true });
     } finally {
       setLoading(false);
     }
@@ -126,606 +166,1224 @@ export default function AdminDashboardPage() {
     fetchDashboardData();
   }, [router, fetchDashboardData]);
 
-  // Approve action
+  // Admin approvals
   const handleApprove = async (type: ItemType, id: number) => {
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getToken()}`,
-    };
-
+    setActionLoading({ type, id });
     let url = "";
-    if (type === "review") url = `http://localhost:8000/admin/reviews/${id}/approve`;
-    else if (type === "post") url = `http://localhost:8000/admin/posts/${id}`;
-    else if (type === "job") url = `http://localhost:8000/admin/jobs/${id}`;
-    else if (type === "upgrade") url = `http://localhost:8000/admin/upgrades/${id}`;
+    if (type === "review") url = `/admin/reviews/${id}/approve`;
+    else if (type === "post") url = `/admin/posts/${id}`;
+    else if (type === "job") url = `/admin/jobs/${id}`;
+    else if (type === "upgrade") url = `/admin/upgrades/${id}`;
 
     try {
-      const res = await fetch(url, {
-        method: "PATCH",
-        headers,
-        body: type !== "review" ? JSON.stringify({ status: "approved" }) : undefined,
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMsg({ text: data.message || "อนุมัติรายการสำเร็จ" });
-        fetchDashboardData();
-      } else {
-        setMsg({ text: data.detail || "เกิดข้อผิดพลาดในการอนุมัติ", isError: true });
-      }
-    } catch {
-      setMsg({ text: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้", isError: true });
+      const res = await api.patch(url, type !== "review" ? { status: "approved" } : undefined);
+      setMsg({ text: res.data.message || "อนุมัติรายการสำเร็จเรียบร้อยแล้ว" });
+      fetchDashboardData();
+    } catch (err: any) {
+      setMsg({ text: err.response?.data?.detail || "เกิดข้อผิดพลาดในการอนุมัติ", isError: true });
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  // Reject action via Modal
+  // Admin rejections
   const handleConfirmReject = async (reason: string) => {
     if (!rejectTarget) return;
     setRejecting(true);
 
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getToken()}`,
-    };
-
     const { type, id } = rejectTarget;
     let url = "";
-    if (type === "review") url = `http://localhost:8000/admin/reviews/${id}`;
-    else if (type === "post") url = `http://localhost:8000/admin/posts/${id}`;
-    else if (type === "job") url = `http://localhost:8000/admin/jobs/${id}`;
-    else if (type === "upgrade") url = `http://localhost:8000/admin/upgrades/${id}`;
+    if (type === "review") url = `/admin/reviews/${id}`;
+    else if (type === "post") url = `/admin/posts/${id}`;
+    else if (type === "job") url = `/admin/jobs/${id}`;
+    else if (type === "upgrade") url = `/admin/upgrades/${id}`;
 
     try {
-      const res = await fetch(url, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({ status: "rejected", rejection_reason: reason }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMsg({ text: data.message || "ปฏิเสธรายการสำเร็จ" });
-        setRejectTarget(null);
-        fetchDashboardData();
-      } else {
-        setMsg({ text: data.detail || "เกิดข้อผิดพลาดในการปฏิเสธ", isError: true });
-      }
-    } catch {
-      setMsg({ text: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้", isError: true });
+      const res = await api.patch(url, { status: "rejected", rejection_reason: reason });
+      setMsg({ text: res.data.message || "ปฏิเสธรายการสำเร็จ พร้อมบันทึกเหตุผล" });
+      setRejectTarget(null);
+      fetchDashboardData();
+    } catch (err: any) {
+      setMsg({ text: err.response?.data?.detail || "เกิดข้อผิดพลาดในการปฏิเสธ", isError: true });
     } finally {
       setRejecting(false);
     }
   };
 
-  // Report resolution action
+  // Admin Deletion Function
+  const handleDelete = async (type: "review" | "post" | "job", id: number) => {
+    const typeNames = { review: "รีวิว", post: "กระทู้", job: "ประกาศงาน" };
+    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${typeNames[type]} นี้อย่างถาวรจากฐานข้อมูล?`)) {
+      return;
+    }
+    setDeleting({ type, id });
+    try {
+      const res = await api.delete(`/admin/${type}s/${id}`);
+      setMsg({ text: res.data.message || "ลบข้อมูลออกจากระบบสำเร็จ" });
+      fetchDashboardData();
+    } catch (err: any) {
+      setMsg({ text: err.response?.data?.detail || "เกิดข้อผิดพลาดในการลบข้อมูล", isError: true });
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  // Handle reports
   const handleResolveReport = async (reportId: number, status: string, action?: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/admin/reports/${reportId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ status, action }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMsg({ text: data.message || "จัดการรายงานสำเร็จ" });
-        fetchDashboardData();
-      } else {
-        setMsg({ text: data.detail || "เกิดข้อผิดพลาดในการจัดการรายงาน", isError: true });
-      }
-    } catch {
-      setMsg({ text: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้", isError: true });
+      const res = await api.patch(`/admin/reports/${reportId}`, { status, action });
+      setMsg({ text: res.data.message || "จัดการรายงานความผิดสำเร็จ" });
+      fetchDashboardData();
+    } catch (err: any) {
+      setMsg({ text: err.response?.data?.detail || "เกิดข้อผิดพลาดในการจัดการรายงาน", isError: true });
     }
   };
 
-  const handleReveal = async (id: number) => {
-    const reason = prompt("กรุณาระบุเหตุผลการถอดรหัสตัวตนจริงของ Anonymous (เพื่อบันทึกใน Audit Log):");
-    if (!reason || !reason.trim()) return;
-    try {
-      const res = await fetch(`http://localhost:8000/admin/anonymous-reveal/${id}?reason=${encodeURIComponent(reason)}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        alert(`ตัวตนจริงของผู้โพสต์:\nชื่อ: ${data.real_name}\nอีเมล: ${data.real_email}`);
-      } else {
-        const errData = await res.json();
-        setMsg({ text: errData.detail || "เกิดข้อผิดพลาดในการถอดรหัสตัวตน", isError: true });
-      }
-    } catch {
-      setMsg({ text: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้", isError: true });
+  const formatAuditAction = (action: string) => {
+    switch (action) {
+      case "approve_review":
+        return { label: "อนุมัติรีวิว", color: "bg-emerald-50 text-emerald-800 border-emerald-200" };
+      case "reject_review":
+        return { label: "ปฏิเสธรีวิว", color: "bg-rose-50 text-rose-800 border-rose-200" };
+      case "delete_review":
+        return { label: "ลบรีวิวโดยแอดมิน", color: "bg-red-50 text-red-800 border-red-200" };
+      case "delete_post":
+        return { label: "ลบกระทู้โดยแอดมิน", color: "bg-red-50 text-red-800 border-red-200" };
+      case "delete_job":
+        return { label: "ลบงานโดยแอดมิน", color: "bg-red-50 text-red-800 border-red-200" };
+      case "reveal_anonymous":
+        return { label: "ถอดรหัสตัวตนจริง", color: "bg-amber-50 text-amber-800 border-amber-200" };
+      case "approve_post":
+        return { label: "อนุมัติกระทู้", color: "bg-emerald-50 text-emerald-800 border-emerald-200" };
+      case "reject_post":
+        return { label: "ปฏิเสธกระทู้", color: "bg-rose-50 text-rose-800 border-rose-200" };
+      case "approve_job":
+        return { label: "อนุมัติตำแหน่งงาน", color: "bg-emerald-50 text-emerald-800 border-emerald-200" };
+      case "reject_job":
+        return { label: "ปฏิเสธตำแหน่งงาน", color: "bg-rose-50 text-rose-800 border-rose-200" };
+      case "approve_student_upgrade":
+        return { label: "อนุมัติยืนยันสิทธิ์", color: "bg-emerald-50 text-emerald-800 border-emerald-200" };
+      case "reject_student_upgrade":
+        return { label: "ปฏิเสธยืนยันสิทธิ์", color: "bg-rose-50 text-rose-800 border-rose-200" };
+      case "update_user_role":
+        return { label: "แก้ไขบทบาทผู้ใช้", color: "bg-sky-50 text-sky-800 border-sky-200" };
+      case "toggle_super_admin":
+        return { label: "ปรับ Super Admin", color: "bg-purple-50 text-purple-800 border-purple-200" };
+      case "toggle_ban_user":
+        return { label: "ระงับ/ปลดแบนผู้ใช้", color: "bg-orange-50 text-orange-800 border-orange-200" };
+      default:
+        return { label: action, color: "bg-surface-container text-on-surface-variant border-outline-variant/50" };
     }
   };
+
+  const pendingReviews = reviews.filter((r) => r.status === "pending");
+  const pendingPosts = posts.filter((p) => p.status === "pending");
+  const pendingJobs = jobs.filter((j) => j.status === "pending");
+  const totalPending = pendingReviews.length + pendingPosts.length + pendingJobs.length + pendingUpgrades.length;
+
+  // Filtered Reviews
+  const filteredReviews = reviews.filter((r) => {
+    const matchStatus = reviewStatusFilter === "all" || r.status === reviewStatusFilter;
+    const matchSearch =
+      !reviewSearch.trim() ||
+      r.company_name?.toLowerCase().includes(reviewSearch.toLowerCase()) ||
+      r.real_author?.toLowerCase().includes(reviewSearch.toLowerCase()) ||
+      r.real_email?.toLowerCase().includes(reviewSearch.toLowerCase()) ||
+      r.text_work?.toLowerCase().includes(reviewSearch.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  // Filtered Posts
+  const filteredPosts = posts.filter((p) => {
+    const matchStatus = postStatusFilter === "all" || p.status === postStatusFilter;
+    const matchSearch =
+      !postSearch.trim() ||
+      p.title?.toLowerCase().includes(postSearch.toLowerCase()) ||
+      p.content?.toLowerCase().includes(postSearch.toLowerCase()) ||
+      p.author_name?.toLowerCase().includes(postSearch.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  // Filtered Jobs
+  const filteredJobs = jobs.filter((j) => {
+    const matchStatus = jobStatusFilter === "all" || j.status === jobStatusFilter;
+    const matchSearch =
+      !jobSearch.trim() ||
+      j.title?.toLowerCase().includes(jobSearch.toLowerCase()) ||
+      j.employer_name?.toLowerCase().includes(jobSearch.toLowerCase()) ||
+      j.location?.toLowerCase().includes(jobSearch.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  // Filtered Audit Logs
+  const filteredAuditLogs = auditLogs.filter((l) => {
+    const matchAction = auditActionFilter === "all" || l.action.includes(auditActionFilter);
+    const q = auditSearch.toLowerCase().trim();
+    const matchSearch =
+      !q ||
+      l.admin_name?.toLowerCase().includes(q) ||
+      l.action?.toLowerCase().includes(q) ||
+      l.target_type?.toLowerCase().includes(q) ||
+      l.reason?.toLowerCase().includes(q) ||
+      l.target_id?.toString().includes(q);
+    return matchAction && matchSearch;
+  });
+
+  if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-background text-on-background font-body-md">
-      <div className="max-w-container-max mx-auto px-margin-mobile md:px-lg py-md md:py-lg space-y-md">
-        
-        {/* Header Title Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-sm pb-sm border-b border-outline-variant">
-          <div>
-            <div className="flex items-center gap-xs">
-              <h1 className="font-headline-lg text-headline-lg font-bold text-primary tracking-tight">
-                Admin Center Dashboard
-              </h1>
-              {mounted && isSuperAdmin() && (
-                <span className="px-3 py-1 bg-primary text-on-primary text-label-sm rounded-full font-bold flex items-center gap-1.5 shadow-sm">
-                  <span className="material-symbols-outlined text-[16px]">shield_person</span>
-                  Super Admin
+    <div className="min-h-screen bg-background text-on-surface pb-xl">
+      {/* Top Admin Navigation Suite Header (NO SIDEBAR) */}
+      <AdminHeader
+        title="ระบบการจัดการข้อมูลหลังบ้าน"
+        subtitle="คัดกรอง อนุมัติ และควบคุมมาตรฐานข้อมูลประสบการณ์ฝึกงานทั้งหมดของ HTC Insight"
+        pendingCount={totalPending}
+        onRefresh={fetchDashboardData}
+        refreshing={loading}
+      />
+
+      <div className="max-w-container-max mx-auto px-margin-mobile space-y-lg">
+        {/* Flash Message Banner */}
+        {msg && (
+          <div
+            className={`p-4 rounded-2xl text-xs md:text-sm font-semibold flex items-center justify-between shadow-xs border transition-all ${
+              msg.isError
+                ? "bg-rose-50 text-rose-900 border-rose-200"
+                : "bg-emerald-50 text-emerald-900 border-emerald-200"
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-[20px]">
+                {msg.isError ? "error" : "check_circle"}
+              </span>
+              <span>{msg.text}</span>
+            </div>
+            <button
+              onClick={() => setMsg(null)}
+              className="p-1 hover:bg-black/5 rounded-lg transition-colors font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+
+
+        {/* ================= TOP SEGMENTED NAVIGATION TABS (NO SIDEBAR) ================= */}
+        <div className="bg-surface-container-lowest border border-outline-variant/40 p-2 rounded-2xl shadow-xs">
+          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
+            <button
+              onClick={() => setActiveTab("moderation")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === "moderation"
+                  ? "bg-primary text-on-primary shadow-sm"
+                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">verified</span>
+              <span>คิวรออนุมัติ</span>
+              {totalPending > 0 && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                    activeTab === "moderation"
+                      ? "bg-secondary text-on-secondary"
+                      : "bg-amber-100 text-amber-900 border border-amber-300"
+                  }`}
+                >
+                  {totalPending}
                 </span>
               )}
-            </div>
-            <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">
-              ศูนย์ควบคุม คัดกรองอนุมัติข้อมูล และกำกับดูแลความปลอดภัยระบบ HTC Insights
-            </p>
-          </div>
+            </button>
 
-          <div className="flex items-center gap-sm shrink-0">
-            <Link
-              href="/admin/users"
-              className="px-md py-sm bg-primary hover:bg-primary-container text-on-primary rounded-lg font-label-md text-label-md transition-colors flex items-center gap-xs shadow-sm"
+            <button
+              onClick={() => setActiveTab("all_reviews")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === "all_reviews"
+                  ? "bg-primary text-on-primary shadow-sm"
+                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+              }`}
             >
-              <span className="material-symbols-outlined text-[18px]">group</span>
-              จัดการผู้ใช้ & สิทธิ์
-            </Link>
+              <span className="material-symbols-outlined text-[18px]">rate_review</span>
+              <span>รีวิวทั้งหมด</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-container-low text-on-surface-variant">
+                {reviews.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("all_posts")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === "all_posts"
+                  ? "bg-primary text-on-primary shadow-sm"
+                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">forum</span>
+              <span>กระทู้คอมมูนิตี้</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-container-low text-on-surface-variant">
+                {posts.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("all_jobs")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === "all_jobs"
+                  ? "bg-primary text-on-primary shadow-sm"
+                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">business_center</span>
+              <span>ประกาศงาน</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-container-low text-on-surface-variant">
+                {jobs.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("reports")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === "reports"
+                  ? "bg-primary text-on-primary shadow-sm"
+                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">report_problem</span>
+              <span>รายงานความผิด</span>
+              {pendingReports.length > 0 && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                    activeTab === "reports"
+                      ? "bg-rose-500 text-white"
+                      : "bg-rose-100 text-rose-900 border border-rose-300"
+                  }`}
+                >
+                  {pendingReports.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("audit")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === "audit"
+                  ? "bg-primary text-on-primary shadow-sm"
+                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">history</span>
+              <span>ประวัติระบบ (Audit Logs)</span>
+            </button>
           </div>
         </div>
 
-        {/* Message Alert Banner */}
-        {msg && (
-          <div className={`p-sm md:p-md rounded-lg font-body-sm text-body-sm flex items-center justify-between shadow-sm transition-all ${
-            msg.isError
-              ? "bg-error-container text-on-error-container border border-error/30"
-              : "bg-[#e6f4ea] text-[#137333] border border-[#ceead6]"
-          }`}>
-            <div className="flex items-center gap-xs">
-              <span className="material-symbols-outlined text-[20px]">{msg.isError ? "error" : "check_circle"}</span>
-              <span className="font-medium">{msg.text}</span>
-            </div>
-            <button onClick={() => setMsg(null)} className="font-bold p-1 hover:opacity-70">✕</button>
-          </div>
-        )}
-
-        {/* Quick Stats Metric Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-sm md:gap-md">
-          {/* Stat Card 1: Pending Reviews */}
-          <div className="bg-surface-container-lowest rounded-lg p-sm md:p-md border border-outline-variant shadow-sm flex flex-col items-center text-center hover:border-primary transition-colors">
-            <span className="material-symbols-outlined text-secondary text-[24px] mb-xs">rate_review</span>
-            <span className="font-headline-md text-headline-md font-bold text-primary mb-xs">
-              {loading ? "..." : stats?.reviews.pending || pendingReviews.length}
+        {/* ================= MAIN CONTENT AREA ================= */}
+        {loading ? (
+          <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-16 text-center space-y-3 shadow-xs">
+            <span className="material-symbols-outlined text-4xl text-primary animate-spin">
+              progress_activity
             </span>
-            <span className="font-label-sm text-label-sm text-on-surface-variant">Pending Reviews</span>
+            <p className="text-sm font-bold text-on-surface">กำลังโหลดข้อมูลระบบหลังบ้าน...</p>
+            <p className="text-xs text-on-surface-variant">โปรดรอสักครู่ ระบบกำลังดึงข้อมูลล่าสุด</p>
           </div>
-
-          {/* Stat Card 2: Community Posts */}
-          <div className="bg-surface-container-lowest rounded-lg p-sm md:p-md border border-outline-variant shadow-sm flex flex-col items-center text-center hover:border-primary transition-colors">
-            <span className="material-symbols-outlined text-secondary text-[24px] mb-xs">forum</span>
-            <span className="font-headline-md text-headline-md font-bold text-primary mb-xs">
-              {loading ? "..." : stats?.community.pending_posts || pendingPosts.length}
-            </span>
-            <span className="font-label-sm text-label-sm text-on-surface-variant">Community Posts</span>
-          </div>
-
-          {/* Stat Card 3: Job Postings */}
-          <div className="bg-surface-container-lowest rounded-lg p-sm md:p-md border border-outline-variant shadow-sm flex flex-col items-center text-center hover:border-primary transition-colors">
-            <span className="material-symbols-outlined text-secondary text-[24px] mb-xs">work</span>
-            <span className="font-headline-md text-headline-md font-bold text-primary mb-xs">
-              {loading ? "..." : stats?.jobs.pending || pendingJobs.length}
-            </span>
-            <span className="font-label-sm text-label-sm text-on-surface-variant">Job Postings</span>
-          </div>
-
-          {/* Stat Card 4: Student Verifications */}
-          <div className="bg-surface-container-lowest rounded-lg p-sm md:p-md border border-outline-variant shadow-sm flex flex-col items-center text-center hover:border-primary transition-colors">
-            <span className="material-symbols-outlined text-secondary text-[24px] mb-xs">badge</span>
-            <span className="font-headline-md text-headline-md font-bold text-primary mb-xs">
-              {loading ? "..." : stats?.upgrades.pending || pendingUpgrades.length}
-            </span>
-            <span className="font-label-sm text-label-sm text-on-surface-variant">Student Verifications</span>
-          </div>
-
-          {/* Stat Card 5: Active Reports */}
-          <div className="bg-surface-container-lowest rounded-lg p-sm md:p-md border border-outline-variant shadow-sm flex flex-col items-center text-center col-span-2 md:col-span-1 hover:border-error transition-colors">
-            <span className="material-symbols-outlined text-error text-[24px] mb-xs">report</span>
-            <span className="font-headline-md text-headline-md font-bold text-error mb-xs">
-              {loading ? "..." : stats?.community.pending_reports || pendingReports.length}
-            </span>
-            <span className="font-label-sm text-label-sm text-on-surface-variant">Active Reports</span>
-          </div>
-        </div>
-
-        {/* Segmented Control Tabs */}
-        <div className="flex overflow-x-auto gap-sm border-b border-outline-variant pb-xs scrollbar-hide">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`px-md py-sm font-label-md text-label-md whitespace-nowrap rounded-t-lg transition-colors ${
-              activeTab === "overview"
-                ? "text-primary border-b-2 border-primary bg-surface-container-low font-bold"
-                : "text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest"
-            }`}
-          >
-            Overview
-          </button>
-
-          <button
-            onClick={() => setActiveTab("reviews")}
-            className={`px-md py-sm font-label-md text-label-md whitespace-nowrap rounded-t-lg transition-colors ${
-              activeTab === "reviews"
-                ? "text-primary border-b-2 border-primary bg-surface-container-low font-bold"
-                : "text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest"
-            }`}
-          >
-            Reviews ({pendingReviews.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("community")}
-            className={`px-md py-sm font-label-md text-label-md whitespace-nowrap rounded-t-lg transition-colors ${
-              activeTab === "community"
-                ? "text-primary border-b-2 border-primary bg-surface-container-low font-bold"
-                : "text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest"
-            }`}
-          >
-            Community ({pendingPosts.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("jobs")}
-            className={`px-md py-sm font-label-md text-label-md whitespace-nowrap rounded-t-lg transition-colors ${
-              activeTab === "jobs"
-                ? "text-primary border-b-2 border-primary bg-surface-container-low font-bold"
-                : "text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest"
-            }`}
-          >
-            Jobs ({pendingJobs.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("upgrades")}
-            className={`px-md py-sm font-label-md text-label-md whitespace-nowrap rounded-t-lg transition-colors ${
-              activeTab === "upgrades"
-                ? "text-primary border-b-2 border-primary bg-surface-container-low font-bold"
-                : "text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest"
-            }`}
-          >
-            Student ID ({pendingUpgrades.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("reports")}
-            className={`px-md py-sm font-label-md text-label-md whitespace-nowrap rounded-t-lg transition-colors ${
-              activeTab === "reports"
-                ? "text-error border-b-2 border-error bg-error-container/30 font-bold"
-                : "text-on-surface-variant hover:text-error hover:bg-surface-container-lowest"
-            }`}
-          >
-            Reports ({pendingReports.length})
-          </button>
-        </div>
-
-        {/* Content Area - Bento Grid Overview */}
-        {activeTab === "overview" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
-            
-            {/* 1. Latest Reviews Section */}
-            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
-              <div className="p-md bg-surface-container-low border-b border-outline-variant flex justify-between items-center">
-                <h3 className="font-headline-sm text-headline-sm font-bold text-primary flex items-center gap-xs">
-                  <span className="material-symbols-outlined text-[20px]">rate_review</span> Latest Reviews
-                </h3>
-                <Link href="/admin/reviews" className="text-secondary font-label-md text-label-md hover:underline">
-                  View All ({stats?.reviews.pending || 0})
-                </Link>
-              </div>
-              <div className="p-sm flex-1 flex flex-col gap-sm">
-                {loading ? (
-                  <div className="text-center font-body-sm text-body-sm text-on-surface-variant py-md">กำลังโหลด...</div>
-                ) : pendingReviews.length === 0 ? (
-                  <div className="text-center font-body-sm text-body-sm text-on-surface-variant py-md">ไม่มีรีวิวรอการอนุมัติ</div>
-                ) : (
-                  pendingReviews.slice(0, 3).map((rev) => (
-                    <div key={rev.id} className="bg-surface-container p-sm rounded-lg flex items-center justify-between border border-outline-variant/50">
-                      <div className="flex flex-col flex-1 mr-sm">
-                        <span className="font-label-md text-label-md text-on-surface">{rev.company_name} (★ {rev.score_overall})</span>
-                        <span className="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">"{rev.text_work}"</span>
-                        <span className="font-label-sm text-[11px] text-on-surface-variant/70 mt-0.5">โดย: {rev.real_author}</span>
-                      </div>
-                      <div className="flex gap-xs shrink-0 items-center">
-                        {rev.is_anonymous && (
-                          <button
-                            onClick={() => handleReveal(rev.id)}
-                            title="ถอดรหัสตัวตนจริง (บันทึก Audit Log)"
-                            className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 border border-amber-300"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">lock_open</span>
-                            Reveal
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleApprove("review", rev.id)}
-                          title="อนุมัติรีวิว"
-                          className="w-8 h-8 rounded-full bg-[#e6f4ea] text-[#137333] hover:bg-[#ceead6] flex items-center justify-center transition-colors shadow-xs"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">check</span>
-                        </button>
-                        <button
-                          onClick={() => setRejectTarget({ type: "review", id: rev.id, title: `รีวิว ${rev.company_name}` })}
-                          title="ปฏิเสธ (ระบุเหตุผล)"
-                          className="w-8 h-8 rounded-full bg-[#fce8e6] text-[#c5221f] hover:bg-[#fad2cf] flex items-center justify-center transition-colors shadow-xs"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">close</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* 2. Latest Posts Section */}
-            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
-              <div className="p-md bg-surface-container-low border-b border-outline-variant flex justify-between items-center">
-                <h3 className="font-headline-sm text-headline-sm font-bold text-primary flex items-center gap-xs">
-                  <span className="material-symbols-outlined text-[20px]">forum</span> Latest Posts
-                </h3>
-                <Link href="/admin/posts" className="text-secondary font-label-md text-label-md hover:underline">
-                  View All ({stats?.community.pending_posts || 0})
-                </Link>
-              </div>
-              <div className="p-sm flex-1 flex flex-col gap-sm">
-                {loading ? (
-                  <div className="text-center font-body-sm text-body-sm text-on-surface-variant py-md">กำลังโหลด...</div>
-                ) : pendingPosts.length === 0 ? (
-                  <div className="text-center font-body-sm text-body-sm text-on-surface-variant py-md">ไม่มีโพสต์รอการอนุมัติ</div>
-                ) : (
-                  pendingPosts.slice(0, 3).map((post) => (
-                    <div key={post.id} className="bg-surface-container p-sm rounded-lg flex items-center justify-between border border-outline-variant/50">
-                      <div className="flex flex-col flex-1 mr-sm">
-                        <span className="font-label-md text-label-md text-on-surface line-clamp-1">{post.title}</span>
-                        <span className="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">"{post.content}"</span>
-                        <span className="font-label-sm text-[11px] text-on-surface-variant/70 mt-0.5">โพสต์โดย: {post.author_name}</span>
-                      </div>
-                      <div className="flex gap-xs shrink-0">
-                        <button
-                          onClick={() => handleApprove("post", post.id)}
-                          title="อนุมัติโพสต์"
-                          className="w-8 h-8 rounded-full bg-[#e6f4ea] text-[#137333] hover:bg-[#ceead6] flex items-center justify-center transition-colors shadow-xs"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">check</span>
-                        </button>
-                        <button
-                          onClick={() => setRejectTarget({ type: "post", id: post.id, title: `โพสต์ ${post.title}` })}
-                          title="ปฏิเสธ (ระบุเหตุผล)"
-                          className="w-8 h-8 rounded-full bg-[#fce8e6] text-[#c5221f] hover:bg-[#fad2cf] flex items-center justify-center transition-colors shadow-xs"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">close</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* 3. Latest Jobs Section */}
-            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
-              <div className="p-md bg-surface-container-low border-b border-outline-variant flex justify-between items-center">
-                <h3 className="font-headline-sm text-headline-sm font-bold text-primary flex items-center gap-xs">
-                  <span className="material-symbols-outlined text-[20px]">work</span> Latest Jobs
-                </h3>
-                <Link href="/admin/jobs" className="text-secondary font-label-md text-label-md hover:underline">
-                  View All ({stats?.jobs.pending || 0})
-                </Link>
-              </div>
-              <div className="p-sm flex-1 flex flex-col gap-sm">
-                {loading ? (
-                  <div className="text-center font-body-sm text-body-sm text-on-surface-variant py-md">กำลังโหลด...</div>
-                ) : pendingJobs.length === 0 ? (
-                  <div className="text-center font-body-sm text-body-sm text-on-surface-variant py-md">ไม่มีประกาศงานรอการอนุมัติ</div>
-                ) : (
-                  pendingJobs.slice(0, 3).map((job) => (
-                    <div key={job.id} className="bg-surface-container p-sm rounded-lg flex items-center justify-between border border-outline-variant/50">
-                      <div className="flex flex-col flex-1 mr-sm">
-                        <span className="font-label-md text-label-md text-on-surface line-clamp-1">{job.title}</span>
-                        <span className="font-body-sm text-body-sm text-on-surface-variant">{job.employer_name}</span>
-                      </div>
-                      <div className="flex gap-xs shrink-0">
-                        <button
-                          onClick={() => handleApprove("job", job.id)}
-                          title="อนุมัติงาน"
-                          className="w-8 h-8 rounded-full bg-[#e6f4ea] text-[#137333] hover:bg-[#ceead6] flex items-center justify-center transition-colors shadow-xs"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">check</span>
-                        </button>
-                        <button
-                          onClick={() => setRejectTarget({ type: "job", id: job.id, title: `งาน ${job.title}` })}
-                          title="ปฏิเสธ (ระบุเหตุผล)"
-                          className="w-8 h-8 rounded-full bg-[#fce8e6] text-[#c5221f] hover:bg-[#fad2cf] flex items-center justify-center transition-colors shadow-xs"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">close</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* 4. Verification Requests Section */}
-            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
-              <div className="p-md bg-surface-container-low border-b border-outline-variant flex justify-between items-center">
-                <h3 className="font-headline-sm text-headline-sm font-bold text-primary flex items-center gap-xs">
-                  <span className="material-symbols-outlined text-[20px]">badge</span> Verification Requests
-                </h3>
-                <Link href="/admin/upgrades" className="text-secondary font-label-md text-label-md hover:underline">
-                  View All ({stats?.upgrades.pending || 0})
-                </Link>
-              </div>
-              <div className="p-sm flex-1 flex flex-col gap-sm">
-                {loading ? (
-                  <div className="text-center font-body-sm text-body-sm text-on-surface-variant py-md">กำลังโหลด...</div>
-                ) : pendingUpgrades.length === 0 ? (
-                  <div className="text-center font-body-sm text-body-sm text-on-surface-variant py-md">ไม่มีคำขอยืนยันสิทธิ์รอการอนุมัติ</div>
-                ) : (
-                  pendingUpgrades.slice(0, 3).map((upg) => (
-                    <div key={upg.id} className="bg-surface-container p-sm rounded-lg flex items-center justify-between border border-outline-variant/50">
-                      <div className="flex items-center gap-sm flex-1 mr-sm">
-                        <div className="w-9 h-9 bg-surface-variant rounded-full flex items-center justify-center text-on-surface-variant font-bold text-xs shrink-0">
-                          {upg.user_name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-label-md text-label-md text-on-surface">{upg.user_name}</span>
-                          <span className="font-body-sm text-body-sm text-on-surface-variant">รหัสนักศึกษา: {upg.student_id}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-xs shrink-0">
-                        <button
-                          onClick={() => handleApprove("upgrade", upg.id)}
-                          title="อนุมัติสิทธิ์นักศึกษา"
-                          className="w-8 h-8 rounded-full bg-[#e6f4ea] text-[#137333] hover:bg-[#ceead6] flex items-center justify-center transition-colors shadow-xs"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">check</span>
-                        </button>
-                        <button
-                          onClick={() => setRejectTarget({ type: "upgrade", id: upg.id, title: `คำขอของ ${upg.user_name}` })}
-                          title="ปฏิเสธ (ระบุเหตุผล)"
-                          className="w-8 h-8 rounded-full bg-[#fce8e6] text-[#c5221f] hover:bg-[#fad2cf] flex items-center justify-center transition-colors shadow-xs"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">close</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* Tab Specific Detail Views */}
-        {activeTab === "reviews" && (
-          <div className="bg-surface-container-lowest p-md rounded-xl border border-outline-variant shadow-sm space-y-sm">
-            <h3 className="font-headline-sm text-headline-sm font-bold text-primary flex items-center justify-between border-b border-outline-variant pb-sm">
-              <span>รีวิวรออนุมัติทั้งหมด ({pendingReviews.length})</span>
-              <Link href="/admin/reviews" className="text-secondary font-label-md text-label-md hover:underline">หน้าจัดการฉบับเต็ม →</Link>
-            </h3>
-            {pendingReviews.map((rev) => (
-              <div key={rev.id} className="bg-surface-container p-sm rounded-lg flex items-center justify-between border border-outline-variant/50">
-                <div className="flex flex-col">
-                  <span className="font-label-md text-label-md text-on-surface">{rev.company_name} (★ {rev.score_overall})</span>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">"{rev.text_work}"</span>
-                  <span className="font-label-sm text-[11px] text-on-surface-variant/70">ผู้เขียน: {rev.real_author} ({rev.real_email})</span>
-                </div>
-                <div className="flex gap-xs shrink-0 items-center">
-                  {rev.is_anonymous && (
+        ) : (
+          <div className="space-y-lg">
+            {/* ================= TAB 1: MODERATION QUEUE ================= */}
+            {activeTab === "moderation" && (
+              <div className="space-y-md">
+                {/* Moderation Sub-category Filters */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
                     <button
-                      onClick={() => handleReveal(rev.id)}
-                      title="ถอดรหัสตัวตนจริง (บันทึก Audit Log)"
-                      className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 border border-amber-300"
+                      onClick={() => setModCategory("all")}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
+                        modCategory === "all"
+                          ? "bg-primary text-on-primary"
+                          : "bg-surface-container-lowest border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low"
+                      }`}
                     >
-                      <span className="material-symbols-outlined text-[14px]">lock_open</span>
-                      Reveal
+                      ทั้งหมด ({totalPending})
                     </button>
-                  )}
-                  <button onClick={() => handleApprove("review", rev.id)} className="px-md py-xs bg-[#e6f4ea] text-[#137333] font-label-md rounded-lg hover:bg-[#ceead6]">อนุมัติ</button>
-                  <button onClick={() => setRejectTarget({ type: "review", id: rev.id, title: `รีวิว ${rev.company_name}` })} className="px-md py-xs bg-[#fce8e6] text-[#c5221f] font-label-md rounded-lg hover:bg-[#fad2cf]">ปฏิเสธ</button>
+                    <button
+                      onClick={() => setModCategory("review")}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
+                        modCategory === "review"
+                          ? "bg-primary text-on-primary"
+                          : "bg-surface-container-lowest border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low"
+                      }`}
+                    >
+                      รีวิว ({pendingReviews.length})
+                    </button>
+                    <button
+                      onClick={() => setModCategory("post")}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
+                        modCategory === "post"
+                          ? "bg-primary text-on-primary"
+                          : "bg-surface-container-lowest border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low"
+                      }`}
+                    >
+                      กระทู้ ({pendingPosts.length})
+                    </button>
+                    <button
+                      onClick={() => setModCategory("job")}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
+                        modCategory === "job"
+                          ? "bg-primary text-on-primary"
+                          : "bg-surface-container-lowest border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low"
+                      }`}
+                    >
+                      ประกาศงาน ({pendingJobs.length})
+                    </button>
+                    <button
+                      onClick={() => setModCategory("upgrade")}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
+                        modCategory === "upgrade"
+                          ? "bg-primary text-on-primary"
+                          : "bg-surface-container-lowest border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low"
+                      }`}
+                    >
+                      ยืนยันนักศึกษา ({pendingUpgrades.length})
+                    </button>
+                  </div>
+
+                  <span className="text-xs text-on-surface-variant font-medium">
+                    มีรายการรอการตรวจสอบทั้งหมด{" "}
+                    <strong className="text-primary font-bold">{totalPending}</strong> รายการ
+                  </span>
                 </div>
+
+                {totalPending === 0 ? (
+                  <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-16 text-center shadow-xs flex flex-col items-center justify-center space-y-3">
+                    <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mb-1">
+                      <span className="material-symbols-outlined text-[32px]">check_circle</span>
+                    </div>
+                    <h3 className="text-lg font-bold font-headline-sm text-primary">
+                      ไม่มีรายการรอคัดกรองในระบบ
+                    </h3>
+                    <p className="text-xs text-on-surface-variant max-w-md">
+                      ข้อมูลรีวิว กระทู้ ตำแหน่งงาน และคำขอยืนยันสิทธิ์นักศึกษาทั้งหมดได้รับการตรวจสอบเรียบร้อยแล้ว
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-md">
+                    {/* 1. Pending Reviews */}
+                    {(modCategory === "all" || modCategory === "review") &&
+                      pendingReviews.map((rev) => (
+                        <div
+                          key={`rev-${rev.id}`}
+                          className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
+                        >
+                          <div className="space-y-2.5">
+                            {/* Header row */}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-primary/10 text-primary border border-primary/20">
+                                    รีวิวสถานประกอบการ
+                                  </span>
+                                  {rev.is_anonymous && (
+                                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-amber-50 text-amber-800 border border-amber-200">
+                                      โหมดไม่ระบุตัวตน
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-on-surface-variant font-mono">
+                                    {rev.created_at || "-"}
+                                  </span>
+                                </div>
+                                <h4 className="text-base font-bold font-headline-sm text-primary">
+                                  {rev.company_name}
+                                </h4>
+                              </div>
+
+                              {/* Star Rating Badge */}
+                              <div className="flex items-center gap-1 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold shrink-0">
+                                <span className="material-symbols-outlined text-[15px] fill-current">star</span>
+                                <span>{rev.score_overall} / 5</span>
+                              </div>
+                            </div>
+
+                            {/* Author Info */}
+                            <div className="text-xs text-on-surface-variant bg-surface-container-low/70 p-2.5 rounded-xl border border-outline-variant/30 flex items-center justify-between flex-wrap gap-2">
+                              <span>
+                                ผู้เขียนจริง: <strong className="text-on-surface">{rev.real_author}</strong> ({rev.real_email})
+                              </span>
+                              {rev.is_anonymous && (
+                                <button
+                                  onClick={() => setRevealTargetId(rev.id)}
+                                  className="text-[11px] font-bold text-secondary hover:underline flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">lock_open</span>
+                                  ถอดรหัสตัวตน
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Review Content */}
+                            <div className="space-y-1.5 text-xs text-on-surface">
+                              <p className="font-semibold text-on-surface-variant text-[11px]">ใจความสำคัญของงาน:</p>
+                              <p className="bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 italic leading-relaxed">
+                                "{rev.text_work}"
+                              </p>
+                            </div>
+
+                            {/* Pros & Cons Preview */}
+                            {(rev.text_pros || rev.text_cons) && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                                {rev.text_pros && (
+                                  <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-150 text-emerald-900">
+                                    <span className="font-bold block text-[11px] mb-0.5 text-emerald-800">
+                                      + ข้อดี:
+                                    </span>
+                                    <span className="line-clamp-2">{rev.text_pros}</span>
+                                  </div>
+                                )}
+                                {rev.text_cons && (
+                                  <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-150 text-rose-900">
+                                    <span className="font-bold block text-[11px] mb-0.5 text-rose-800">
+                                      - ข้อเสีย / ข้อควรระวัง:
+                                    </span>
+                                    <span className="line-clamp-2">{rev.text_cons}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Attached Photos */}
+                            {rev.photo_urls && rev.photo_urls.length > 0 && (
+                              <div className="flex gap-2 pt-1 overflow-x-auto">
+                                {rev.photo_urls.map((url, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="shrink-0 group relative rounded-lg overflow-hidden border border-outline-variant/40"
+                                  >
+                                    <img
+                                      src={url}
+                                      alt="Attached evidence"
+                                      className="w-16 h-16 object-cover group-hover:scale-105 transition-transform"
+                                    />
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                                      <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                                    </div>
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
+                            <button
+                              onClick={() =>
+                                setRejectTarget({
+                                  type: "review",
+                                  id: rev.id,
+                                  title: `รีวิว ${rev.company_name} โดย ${rev.real_author}`,
+                                })
+                              }
+                              className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">close</span>
+                              ปฏิเสธ
+                            </button>
+                            <button
+                              onClick={() => handleApprove("review", rev.id)}
+                              disabled={actionLoading?.type === "review" && actionLoading?.id === rev.id}
+                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">check</span>
+                              อนุมัติรีวิว
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                    {/* 2. Pending Posts */}
+                    {(modCategory === "all" || modCategory === "post") &&
+                      pendingPosts.map((post) => (
+                        <div
+                          key={`post-${post.id}`}
+                          className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
+                        >
+                          <div className="space-y-2.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-secondary/10 text-secondary border border-secondary/20">
+                                กระทู้คอมมูนิตี้ ({post.type || "ทั่วไป"})
+                              </span>
+                              <span className="text-[10px] text-on-surface-variant font-mono">
+                                {post.created_at || "-"}
+                              </span>
+                            </div>
+                            <h4 className="text-base font-bold font-headline-sm text-primary line-clamp-2">
+                              {post.title}
+                            </h4>
+                            <p className="text-xs text-on-surface-variant bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 leading-relaxed line-clamp-3">
+                              {post.content}
+                            </p>
+                            <div className="text-xs text-on-surface-variant">
+                              โพสต์โดย: <strong className="text-on-surface">{post.author_name}</strong>
+                            </div>
+                          </div>
+
+                          <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
+                            <button
+                              onClick={() =>
+                                setRejectTarget({
+                                  type: "post",
+                                  id: post.id,
+                                  title: `กระทู้ ${post.title}`,
+                                })
+                              }
+                              className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">close</span>
+                              ปฏิเสธ
+                            </button>
+                            <button
+                              onClick={() => handleApprove("post", post.id)}
+                              disabled={actionLoading?.type === "post" && actionLoading?.id === post.id}
+                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">check</span>
+                              อนุมัติกระทู้
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                    {/* 3. Pending Jobs */}
+                    {(modCategory === "all" || modCategory === "job") &&
+                      pendingJobs.map((job) => (
+                        <div
+                          key={`job-${job.id}`}
+                          className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
+                        >
+                          <div className="space-y-2.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                ประกาศรับสมัครงาน
+                              </span>
+                              <span className="text-[10px] text-on-surface-variant font-mono">
+                                {job.created_at || "-"}
+                              </span>
+                            </div>
+                            <h4 className="text-base font-bold font-headline-sm text-primary">
+                              {job.title}
+                            </h4>
+                            <div className="text-xs text-on-surface-variant flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-on-surface">{job.employer_name}</span>
+                              {job.location && (
+                                <span className="flex items-center gap-0.5 text-on-surface-variant">
+                                  <span className="material-symbols-outlined text-[14px]">location_on</span>
+                                  {job.location}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-on-surface-variant bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 leading-relaxed line-clamp-3">
+                              {job.description}
+                            </p>
+                          </div>
+
+                          <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
+                            <button
+                              onClick={() =>
+                                setRejectTarget({
+                                  type: "job",
+                                  id: job.id,
+                                  title: `ตำแหน่งงาน ${job.title} (${job.employer_name})`,
+                                })
+                              }
+                              className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">close</span>
+                              ปฏิเสธ
+                            </button>
+                            <button
+                              onClick={() => handleApprove("job", job.id)}
+                              disabled={actionLoading?.type === "job" && actionLoading?.id === job.id}
+                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">check</span>
+                              อนุมัติประกาศงาน
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                    {/* 4. Pending Student Upgrades */}
+                    {(modCategory === "all" || modCategory === "upgrade") &&
+                      pendingUpgrades.map((upg) => (
+                        <div
+                          key={`upg-${upg.id}`}
+                          className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
+                        >
+                          <div className="space-y-2.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-purple-50 text-purple-800 border border-purple-200">
+                                คำขอยืนยันสิทธิ์นักศึกษา
+                              </span>
+                              <span className="text-[10px] text-on-surface-variant font-mono">
+                                {upg.created_at || "-"}
+                              </span>
+                            </div>
+                            <h4 className="text-base font-bold font-headline-sm text-primary">
+                              {upg.user_name}
+                            </h4>
+                            <div className="text-xs space-y-1 text-on-surface-variant bg-surface-container-low/50 p-3 rounded-xl border border-outline-variant/20">
+                              <p>
+                                อีเมล: <strong className="text-on-surface font-mono">{upg.user_email}</strong>
+                              </p>
+                              <p>
+                                รหัสนักศึกษา: <strong className="text-primary font-mono">{upg.student_id}</strong>
+                              </p>
+                              <p>
+                                แผนกวิชา: <strong className="text-on-surface">{upg.department}</strong>
+                              </p>
+                            </div>
+                            {upg.card_image_url && (
+                              <a
+                                href={upg.card_image_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-secondary hover:underline"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">id_card</span>
+                                ดูรูปภาพบัตรประจำตัวนักศึกษา →
+                              </a>
+                            )}
+                          </div>
+
+                          <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
+                            <button
+                              onClick={() =>
+                                setRejectTarget({
+                                  type: "upgrade",
+                                  id: upg.id,
+                                  title: `คำขอยืนยันสิทธิ์ของ ${upg.user_name}`,
+                                })
+                              }
+                              className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">close</span>
+                              ปฏิเสธ
+                            </button>
+                            <button
+                              onClick={() => handleApprove("upgrade", upg.id)}
+                              disabled={actionLoading?.type === "upgrade" && actionLoading?.id === upg.id}
+                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">check</span>
+                              อนุมัติสิทธิ์นักศึกษา
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
-            ))}
+            )}
+
+            {/* ================= TAB 2: MANAGE ALL REVIEWS ================= */}
+            {activeTab === "all_reviews" && (
+              <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-6 shadow-xs space-y-5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline-variant/30 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold font-headline-sm text-primary">
+                      จัดการรีวิวทั้งหมดในระบบ ({reviews.length})
+                    </h3>
+                    <p className="text-xs text-on-surface-variant font-body-sm">
+                      ค้นหา กรองสถานะ และลบรีวิวที่ผิดนโยบาย
+                    </p>
+                  </div>
+
+                  {/* Search & Status Filter */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="relative">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">
+                        search
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="ค้นหาชื่อบริษัท, ผู้เขียน..."
+                        value={reviewSearch}
+                        onChange={(e) => setReviewSearch(e.target.value)}
+                        className="pl-8 pr-3 py-2 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary font-medium w-48 sm:w-64"
+                      />
+                    </div>
+
+                    <select
+                      value={reviewStatusFilter}
+                      onChange={(e) => setReviewStatusFilter(e.target.value)}
+                      className="px-3 py-2 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface font-bold focus:outline-none focus:border-primary"
+                    >
+                      <option value="all">ทุกสถานะ</option>
+                      <option value="approved">อนุมัติแล้ว (Approved)</option>
+                      <option value="pending">รออนุมัติ (Pending)</option>
+                      <option value="rejected">ปฏิเสธ (Rejected)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {filteredReviews.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-on-surface-variant font-semibold">
+                    ไม่พบรายการรีวิวที่ตรงกับเงื่อนไขค้นหา
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-outline-variant/40 bg-surface-container-low/60 font-bold font-label-md text-on-surface">
+                          <th className="py-3.5 px-3">วัน/เวลา</th>
+                          <th className="py-3.5 px-3">สถานประกอบการ</th>
+                          <th className="py-3.5 px-3">คะแนน</th>
+                          <th className="py-3.5 px-3">ผู้เขียนจริง</th>
+                          <th className="py-3.5 px-3">เนื้อหารีวิว</th>
+                          <th className="py-3.5 px-3">สถานะ</th>
+                          <th className="py-3.5 px-3 text-right">ดำเนินการ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant/20 font-body-sm">
+                        {filteredReviews.map((rev) => (
+                          <tr key={rev.id} className="hover:bg-surface-container-low/40 transition-colors">
+                            <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant font-mono">
+                              {rev.created_at || "-"}
+                            </td>
+                            <td className="py-3 px-3 font-bold text-primary whitespace-nowrap">
+                              {rev.company_name}
+                            </td>
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1 font-bold text-on-surface">
+                                <span className="material-symbols-outlined text-[16px] text-secondary active-tab">
+                                  star
+                                </span>
+                                {rev.score_overall}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant">
+                              <div>{rev.real_author}</div>
+                              <div className="text-[10px] font-mono text-on-surface-variant/70">
+                                {rev.real_email}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-on-surface max-w-xs truncate">
+                              {rev.text_work}
+                            </td>
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <span
+                                className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  rev.status === "approved"
+                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                    : rev.status === "rejected"
+                                    ? "bg-rose-50 text-rose-800 border-rose-200"
+                                    : "bg-amber-50 text-amber-800 border-amber-200"
+                                }`}
+                              >
+                                {rev.status === "approved"
+                                  ? "อนุมัติแล้ว"
+                                  : rev.status === "rejected"
+                                  ? "ปฏิเสธ"
+                                  : "รออนุมัติ"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right whitespace-nowrap">
+                              <button
+                                onClick={() => handleDelete("review", rev.id)}
+                                disabled={deleting?.type === "review" && deleting?.id === rev.id}
+                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 rounded-xl text-[11px] transition-all cursor-pointer disabled:opacity-50"
+                              >
+                                {deleting?.type === "review" && deleting?.id === rev.id
+                                  ? "กำลังลบ..."
+                                  : "ลบรีวิว"}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ================= TAB 3: MANAGE ALL COMMUNITY POSTS ================= */}
+            {activeTab === "all_posts" && (
+              <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-6 shadow-xs space-y-5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline-variant/30 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold font-headline-sm text-primary">
+                      จัดการกระทู้คอมมูนิตี้ทั้งหมด ({posts.length})
+                    </h3>
+                    <p className="text-xs text-on-surface-variant font-body-sm">
+                      ตรวจสอบและจัดการกระทู้พูดคุยของนักศึกษา
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="relative">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">
+                        search
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="ค้นหาหัวข้อกระทู้, ผู้โพสต์..."
+                        value={postSearch}
+                        onChange={(e) => setPostSearch(e.target.value)}
+                        className="pl-8 pr-3 py-2 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary font-medium w-48 sm:w-64"
+                      />
+                    </div>
+
+                    <select
+                      value={postStatusFilter}
+                      onChange={(e) => setPostStatusFilter(e.target.value)}
+                      className="px-3 py-2 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface font-bold focus:outline-none focus:border-primary"
+                    >
+                      <option value="all">ทุกสถานะ</option>
+                      <option value="approved">อนุมัติแล้ว</option>
+                      <option value="pending">รออนุมัติ</option>
+                      <option value="rejected">ปฏิเสธ</option>
+                    </select>
+                  </div>
+                </div>
+
+                {filteredPosts.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-on-surface-variant font-semibold">
+                    ไม่พบกระทู้ที่ตรงกับเงื่อนไขค้นหา
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-outline-variant/40 bg-surface-container-low/60 font-bold font-label-md text-on-surface">
+                          <th className="py-3.5 px-3">วัน/เวลา</th>
+                          <th className="py-3.5 px-3">หัวข้อกระทู้</th>
+                          <th className="py-3.5 px-3">ผู้โพสต์</th>
+                          <th className="py-3.5 px-3">เนื้อหาโดยย่อ</th>
+                          <th className="py-3.5 px-3">สถานะ</th>
+                          <th className="py-3.5 px-3 text-right">ดำเนินการ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant/20 font-body-sm">
+                        {filteredPosts.map((post) => (
+                          <tr key={post.id} className="hover:bg-surface-container-low/40 transition-colors">
+                            <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant font-mono">
+                              {post.created_at || "-"}
+                            </td>
+                            <td className="py-3 px-3 font-bold text-primary max-w-xs truncate">
+                              {post.title}
+                            </td>
+                            <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant">
+                              {post.author_name}
+                            </td>
+                            <td className="py-3 px-3 text-on-surface max-w-sm truncate">
+                              {post.content}
+                            </td>
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <span
+                                className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  post.status === "approved"
+                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                    : post.status === "rejected"
+                                    ? "bg-rose-50 text-rose-800 border-rose-200"
+                                    : "bg-amber-50 text-amber-800 border-amber-200"
+                                }`}
+                              >
+                                {post.status === "approved"
+                                  ? "อนุมัติแล้ว"
+                                  : post.status === "rejected"
+                                  ? "ปฏิเสธ"
+                                  : "รออนุมัติ"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right whitespace-nowrap">
+                              <button
+                                onClick={() => handleDelete("post", post.id)}
+                                disabled={deleting?.type === "post" && deleting?.id === post.id}
+                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 rounded-xl text-[11px] transition-all cursor-pointer disabled:opacity-50"
+                              >
+                                {deleting?.type === "post" && deleting?.id === post.id
+                                  ? "กำลังลบ..."
+                                  : "ลบกระทู้"}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ================= TAB 4: MANAGE ALL JOBS ================= */}
+            {activeTab === "all_jobs" && (
+              <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-6 shadow-xs space-y-5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline-variant/30 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold font-headline-sm text-primary">
+                      จัดการประกาศรับสมัครงานทั้งหมด ({jobs.length})
+                    </h3>
+                    <p className="text-xs text-on-surface-variant font-body-sm">
+                      ควบคุมและตรวจสอบประกาศรับสมัครนักศึกษาฝึกงาน
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="relative">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">
+                        search
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="ค้นหาตำแหน่ง, สถานประกอบการ..."
+                        value={jobSearch}
+                        onChange={(e) => setJobSearch(e.target.value)}
+                        className="pl-8 pr-3 py-2 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary font-medium w-48 sm:w-64"
+                      />
+                    </div>
+
+                    <select
+                      value={jobStatusFilter}
+                      onChange={(e) => setJobStatusFilter(e.target.value)}
+                      className="px-3 py-2 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface font-bold focus:outline-none focus:border-primary"
+                    >
+                      <option value="all">ทุกสถานะ</option>
+                      <option value="approved">อนุมัติแล้ว</option>
+                      <option value="pending">รออนุมัติ</option>
+                      <option value="rejected">ปฏิเสธ</option>
+                    </select>
+                  </div>
+                </div>
+
+                {filteredJobs.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-on-surface-variant font-semibold">
+                    ไม่พบตำแหน่งงานที่ตรงกับเงื่อนไขค้นหา
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-outline-variant/40 bg-surface-container-low/60 font-bold font-label-md text-on-surface">
+                          <th className="py-3.5 px-3">วัน/เวลา</th>
+                          <th className="py-3.5 px-3">ตำแหน่งงาน</th>
+                          <th className="py-3.5 px-3">สถานประกอบการ</th>
+                          <th className="py-3.5 px-3">สถานที่ปฏิบัติงาน</th>
+                          <th className="py-3.5 px-3">สถานะ</th>
+                          <th className="py-3.5 px-3 text-right">ดำเนินการ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant/20 font-body-sm">
+                        {filteredJobs.map((job) => (
+                          <tr key={job.id} className="hover:bg-surface-container-low/40 transition-colors">
+                            <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant font-mono">
+                              {job.created_at || "-"}
+                            </td>
+                            <td className="py-3 px-3 font-bold text-primary whitespace-nowrap">
+                              {job.title}
+                            </td>
+                            <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant">
+                              {job.employer_name}
+                            </td>
+                            <td className="py-3 px-3 text-on-surface whitespace-nowrap">
+                              {job.location || "-"}
+                            </td>
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <span
+                                className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  job.status === "approved"
+                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                    : job.status === "rejected"
+                                    ? "bg-rose-50 text-rose-800 border-rose-200"
+                                    : "bg-amber-50 text-amber-800 border-amber-200"
+                                }`}
+                              >
+                                {job.status === "approved"
+                                  ? "อนุมัติแล้ว"
+                                  : job.status === "rejected"
+                                  ? "ปฏิเสธ"
+                                  : "รออนุมัติ"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right whitespace-nowrap">
+                              <button
+                                onClick={() => handleDelete("job", job.id)}
+                                disabled={deleting?.type === "job" && deleting?.id === job.id}
+                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 rounded-xl text-[11px] transition-all cursor-pointer disabled:opacity-50"
+                              >
+                                {deleting?.type === "job" && deleting?.id === job.id
+                                  ? "กำลังลบ..."
+                                  : "ลบงาน"}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ================= TAB 5: REPORTS LIST ================= */}
+            {activeTab === "reports" && (
+              <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-6 shadow-xs space-y-5">
+                <div className="border-b border-outline-variant/30 pb-4">
+                  <h3 className="text-lg font-bold font-headline-sm text-rose-800 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[22px]">warning</span>
+                    รายงานเนื้อหาไม่เหมาะสม ({pendingReports.length})
+                  </h3>
+                  <p className="text-xs text-on-surface-variant font-body-sm">
+                    ข้อร้องเรียนและรายงานความผิดที่ส่งเข้ามาโดยผู้ใช้งานในระบบ
+                  </p>
+                </div>
+
+                {pendingReports.length === 0 ? (
+                  <div className="py-12 text-center shadow-xs rounded-2xl bg-surface-container-low/40 border border-outline-variant/30 flex flex-col items-center justify-center space-y-2">
+                    <span className="material-symbols-outlined text-4xl text-emerald-600">
+                      verified_user
+                    </span>
+                    <p className="text-sm font-bold text-on-surface">ไม่มีรายงานความผิดรอจัดการในระบบ</p>
+                    <p className="text-xs text-on-surface-variant">ระบบเรียบร้อยดี ไม่มีการร้องเรียนที่ค้างอยู่</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-outline-variant/30">
+                    {pendingReports.map((rep) => (
+                      <div
+                        key={rep.id}
+                        className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                              รายงานความผิด #{rep.id}
+                            </span>
+                            <span className="text-[11px] text-on-surface-variant font-mono">
+                              {rep.created_at || "-"}
+                            </span>
+                          </div>
+                          <p className="text-sm font-bold text-rose-900">
+                            เหตุผล: "{rep.reason}"
+                          </p>
+                          <p className="text-xs text-on-surface-variant font-medium">
+                            ผู้ส่งรายงาน: <strong className="text-on-surface">{rep.reporter_name}</strong> |
+                            สำหรับเนื้อหา: <strong className="text-primary">{rep.post_title || "กระทู้/รีวิว"}</strong>
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleResolveReport(rep.id, "resolved", "deleted")}
+                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[15px]">delete</span>
+                            ลบเนื้อหาทิ้ง
+                          </button>
+                          <button
+                            onClick={() => handleResolveReport(rep.id, "dismissed")}
+                            className="px-4 py-2 bg-surface-container-low hover:bg-surface-container border border-outline-variant/50 text-on-surface font-bold text-xs rounded-xl transition-all cursor-pointer"
+                          >
+                            ปัดตกข้อกล่าวหา
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ================= TAB 6: AUDIT LOGS ================= */}
+            {activeTab === "audit" && (
+              <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-6 shadow-xs space-y-5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline-variant/30 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold font-headline-sm text-primary flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[22px]">security</span>
+                      ประวัติการดำเนินงานของผู้ดูแลระบบ (Audit Logs)
+                    </h3>
+                    <p className="text-xs text-on-surface-variant font-body-sm">
+                      บันทึกความโปร่งใสและการตัดสินใจคัดกรองเนื้อหาทั้งหมด
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="relative">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">
+                        search
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="ค้นหา Log แอดมิน, เหตุผล..."
+                        value={auditSearch}
+                        onChange={(e) => setAuditSearch(e.target.value)}
+                        className="pl-8 pr-3 py-2 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary font-medium w-48 sm:w-64"
+                      />
+                    </div>
+
+                    <select
+                      value={auditActionFilter}
+                      onChange={(e) => setAuditActionFilter(e.target.value)}
+                      className="px-3 py-2 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface font-bold focus:outline-none focus:border-primary"
+                    >
+                      <option value="all">ทุกการกระทำ</option>
+                      <option value="approve">อนุมัติ (Approve)</option>
+                      <option value="reject">ปฏิเสธ (Reject)</option>
+                      <option value="delete">ลบข้อมูล (Delete)</option>
+                      <option value="reveal">ถอดรหัสตัวตน (Reveal)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {filteredAuditLogs.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-on-surface-variant font-semibold">
+                    ไม่พบประวัติการดำเนินงานที่ตรงกับเงื่อนไขค้นหา
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-outline-variant/40 bg-surface-container-low/60 font-bold font-label-md text-on-surface">
+                          <th className="py-3.5 px-3">วัน/เวลา</th>
+                          <th className="py-3.5 px-3">แอดมินผู้ดำเนินการ</th>
+                          <th className="py-3.5 px-3">การกระทำ</th>
+                          <th className="py-3.5 px-3">เป้าหมาย</th>
+                          <th className="py-3.5 px-3">เหตุผลอ้างอิง / รายละเอียด</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant/20 font-body-sm">
+                        {filteredAuditLogs.map((log) => {
+                          const act = formatAuditAction(log.action);
+                          return (
+                            <tr key={log.id} className="hover:bg-surface-container-low/40 transition-colors">
+                              <td className="py-3 px-3 text-on-surface-variant font-mono whitespace-nowrap">
+                                {log.created_at || "-"}
+                              </td>
+                              <td className="py-3 px-3 font-bold text-primary whitespace-nowrap">
+                                {log.admin_name}
+                              </td>
+                              <td className="py-3 px-3 whitespace-nowrap">
+                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${act.color}`}>
+                                  {act.label}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-on-surface whitespace-nowrap font-mono">
+                                {log.target_type} #{log.target_id}
+                              </td>
+                              <td className="py-3 px-3 text-on-surface-variant">
+                                {log.reason || "-"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
-
-        {activeTab === "community" && (
-          <div className="bg-surface-container-lowest p-md rounded-xl border border-outline-variant shadow-sm space-y-sm">
-            <h3 className="font-headline-sm text-headline-sm font-bold text-primary flex items-center justify-between border-b border-outline-variant pb-sm">
-              <span>โพสต์รออนุมัติทั้งหมด ({pendingPosts.length})</span>
-              <Link href="/admin/posts" className="text-secondary font-label-md text-label-md hover:underline">หน้าจัดการฉบับเต็ม →</Link>
-            </h3>
-            {pendingPosts.map((post) => (
-              <div key={post.id} className="bg-surface-container p-sm rounded-lg flex items-center justify-between border border-outline-variant/50">
-                <div className="flex flex-col">
-                  <span className="font-label-md text-label-md text-on-surface">{post.title}</span>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">"{post.content}"</span>
-                  <span className="font-label-sm text-[11px] text-on-surface-variant/70">โพสต์โดย: {post.author_name}</span>
-                </div>
-                <div className="flex gap-xs shrink-0">
-                  <button onClick={() => handleApprove("post", post.id)} className="px-md py-xs bg-[#e6f4ea] text-[#137333] font-label-md rounded-lg hover:bg-[#ceead6]">อนุมัติ</button>
-                  <button onClick={() => setRejectTarget({ type: "post", id: post.id, title: `โพสต์ ${post.title}` })} className="px-md py-xs bg-[#fce8e6] text-[#c5221f] font-label-md rounded-lg hover:bg-[#fad2cf]">ปฏิเสธ</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "jobs" && (
-          <div className="bg-surface-container-lowest p-md rounded-xl border border-outline-variant shadow-sm space-y-sm">
-            <h3 className="font-headline-sm text-headline-sm font-bold text-primary flex items-center justify-between border-b border-outline-variant pb-sm">
-              <span>ประกาศงานรออนุมัติทั้งหมด ({pendingJobs.length})</span>
-              <Link href="/admin/jobs" className="text-secondary font-label-md text-label-md hover:underline">หน้าจัดการฉบับเต็ม →</Link>
-            </h3>
-            {pendingJobs.map((job) => (
-              <div key={job.id} className="bg-surface-container p-sm rounded-lg flex items-center justify-between border border-outline-variant/50">
-                <div className="flex flex-col">
-                  <span className="font-label-md text-label-md text-on-surface">{job.title}</span>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">{job.employer_name}</span>
-                </div>
-                <div className="flex gap-xs shrink-0">
-                  <button onClick={() => handleApprove("job", job.id)} className="px-md py-xs bg-[#e6f4ea] text-[#137333] font-label-md rounded-lg hover:bg-[#ceead6]">อนุมัติ</button>
-                  <button onClick={() => setRejectTarget({ type: "job", id: job.id, title: `งาน ${job.title}` })} className="px-md py-xs bg-[#fce8e6] text-[#c5221f] font-label-md rounded-lg hover:bg-[#fad2cf]">ปฏิเสธ</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "upgrades" && (
-          <div className="bg-surface-container-lowest p-md rounded-xl border border-outline-variant shadow-sm space-y-sm">
-            <h3 className="font-headline-sm text-headline-sm font-bold text-primary flex items-center justify-between border-b border-outline-variant pb-sm">
-              <span>คำขอยืนยันสิทธิ์ทั้งหมด ({pendingUpgrades.length})</span>
-              <Link href="/admin/upgrades" className="text-secondary font-label-md text-label-md hover:underline">หน้าจัดการฉบับเต็ม →</Link>
-            </h3>
-            {pendingUpgrades.map((upg) => (
-              <div key={upg.id} className="bg-surface-container p-sm rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-2 border border-outline-variant/50">
-                <div className="flex flex-col">
-                  <span className="font-label-md text-label-md text-on-surface">{upg.user_name} (รหัส {upg.student_id})</span>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">แผนก: {upg.department || "-"}</span>
-                  {upg.card_image_url && (
-                    <a href={upg.card_image_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-secondary hover:underline flex items-center gap-0.5 mt-1 font-medium">
-                      <span className="material-symbols-outlined text-[14px]">image</span> ดูบัตรหลักฐาน
-                    </a>
-                  )}
-                </div>
-                <div className="flex gap-xs shrink-0 self-end md:self-center">
-                  <button onClick={() => handleApprove("upgrade", upg.id)} className="px-md py-xs bg-[#e6f4ea] text-[#137333] font-label-md rounded-lg hover:bg-[#ceead6]">อนุมัติ</button>
-                  <button onClick={() => setRejectTarget({ type: "upgrade", id: upg.id, title: `คำขอของ ${upg.user_name}` })} className="px-md py-xs bg-[#fce8e6] text-[#c5221f] font-label-md rounded-lg hover:bg-[#fad2cf]">ปฏิเสธ</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "reports" && (
-          <div className="bg-surface-container-lowest p-md rounded-xl border border-outline-variant shadow-sm space-y-sm">
-            <h3 className="font-headline-sm text-headline-sm font-bold text-error flex items-center justify-between border-b border-outline-variant pb-sm">
-              <span>รายงานความผิดทั้งหมด ({pendingReports.length})</span>
-              <Link href="/admin/reports" className="text-secondary font-label-md text-label-md hover:underline">หน้าจัดการฉบับเต็ม →</Link>
-            </h3>
-            {pendingReports.map((rep) => (
-              <div key={rep.id} className="bg-surface-container p-sm rounded-lg flex items-center justify-between border border-outline-variant/50">
-                <div className="flex flex-col">
-                  <span className="font-label-md text-label-md text-error">เหตุผล: "{rep.reason}"</span>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">ผู้รายงาน: {rep.reporter_name}</span>
-                </div>
-                <div className="flex gap-xs shrink-0">
-                  <button onClick={() => handleResolveReport(rep.id, "resolved")} className="px-md py-xs bg-[#e6f4ea] text-[#137333] font-label-md rounded-lg hover:bg-[#ceead6]">จัดการ</button>
-                  <button onClick={() => handleResolveReport(rep.id, "dismissed")} className="px-md py-xs bg-surface-variant text-on-surface-variant font-label-md rounded-lg hover:bg-outline-variant">ยกเลิก</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
       </div>
 
       {/* Reject Reason Modal */}
@@ -737,6 +1395,15 @@ export default function AdminDashboardPage() {
           loading={rejecting}
           onClose={() => setRejectTarget(null)}
           onConfirm={handleConfirmReject}
+        />
+      )}
+
+      {/* Reveal Anonymous Modal */}
+      {revealTargetId !== null && (
+        <RevealAnonymousModal
+          isOpen={revealTargetId !== null}
+          reviewId={revealTargetId}
+          onClose={() => setRevealTargetId(null)}
         />
       )}
     </div>

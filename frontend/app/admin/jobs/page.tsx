@@ -5,6 +5,7 @@ import { isAdmin, getToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import RejectReasonModal from "@/components/RejectReasonModal";
+import { API_URL } from "@/lib/api";
 
 interface JobItem {
   id: number;
@@ -32,7 +33,7 @@ export default function AdminJobsPage() {
   const fetchJobs = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/admin/jobs?status=pending", {
+      const res = await fetch(`${API_URL}/admin/jobs?status=pending`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (res.ok) {
@@ -56,7 +57,7 @@ export default function AdminJobsPage() {
 
   const handleApprove = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:8000/admin/jobs/${id}`, {
+      const res = await fetch(`${API_URL}/admin/jobs/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -80,7 +81,7 @@ export default function AdminJobsPage() {
     if (!rejectModalItem) return;
     setRejecting(true);
     try {
-      const res = await fetch(`http://localhost:8000/admin/jobs/${rejectModalItem.id}`, {
+      const res = await fetch(`${API_URL}/admin/jobs/${rejectModalItem.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

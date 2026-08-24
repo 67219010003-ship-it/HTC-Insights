@@ -44,6 +44,21 @@ export default function CommunityPage() {
   }, [selectedDepartment, activeTab]);
 
   useEffect(() => {
+    // Check if external user
+    const token = typeof window !== "undefined" ? localStorage.getItem("htc_token") : null;
+    const role = typeof window !== "undefined" ? localStorage.getItem("htc_role") : null;
+    const userStr = typeof window !== "undefined" ? localStorage.getItem("htc_user") : null;
+    let userEmail = "";
+    try {
+      if (userStr) userEmail = JSON.parse(userStr)?.email || "";
+    } catch {}
+
+    const isInternal = role === "admin" || (role === "student" && (!userEmail || userEmail.endsWith("@htc.ac.th")));
+    if (!token || (!isInternal && role === "external")) {
+      window.location.href = "/auth/login";
+      return;
+    }
+
     fetchPosts();
   }, [fetchPosts]);
 

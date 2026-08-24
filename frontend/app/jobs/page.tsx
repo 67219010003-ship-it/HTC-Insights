@@ -17,55 +17,41 @@ export default function JobsPage() {
 
   useEffect(() => {
     const token = getToken();
-    if (token) {
-      api
-        .get("/auth/me")
-        .then((res) => {
-          if (res.data?.email) {
-            setUserEmail(res.data.email);
-          }
-        })
-        .catch(() => {});
+    if (!token) {
+      window.location.href = "/auth/login";
+      return;
     }
+
+    api
+      .get("/auth/me")
+      .then((res) => {
+        if (res.data?.email) {
+          setUserEmail(res.data.email);
+        }
+      })
+      .catch(() => {});
 
     setLoading(true);
 
-    // Read jobs registered via Employer Register Form from localStorage
-    let localJobs: JobData[] = [];
+    // Clear any obsolete local storage to ensure 100% database-driven data
     try {
-      const localStr = localStorage.getItem("htc_registered_jobs");
-      if (localStr) {
-        localJobs = JSON.parse(localStr);
-      }
+      localStorage.removeItem("htc_registered_jobs");
     } catch {}
 
     api
-      .get("/api/jobs")
+      .get("/jobs")
       .then((res) => {
-        const apiJobs: JobData[] = (res.data && Array.isArray(res.data)) ? res.data : [];
-        
-        // Merge and deduplicate by id or company_name
-        const combined = [...localJobs];
-        apiJobs.forEach((aj) => {
-          if (!combined.some((cj) => cj.id === aj.id || (cj.company_name === aj.company_name && cj.title === aj.title))) {
-            combined.push(aj);
-          }
-        });
-
-        setJobs(combined);
-        if (combined.length > 0) {
-          setSelectedJob(combined[0]);
+        const apiJobs: JobData[] = res.data && Array.isArray(res.data) ? res.data : [];
+        setJobs(apiJobs);
+        if (apiJobs.length > 0) {
+          setSelectedJob(apiJobs[0]);
         } else {
           setSelectedJob(null);
         }
       })
       .catch(() => {
-        setJobs(localJobs);
-        if (localJobs.length > 0) {
-          setSelectedJob(localJobs[0]);
-        } else {
-          setSelectedJob(null);
-        }
+        setJobs([]);
+        setSelectedJob(null);
       })
       .finally(() => {
         setLoading(false);
@@ -90,7 +76,7 @@ export default function JobsPage() {
       <div className="mb-6 space-y-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-primary font-headline">
-            ตำแหน่งงานฝึกงานสำหรับนักศึกษา (Jobs)
+            ตำแหน่งงานฝึกงานสำหรับนักศึกษา
           </h1>
           <p className="text-xs md:text-sm text-on-surface-variant mt-1">
             ค้นหาตำแหน่งงานฝึกงานที่ตรงกับสาขาวิชา พร้อมข้อมูลเบี้ยเลี้ยง สวัสดิการ และแผนที่พิกัดสถานที่ทำงาน

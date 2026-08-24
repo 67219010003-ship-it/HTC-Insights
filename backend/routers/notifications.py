@@ -15,6 +15,7 @@ def create_notification(
     type: str = "info",
     link: Optional[str] = None
 ) -> Notification:
+    """ ฟังก์ชันภายในระบบสำหรับสร้างและบันทึกการแจ้งเตือนใหม่ไปยังผู้ใช้ """
     notif = Notification(
         user_id=user_id,
         title=title,
@@ -33,6 +34,7 @@ def get_notifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """ ดึงรายการแจ้งเตือนทั้งหมดของผู้ใช้งานปัจจุบันเรียงตามล่าสุด """
     notifs = (
         db.query(Notification)
         .filter(Notification.user_id == current_user.id)
@@ -58,6 +60,7 @@ def mark_all_notifications_as_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """ ปรับสถานะการแจ้งเตือนทั้งหมดของผู้ใช้งานปัจจุบันเป็นอ่านแล้ว """
     db.query(Notification).filter(
         Notification.user_id == current_user.id,
         Notification.is_read == False
@@ -71,6 +74,7 @@ def mark_notification_as_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """ ปรับสถานะรายการแจ้งเตือนที่กำหนดเป็นอ่านแล้ว """
     notif = (
         db.query(Notification)
         .filter(Notification.id == notification_id, Notification.user_id == current_user.id)

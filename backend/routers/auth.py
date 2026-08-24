@@ -6,6 +6,7 @@ from schemas.auth import StudentRegister, EmployerRegister, LoginRequest, TokenR
 from auth import hash_password, verify_password, create_access_token, decode_token
 from dependencies import get_current_user, oauth2_scheme
 from services.cloudinary_service import upload_review_photo
+from routers.notifications import create_notification
 import secrets
 import os
 import base64
@@ -15,9 +16,7 @@ import re
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 def parse_google_token_claims(id_token: str, client_id: str):
-    """
-    Parses Google ID Token and extracts real Google email, name, and profile picture (avatar_url).
-    """
+    """ ถอดรหัส Google ID Token เพื่ออ่านอีเมล, ชื่อ และรูปโปรไฟล์ของบัญชี Google """
     if not id_token:
         return None
 
@@ -28,7 +27,7 @@ def parse_google_token_claims(id_token: str, client_id: str):
             "picture": None,
         }
 
-    # 1. Try official google-auth library
+    # 1. ถอดรหัสผ่าน Google Official Library
     if client_id and client_id != "YOUR_GOOGLE_CLIENT_ID_HERE":
         try:
             from google.oauth2 import id_token as google_id_token
@@ -43,7 +42,7 @@ def parse_google_token_claims(id_token: str, client_id: str):
         except Exception:
             pass
 
-    # 2. Fallback decoding JWT payload (Base64URL)
+    # 2. ถอดรหัสผ่าน JWT Payload สำรอง (Base64URL)
     try:
         parts = str(id_token).split(".")
         if len(parts) >= 2:
@@ -65,6 +64,7 @@ def parse_google_token_claims(id_token: str, client_id: str):
 
 @router.post("/register/student", status_code=201)
 def register_student(data: StudentRegister, db: Session = Depends(get_db)):
+    """ สมัครสมาชิกบัญชีนักศึกษาใหม่ พร้อมส่ง Verify Token """
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(400, "อีเมลนี้ถูกใช้งานแล้ว")
     token = secrets.token_urlsafe(32)
@@ -84,6 +84,7 @@ def register_student(data: StudentRegister, db: Session = Depends(get_db)):
 
 @router.get("/verify-email")
 def verify_email(token: str, db: Session = Depends(get_db)):
+    """ ยืนยันอีเมลของนักศึกษาเมื่อคลิกลิงก์จาก Token """
     user = db.query(User).filter(User.verify_token == token).first()
     if not user:
         raise HTTPException(400, "Token ไม่ถูกต้องหรือหมดอายุ")
@@ -94,7 +95,7 @@ def verify_email(token: str, db: Session = Depends(get_db)):
 
 @router.post("/register/employer", status_code=201)
 def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
-    # Validate phone number length (must be 9 to 10 digits)
+    """ ลงทะเบียนสถานประกอบการใหม่ และสร้างประกาศงานรอ Admin ตรวจสอบ """
     if data.phone:
         digits_only = re.sub(r"\D", "", data.phone)
         if len(digits_only) < 9 or len(digits_only) > 10:
@@ -108,13 +109,12 @@ def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
             company_name=data.company_name,
             address=data.address,
             industry=data.industry or "ทั่วไป",
-            is_approved=True,
+            is_approved=False,
         )
         db.add(employer)
         db.commit()
         db.refresh(employer)
 
-    # 1. Create or query Company record
     comp = db.query(Company).filter(Company.name == data.company_name).first()
     if not comp:
         comp = Company(
@@ -126,12 +126,12 @@ def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
             phone=data.phone,
             website=data.website,
             employer_id=employer.id,
+            is_verified=False,
         )
         db.add(comp)
         db.commit()
         db.refresh(comp)
 
-    # 2. Create active JobPosting record for instant display on /jobs
     dept_str = ", ".join(data.departments) if data.departments else "แผนกวิชาช่าง"
     allowance_val = 400
     if data.daily_allowance:
@@ -150,20 +150,34 @@ def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
         description=f"สวัสดิการ: {data.benefits or '-'} | ผู้ติดต่อ: {data.contact_person or '-'} ({data.phone or '-'}) | LINE: {data.line_id or '-'}",
         daily_allowance=allowance_val,
         location=data.address,
-        is_active=True,
+        is_active=False,
+        status="pending",
     )
     db.add(job_posting)
     db.commit()
     db.refresh(job_posting)
 
+    admins = db.query(User).filter(User.role == UserRole.admin).all()
+    for adm in admins:
+        create_notification(
+            db=db,
+            user_id=adm.id,
+            title="มีสถานประกอบการใหม่ลงทะเบียน",
+            message=f"สถานประกอบการ '{data.company_name}' ลงทะเบียนเข้าสู่ระบบ รอการตรวจสอบและอนุมัติประกาศงาน",
+            type="info",
+            link="/admin"
+        )
+
     return {
-        "message": "ลงทะเบียนสถานประกอบการและเปิดรับสมัครตำแหน่งงานฝึกงานสำเร็จ",
+        "message": "ลงทะเบียนสถานประกอบการเรียบร้อยแล้ว กรุณารอเจ้าหน้าที่ Admin ตรวจสอบและอนุมัติข้อมูล",
         "employer_id": employer.id,
         "job_id": job_posting.id,
+        "is_approved": False,
     }
 
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)):
+    """ เข้าสู่ระบบด้วย Email/Password ทั่วไป """
     if data.role == "student":
         user = db.query(User).filter(User.email == data.email).first()
         if not user or not verify_password(data.password, user.password_hash):
@@ -184,6 +198,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/google")
 def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """ เข้าสู่ระบบด้วย Google Identity Services และตรวจสอบสิทธิ์นักศึกษา/Admin อัตโนมัติ """
     id_token = payload.get("id_token") or payload.get("credential")
     client_id = os.getenv("GOOGLE_CLIENT_ID", "")
     college_domain = os.getenv("COLLEGE_DOMAIN", "htc.ac.th")
@@ -197,24 +212,34 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
     picture = claims.get("picture")
 
     user = db.query(User).filter(User.email == email).first()
+    is_college = email.endswith(f"@{college_domain}")
+
     if not user:
-        is_college = email.endswith(f"@{college_domain}")
         user = User(
             email=email,
             password_hash=hash_password(secrets.token_urlsafe(16)),
             name=name,
-            department="แผนกวิชาช่างอิเล็กทรอนิกส์" if is_college else "แผนกวิชาเทคโนโลยีสารสนเทศ",
-            level="ปวส." if is_college else "ปวช.",
-            role=UserRole.student,
+            department="แผนกวิชาเทคโนโลยีสารสนเทศ" if is_college else "บุคคลภายนอก/สถานประกอบการ",
+            level="ปวส." if is_college else "-",
+            role=UserRole.student if is_college else UserRole.external,
             is_verified=True,
             avatar_url=picture,
         )
         db.add(user)
         db.commit()
         db.refresh(user)
-    elif user.role == UserRole.external:
+
+    if is_college and user.role == UserRole.external:
         user.role = UserRole.student
         db.commit()
+    elif not is_college and not user.is_super_admin and user.role != UserRole.admin:
+        approved_upgrade = db.query(UpgradeRequest).filter(
+            UpgradeRequest.user_id == user.id,
+            UpgradeRequest.status == UpgradeRequestStatus.approved
+        ).first()
+        if not approved_upgrade and user.role != UserRole.external:
+            user.role = UserRole.external
+            db.commit()
 
     token = create_access_token({"sub": user.id, "role": user.role.value, "email": user.email})
     return {
@@ -236,6 +261,7 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
 
 @router.post("/upload-proof")
 def upload_proof_file(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    """ อัปโหลดรูปภาพหลักฐาน เช่น บัตรประจำตัวนักศึกษา ขึ้นสู่ Cloudinary """
     if not file.content_type.startswith("image/"):
         raise HTTPException(400, "ไฟล์ต้องเป็นรูปภาพเท่านั้น")
     content = file.file.read()
@@ -248,6 +274,7 @@ def upload_proof_file(file: UploadFile = File(...), current_user: User = Depends
 def request_student_verification(payload: dict = Body(...),
                                  db: Session = Depends(get_db),
                                  current_user: User = Depends(get_current_user)):
+    """ ส่งคำขอยืนยันสิทธิ์นักศึกษาสำหรับผู้ที่ใช้อีเมลส่วนตัว (Personal Gmail) """
     student_id = payload.get("student_id", "")
     department = payload.get("department", "")
     phone = payload.get("phone", "")
@@ -265,7 +292,6 @@ def request_student_verification(payload: dict = Body(...),
         if len(digits_only) < 9 or len(digits_only) > 10:
             raise HTTPException(400, "เบอร์โทรศัพท์ติดต่อต้องเป็นตัวเลข 9-10 หลัก (เช่น 000-000-0000)")
 
-    # Check existing pending request
     existing = db.query(UpgradeRequest).filter(
         UpgradeRequest.user_id == current_user.id,
         UpgradeRequest.status == UpgradeRequestStatus.pending
@@ -294,6 +320,7 @@ def request_student_verification(payload: dict = Body(...),
 
 @router.get("/me")
 def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """ ดึงข้อมูลโปรไฟล์ผู้ใช้งานปัจจุบัน """
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
@@ -337,7 +364,7 @@ def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
 
 @router.delete("/me")
 def delete_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """ ลบบัญชีผู้ใช้งานปัจจุบันออกจากระบบ """
     db.delete(current_user)
     db.commit()
     return {"message": "Account deleted successfully"}
-

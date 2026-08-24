@@ -6,32 +6,38 @@ from database import Base
 import enum
 
 class UserRole(str, enum.Enum):
+    """ บทบาทประเภทของผู้ใช้งานระบบ """
     student = "student"
     admin = "admin"
     external = "external"
 
 class Gender(str, enum.Enum):
+    """ เพศสภาพ """
     male = "male"
     female = "female"
     prefer_not = "prefer_not"
 
 class ReviewStatus(str, enum.Enum):
+    """ สถานะการตรวจสอบและอนุมัติรีวิว """
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
 
 class UpgradeRequestStatus(str, enum.Enum):
+    """ สถานะคำขอยืนยันสิทธิ์นักศึกษา """
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
 
 class PostType(str, enum.Enum):
+    """ ประเภทของกระทู้ชุมชน """
     experience = "experience"
     qa = "qa"
     tips = "tips"
     team = "team"
 
 class User(Base):
+    """ ตารางเก็บข้อมูลบัญชีผู้ใช้งานระบบ (นักศึกษา, ผู้ดูแลระบบ, บุคคลภายนอก) """
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
@@ -40,7 +46,7 @@ class User(Base):
     role = Column(Enum(UserRole), default=UserRole.student)
     is_super_admin = Column(Boolean, default=False)
     department = Column(String(100))
-    level = Column(String(255))  # "ปวช." or "ปวส." or full level string
+    level = Column(String(255))
     is_verified = Column(Boolean, default=False)
     verify_token = Column(String(255), nullable=True)
     avatar_url = Column(String(500), nullable=True)
@@ -51,6 +57,7 @@ class User(Base):
     notifications = relationship("Notification", back_populates="user")
 
 class Employer(Base):
+    """ ตารางเก็บข้อมูลบัญชีตัวแทนสถานประกอบการ """
     __tablename__ = "employers"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
@@ -65,6 +72,7 @@ class Employer(Base):
     postings = relationship("JobPosting", back_populates="employer")
 
 class Company(Base):
+    """ ตารางเก็บหมุดและข้อมูลสถานที่/บริษัทฝึกงาน """
     __tablename__ = "companies"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False, index=True)
@@ -80,9 +88,10 @@ class Company(Base):
     employer_id = Column(Integer, ForeignKey("employers.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    reviews = relationship("Company", back_populates="company") if False else relationship("Review", back_populates="company")
+    reviews = relationship("Review", back_populates="company")
 
 class Review(Base):
+    """ ตารางเก็บข้อมูลรีวิวประสบการณ์ฝึกงานของนักศึกษา """
     __tablename__ = "reviews"
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
@@ -116,6 +125,7 @@ class Review(Base):
     photos = relationship("ReviewPhoto", back_populates="review")
 
 class ReviewPhoto(Base):
+    """ ตารางเก็บรูปภาพประกอบรีวิว (แนบกับรีวิวการฝึกงาน) """
     __tablename__ = "review_photos"
     id = Column(Integer, primary_key=True, index=True)
     review_id = Column(Integer, ForeignKey("reviews.id"), nullable=False)
@@ -125,6 +135,7 @@ class ReviewPhoto(Base):
     review = relationship("Review", back_populates="photos")
 
 class JobPosting(Base):
+    """ ตารางเก็บข้อมูลการประกาศงานรับสมัครนักศึกษาฝึกงาน """
     __tablename__ = "job_postings"
     id = Column(Integer, primary_key=True, index=True)
     employer_id = Column(Integer, ForeignKey("employers.id"), nullable=False)
@@ -143,6 +154,7 @@ class JobPosting(Base):
     employer = relationship("Employer", back_populates="postings")
 
 class CommunityPost(Base):
+    """ ตารางเก็บข้อมูลกระทู้เว็บบอร์ดคอมมูนิตี้แลกเปลี่ยนความคิดเห็น """
     __tablename__ = "community_posts"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -162,6 +174,7 @@ class CommunityPost(Base):
     likes = relationship("CommunityLike", back_populates="post")
 
 class CommunityComment(Base):
+    """ ตารางความคิดเห็นใต้กระทู้ในคอมมูนิตี้ """
     __tablename__ = "community_comments"
     id = Column(Integer, primary_key=True, index=True)
     post_id = Column(Integer, ForeignKey("community_posts.id"), nullable=False)
@@ -177,6 +190,7 @@ class CommunityComment(Base):
     likes = relationship("CommunityLike", back_populates="comment")
 
 class CommunityLike(Base):
+    """ ตารางการกดถูกใจ (Like) กระทู้หรือความคิดเห็น """
     __tablename__ = "community_likes"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -188,6 +202,7 @@ class CommunityLike(Base):
     comment = relationship("CommunityComment", back_populates="likes")
 
 class Notification(Base):
+    """ ตารางการแจ้งเตือนระบบสำหรับบัญชีผู้ใช้งาน """
     __tablename__ = "notifications"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -201,6 +216,7 @@ class Notification(Base):
     user = relationship("User", back_populates="notifications")
 
 class Report(Base):
+    """ ตารางเก็บบันทึกคำร้องเรียน/รายงานเนื้อหาที่ไม่เหมาะสม """
     __tablename__ = "reports"
     id = Column(Integer, primary_key=True, index=True)
     reporter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -214,6 +230,7 @@ class Report(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class AuditLog(Base):
+    """ ตารางบันทึกประวัติการตัดสินใจและการทำงานของผู้ดูแลระบบ (Admin Audit Logs) """
     __tablename__ = "audit_logs"
     id = Column(Integer, primary_key=True, index=True)
     admin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -223,7 +240,10 @@ class AuditLog(Base):
     reason = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    admin = relationship("User")
+
 class UpgradeRequest(Base):
+    """ ตารางคำร้องขอรับหลักฐานเพื่อยืนยันสิทธิ์นักศึกษา วท.หาดใหญ่ """
     __tablename__ = "upgrade_requests"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -237,4 +257,3 @@ class UpgradeRequest(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
-

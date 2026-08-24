@@ -23,6 +23,7 @@ def create_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """ ส่งรายงานเนื้อหาไม่เหมาะสม (รีวิว, กระทู้, ความเห็น, ประกาศงาน, บริษัท) ไปให้ Admin ตรวจสอบ """
     if not any([
         report_data.review_id,
         report_data.post_id,

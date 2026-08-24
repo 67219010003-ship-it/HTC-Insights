@@ -5,6 +5,9 @@ import { api } from "@/lib/api";
 import { isEmployer } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
+import Toast from "@/components/Toast";
+import ConfirmModal from "@/components/ConfirmModal";
+
 export default function EmployerDashboardPage() {
   const router = useRouter();
   const [postings, setPostings] = useState<any[]>([]);
@@ -15,6 +18,12 @@ export default function EmployerDashboardPage() {
   const [location, setLocation] = useState("หาดใหญ่, สงขลา");
   const [deadline, setDeadline] = useState("2026-12-31");
   const [showModal, setShowModal] = useState(false);
+  const [closeTargetId, setCloseTargetId] = useState<number | null>(null);
+  const [toast, setToast] = useState<{ isOpen: boolean; message: string; type: "success" | "error" | "info" }>({
+    isOpen: false,
+    message: "",
+    type: "info",
+  });
 
   useEffect(() => {
     if (!isEmployer()) {
@@ -42,18 +51,31 @@ export default function EmployerDashboardPage() {
       setShowModal(false);
       setTitle("");
       setDescription("");
+      setToast({
+        isOpen: true,
+        message: "สร้างประกาศรับสมัครสำเร็จ! กำลังรอ Admin ตรวจสอบและอนุมัติ",
+        type: "success",
+      });
       fetchPostings();
     } catch (err: any) {
-      alert("เกิดข้อผิดพลาดในการสร้างประกาศ");
+      setToast({
+        isOpen: true,
+        message: err.response?.data?.detail || "เกิดข้อผิดพลาดในการสร้างประกาศ",
+        type: "error",
+      });
     }
   };
 
-  const handleClosePosting = async (id: number) => {
-    if (!confirm("คุณต้องการปิดประกาศนี้ใช่หรือไม่?")) return;
+  const handleConfirmClosePosting = async () => {
+    if (!closeTargetId) return;
     try {
-      await api.delete(`/employer/postings/${id}`);
+      await api.delete(`/employer/postings/${closeTargetId}`);
+      setToast({ isOpen: true, message: "ปิดประกาศเรียบร้อยแล้ว", type: "success" });
+      setCloseTargetId(null);
       fetchPostings();
-    } catch (err: any) {}
+    } catch (err: any) {
+      setToast({ isOpen: true, message: "เกิดข้อผิดพลาดในการปิดประกาศ", type: "error" });
+    }
   };
 
   return (
@@ -90,8 +112,8 @@ export default function EmployerDashboardPage() {
             </div>
             {p.is_active && (
               <button
-                onClick={() => handleClosePosting(p.id)}
-                className="mt-4 text-xs font-bold text-error border border-error/20 py-1.5 rounded-lg hover:bg-error/10"
+                onClick={() => setCloseTargetId(p.id)}
+                className="mt-4 text-xs font-bold text-error border border-error/20 py-1.5 rounded-lg hover:bg-error/10 transition-colors"
               >
                 ปิดประกาศ
               </button>
@@ -135,6 +157,26 @@ export default function EmployerDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm Close Posting Modal */}
+      <ConfirmModal
+        isOpen={!!closeTargetId}
+        title="ยืนยันการปิดประกาศ"
+        message="คุณต้องการปิดประกาศรับสมัครนี้ใช่หรือไม่? เมื่อปิดแล้วจะไม่แสดงให้นักศึกษาค้นหา"
+        type="warning"
+        confirmText="ยืนยันการปิด"
+        cancelText="ยกเลิก"
+        onClose={() => setCloseTargetId(null)}
+        onConfirm={handleConfirmClosePosting}
+      />
+
+      {/* Toast Notification */}
+      <Toast
+        isOpen={toast.isOpen}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

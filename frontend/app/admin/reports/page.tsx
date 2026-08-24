@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { isAdmin, getToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { API_URL } from "@/lib/api";
 
 interface ReportItem {
   id: number;
@@ -29,7 +30,7 @@ export default function AdminReportsPage() {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/admin/reports?status=pending", {
+      const res = await fetch(`${API_URL}/admin/reports?status=pending`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (res.ok) {
@@ -53,7 +54,7 @@ export default function AdminReportsPage() {
 
   const handleUpdateReport = async (id: number, status: string, action?: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/admin/reports/${id}`, {
+      const res = await fetch(`${API_URL}/admin/reports/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

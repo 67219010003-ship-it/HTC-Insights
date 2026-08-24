@@ -5,6 +5,7 @@ import { isAdmin, getToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import RejectReasonModal from "@/components/RejectReasonModal";
+import { API_URL } from "@/lib/api";
 
 interface UpgradeItem {
   id: number;
@@ -31,7 +32,7 @@ export default function AdminUpgradesPage() {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/admin/upgrade-requests?status=pending", {
+      const res = await fetch(`${API_URL}/admin/upgrade-requests?status=pending`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (res.ok) {
@@ -55,7 +56,7 @@ export default function AdminUpgradesPage() {
 
   const handleApprove = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:8000/admin/upgrade-requests/${id}/approve`, {
+      const res = await fetch(`${API_URL}/admin/upgrade-requests/${id}/approve`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${getToken()}` },
       });
@@ -75,7 +76,7 @@ export default function AdminUpgradesPage() {
     if (!rejectModalItem) return;
     setRejecting(true);
     try {
-      const res = await fetch(`http://localhost:8000/admin/upgrade-requests/${rejectModalItem.id}`, {
+      const res = await fetch(`${API_URL}/admin/upgrade-requests/${rejectModalItem.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

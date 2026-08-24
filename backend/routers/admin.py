@@ -10,9 +10,10 @@ from routers.notifications import create_notification
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-# --- Stats Dashboard ---
+# --- 1. แดชบอร์ดสรุปสถิติระบบ (Stats Dashboard) ---
 @router.get("/stats")
 def get_admin_stats(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """ ดึงตัวเลขสถิติรวมของระบบ เช่น จำนวนผู้ใช้ รีวิวที่รออนุมัติ ตำแหน่งงาน และรายงาน """
     total_users = db.query(User).count()
     total_students = db.query(User).filter(User.role == UserRole.student).count()
     total_external = db.query(User).filter(User.role == UserRole.external).count()
@@ -54,17 +55,19 @@ def get_admin_stats(db: Session = Depends(get_db), admin: User = Depends(require
         }
     }
 
-# --- Reviews Management ---
+# --- 2. การจัดการและอนุมัติรีวิว (Reviews Management) ---
 @router.get("/reviews/pending")
 @router.get("/reviews")
 def list_reviews(status: str = Query(None),
                  db: Session = Depends(get_db),
                  admin: User = Depends(require_admin)):
+    """ ดึงรายการรีวิวตามสถานะ (รออนุมัติ, อนุมัติแล้ว, ปฏิเสธ) """
     query = db.query(Review)
-    if status and status in ReviewStatus.__members__:
+    if status == "all":
+        pass
+    elif status and status in ReviewStatus.__members__:
         query = query.filter(Review.status == ReviewStatus(status))
     elif status == "pending" or not status:
-        # Default for /reviews/pending endpoint
         query = query.filter(Review.status == ReviewStatus.pending)
         
     reviews = query.order_by(Review.created_at.desc()).all()
@@ -92,6 +95,7 @@ def list_reviews(status: str = Query(None),
 def update_review_status(review_id: int, payload: dict = Body(...),
                          db: Session = Depends(get_db),
                          admin: User = Depends(require_admin)):
+    """ อัปเดตสถานะรีวิวเป็น Approved หรือ Rejected พร้อมระบุเหตุผลและบันทึก Audit Log """
     review = db.query(Review).filter(Review.id == review_id).first()
     if not review:
         raise HTTPException(404, "ไม่พบรีวิว")
@@ -140,12 +144,14 @@ def update_review_status(review_id: int, payload: dict = Body(...),
 @router.patch("/reviews/{review_id}/approve")
 def approve_review(review_id: int, db: Session = Depends(get_db),
                    admin: User = Depends(require_admin)):
+    """ ปุ่มลัดอนุมัติรีวิว (Approve) """
     return update_review_status(review_id, {"status": "approved"}, db, admin)
 
 @router.patch("/reviews/{review_id}/reject")
 def reject_review(review_id: int, payload: dict = Body(default={}),
                   db: Session = Depends(get_db),
                   admin: User = Depends(require_admin)):
+    """ ปุ่มลัดปฏิเสธรีวิว (Reject) พร้อมเหตุผล """
     payload["status"] = "rejected"
     return update_review_status(review_id, payload, db, admin)
 
@@ -153,6 +159,7 @@ def reject_review(review_id: int, payload: dict = Body(default={}),
 def reveal_anonymous(review_id: int, reason: str,
                      db: Session = Depends(get_db),
                      admin: User = Depends(require_admin)):
+    """ ถอดรหัสเพื่อดูตัวตนจริงของผู้เขียนรีวิวแบบไม่ระบุชื่อ (พร้อมบันทึก Audit Log) """
     review = db.query(Review).filter(Review.id == review_id).first()
     if not review or not review.is_anonymous:
         raise HTTPException(404, "ไม่พบรีวิว anonymous")
@@ -163,11 +170,12 @@ def reveal_anonymous(review_id: int, reason: str,
     db.commit()
     return {"real_name": user.name if user else "Unknown", "real_email": user.email if user else "Unknown"}
 
-# --- Posts Management ---
+# --- 3. การจัดการกระทู้ชุมชน (Community Posts Moderation) ---
 @router.get("/posts")
 def list_admin_posts(status: str = Query(None),
                      db: Session = Depends(get_db),
                      admin: User = Depends(require_admin)):
+    """ ดึงรายการกระทู้ทั้งหมดในระบบเพื่อการตรวจสอบ """
     query = db.query(CommunityPost)
     if status:
         query = query.filter(CommunityPost.status == status)
@@ -193,6 +201,7 @@ def list_admin_posts(status: str = Query(None),
 def update_post_status(post_id: int, payload: dict = Body(...),
                        db: Session = Depends(get_db),
                        admin: User = Depends(require_admin)):
+    """ อนุมัติหรือปฏิเสธกระทู้ชุมชน """
     post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
     if not post:
         raise HTTPException(404, "ไม่พบโพสต์")
@@ -238,11 +247,12 @@ def update_post_status(post_id: int, payload: dict = Body(...),
     else:
         raise HTTPException(400, "สถานะไม่ถูกต้อง")
 
-# --- User Management ---
+# --- 4. การจัดการผู้ใช้งาน (User Management) ---
 @router.get("/users")
 def list_users(role: str = Query(None), q: str = Query(None),
                db: Session = Depends(get_db),
                admin: User = Depends(require_admin)):
+    """ ดึงรายชื่อผู้ใช้งานทั้งหมด พร้อมค้นหาตามชื่อ/อีเมล/บทบาท """
     query = db.query(User)
     if role and role in UserRole.__members__:
         query = query.filter(User.role == UserRole(role))
@@ -268,6 +278,7 @@ def list_users(role: str = Query(None), q: str = Query(None),
 def update_user_role(user_id: int, payload: dict = Body(...),
                      db: Session = Depends(get_db),
                      admin: User = Depends(require_admin)):
+    """ เปลี่ยน Role ของผู้ใช้ (เช่น แต่งตั้ง Admin ใหม่) """
     new_role = payload.get("role")
     if new_role not in UserRole.__members__:
         raise HTTPException(400, "Role ไม่ถูกต้อง")
@@ -291,6 +302,7 @@ def update_user_role(user_id: int, payload: dict = Body(...),
 def toggle_super_admin(user_id: int, payload: dict = Body(...),
                        db: Session = Depends(get_db),
                        super_admin: User = Depends(require_super_admin)):
+    """ มอบหรือถอดสิทธิ์ Super Admin (เฉพาะ Super Admin คนเดิมทำได้เท่านั้น) """
     is_super = payload.get("is_super_admin", False)
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
@@ -310,6 +322,7 @@ def toggle_super_admin(user_id: int, payload: dict = Body(...),
 def ban_user(user_id: int, payload: dict = Body(default={}),
              db: Session = Depends(get_db),
              admin: User = Depends(require_admin)):
+    """ ระงับการใช้งานหรือเปิดใช้งานบัญชีผู้ใช้ """
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
         raise HTTPException(404, "ไม่พบผู้ใช้")
@@ -317,19 +330,20 @@ def ban_user(user_id: int, payload: dict = Body(default={}),
         raise HTTPException(403, "ไม่สามารถระงับบัญชี Super Admin ได้")
         
     reason = payload.get("reason", "ระงับการใช้งานโดย Admin")
-    target_user.is_verified = not target_user.is_verified  # Toggle active status
+    target_user.is_verified = not target_user.is_verified
     status_str = "ระงับการใช้งาน" if not target_user.is_verified else "เปิดใช้งาน"
     db.add(AuditLog(admin_id=admin.id, action="toggle_ban_user",
                     target_type="user", target_id=user_id, reason=reason))
     db.commit()
     return {"message": f"{status_str}บัญชีผู้ใช้สำเร็จ"}
 
-# --- Job Posting Approval ---
+# --- 5. การอนุมัติประกาศงาน (Job Postings Moderation) ---
 @router.get("/jobs/pending")
 @router.get("/jobs")
 def list_admin_jobs(status: str = Query(None),
                     db: Session = Depends(get_db),
                     admin: User = Depends(require_admin)):
+    """ ดึงรายการตำแหน่งงานเพื่อการตรวจสอบและอนุมัติ """
     query = db.query(JobPosting)
     if status:
         query = query.filter(JobPosting.status == status)
@@ -356,6 +370,7 @@ def list_admin_jobs(status: str = Query(None),
 def update_job_status(job_id: int, payload: dict = Body(...),
                       db: Session = Depends(get_db),
                       admin: User = Depends(require_admin)):
+    """ อนุมัติหรือปฏิเสธประกาศรับสมัครงานจากสถานประกอบการ """
     job = db.query(JobPosting).filter(JobPosting.id == job_id).first()
     if not job:
         raise HTTPException(404, "ไม่พบประกาศงาน")
@@ -409,24 +424,13 @@ def update_job_status(job_id: int, payload: dict = Body(...),
     else:
         raise HTTPException(400, "สถานะไม่ถูกต้อง")
 
-@router.patch("/jobs/{job_id}/approve")
-def approve_job(job_id: int, db: Session = Depends(get_db),
-                admin: User = Depends(require_admin)):
-    return update_job_status(job_id, {"status": "approved"}, db, admin)
-
-@router.patch("/jobs/{job_id}/reject")
-def reject_job(job_id: int, payload: dict = Body(default={}),
-               db: Session = Depends(get_db),
-               admin: User = Depends(require_admin)):
-    payload["status"] = "rejected"
-    return update_job_status(job_id, payload, db, admin)
-
-# --- Student Upgrade Requests ---
+# --- 6. การอนุมัติคำขอยืนยันสิทธิ์นักศึกษา (Student Verification Requests) ---
 @router.get("/upgrades")
 @router.get("/upgrade-requests")
 def list_upgrade_requests(status: str = Query(None),
                           db: Session = Depends(get_db),
                           admin: User = Depends(require_admin)):
+    """ ดึงคำขอยื่นหลักฐานยืนยันตัวตนนักศึกษา """
     query = db.query(UpgradeRequest)
     if status and status in UpgradeRequestStatus.__members__:
         query = query.filter(UpgradeRequest.status == UpgradeRequestStatus(status))
@@ -451,156 +455,100 @@ def list_upgrade_requests(status: str = Query(None),
         for r in reqs
     ]
 
-@router.patch("/upgrades/{req_id}")
-@router.patch("/upgrade-requests/{req_id}")
-def update_upgrade_request_status(req_id: int, payload: dict = Body(...),
-                                  db: Session = Depends(get_db),
-                                  admin: User = Depends(require_admin)):
-    req = db.query(UpgradeRequest).filter(UpgradeRequest.id == req_id).first()
+@router.patch("/upgrades/{request_id}")
+def process_upgrade_request(request_id: int, payload: dict = Body(...),
+                            db: Session = Depends(get_db),
+                            admin: User = Depends(require_admin)):
+    """ อนุมัติหรือปฏิเสธคำขอยืนยันสิทธิ์นักศึกษา """
+    req = db.query(UpgradeRequest).filter(UpgradeRequest.id == request_id).first()
     if not req:
-        raise HTTPException(404, "ไม่พบคำขออนุมัติสิทธิ์")
-    
+        raise HTTPException(404, "ไม่พบคำขอ")
+        
     status_str = payload.get("status")
-    reason = payload.get("rejection_reason") or payload.get("reason")
+    reason = payload.get("rejection_reason")
     
-    if status_str == "rejected" or status_str == UpgradeRequestStatus.rejected.value:
+    if status_str == "approved":
+        req.status = UpgradeRequestStatus.approved
+        target_user = db.query(User).filter(User.id == req.user_id).first()
+        if target_user:
+            target_user.role = UserRole.student
+            if req.department:
+                target_user.department = req.department
+            target_user.is_verified = True
+            
+            create_notification(
+                db=db,
+                user_id=target_user.id,
+                title="ยืนยันสิทธิ์นักศึกษาสำเร็จ",
+                message="คำขอยืนยันสิทธิ์นักศึกษาของคุณได้รับการอนุมัติแล้ว คุณสามารถเข้าถึงข้อมูลรีวิวได้เต็มรูปแบบ",
+                type="success",
+                link="/insights"
+            )
+        db.add(AuditLog(admin_id=admin.id, action="approve_student_upgrade",
+                        target_type="upgrade_request", target_id=request_id))
+        db.commit()
+        return {"message": "อนุมัติสิทธิ์นักศึกษาสำเร็จ"}
+        
+    elif status_str == "rejected":
         if not reason or not str(reason).strip():
-            raise HTTPException(400, "ต้องระบุเหตุผลในการปฏิเสธ")
+            raise HTTPException(400, "กรุณาระบุเหตุผลการปฏิเสธคำขอ")
         req.status = UpgradeRequestStatus.rejected
         req.rejection_reason = str(reason).strip()
         
-        create_notification(
-            db=db,
-            user_id=req.user_id,
-            title="คำขออนุมัติสิทธิ์ถูกปฏิเสธ",
-            message=f"คำขออนุมัติสิทธิ์นักศึกษาของคุณถูกปฏิเสธเนื่องจาก: {str(reason).strip()}",
-            type="warning",
-            link="/"
-        )
+        target_user = db.query(User).filter(User.id == req.user_id).first()
+        if target_user:
+            create_notification(
+                db=db,
+                user_id=target_user.id,
+                title="คำขอยืนยันสิทธิ์นักศึกษาถูกปฏิเสธ",
+                message=f"คำขอของคุณไม่ผ่านการอนุมัติเนื่องจาก: {str(reason).strip()}",
+                type="warning",
+                link="/"
+            )
         db.add(AuditLog(admin_id=admin.id, action="reject_student_upgrade",
-                        target_type="upgrade_request", target_id=req_id, reason=str(reason).strip()))
+                        target_type="upgrade_request", target_id=request_id, reason=str(reason).strip()))
         db.commit()
-        return {"message": "ปฏิเสธคำขออนุมัติสิทธิ์สำเร็จ"}
-
-    elif status_str == "approved" or status_str == UpgradeRequestStatus.approved.value:
-        req.status = UpgradeRequestStatus.approved
-        req.rejection_reason = None
-        if req.user:
-            req.user.role = UserRole.student
-            if req.department:
-                req.user.department = req.department
+        return {"message": "ปฏิเสธคำขอสำเร็จ"}
         
-        create_notification(
-            db=db,
-            user_id=req.user_id,
-            title="คำขออนุมัติสิทธิ์ได้รับการอนุมัติ",
-            message="คุณได้รับการอนุมัติสิทธิ์เป็นนักศึกษาเรียบร้อยแล้ว",
-            type="info",
-            link="/"
-        )
-        db.add(AuditLog(admin_id=admin.id, action="approve_student_upgrade",
-                        target_type="upgrade_request", target_id=req_id))
-        db.commit()
-        return {"message": "อนุมัติเปลี่ยนสิทธิ์เป็นนักศึกษาสำเร็จ"}
-    else:
-        raise HTTPException(400, "สถานะไม่ถูกต้อง")
+    raise HTTPException(400, "สถานะไม่ถูกต้อง")
 
-@router.patch("/upgrade-requests/{req_id}/approve")
-def approve_upgrade_request(req_id: int, db: Session = Depends(get_db),
-                            admin: User = Depends(require_admin)):
-    return update_upgrade_request_status(req_id, {"status": "approved"}, db, admin)
-
-@router.patch("/upgrade-requests/{req_id}/reject")
-def reject_upgrade_request(req_id: int, payload: dict = Body(default={}),
-                           db: Session = Depends(get_db),
-                           admin: User = Depends(require_admin)):
-    payload["status"] = "rejected"
-    return update_upgrade_request_status(req_id, payload, db, admin)
-
-# --- Universal Reports Moderation ---
+# --- 7. การตรวจสอบและจัดการรายงานความไม่เหมาะสม (Reports Handling) ---
 @router.get("/reports")
-@router.get("/community/reports")
-def list_reports(status: str = Query(None),
-                 db: Session = Depends(get_db),
-                 admin: User = Depends(require_admin)):
-    query = db.query(Report)
-    if status:
-        query = query.filter(Report.status == status)
-    reports = query.order_by(Report.created_at.desc()).all()
-    result = []
-    for rep in reports:
-        item = {
+def list_reports(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """ ดึงรายการแจ้งรายงานเนื้อหาไม่เหมาะสมทั้งหมด """
+    reports = db.query(Report).order_by(Report.created_at.desc()).all()
+    return [
+        {
             "id": rep.id,
-            "reporter_name": rep.reporter.name if hasattr(rep, "reporter") and rep.reporter else "Unknown",
-            "reason": rep.reason,
-            "status": rep.status or "pending",
+            "reporter_id": rep.reporter_id,
+            "reporter_name": rep.reporter.name if rep.reporter else "ผู้ใช้",
             "post_id": rep.post_id,
+            "post_title": rep.post.title if rep.post else None,
             "review_id": rep.review_id,
-            "comment_id": rep.comment_id,
-            "job_id": rep.job_id,
-            "company_id": rep.company_id,
+            "company_name": rep.review.company.name if rep.review and rep.review.company else None,
+            "reason": rep.reason,
+            "status": rep.status,
             "created_at": rep.created_at.strftime("%Y-%m-%d %H:%M") if rep.created_at else None,
         }
-        if rep.post_id:
-            p = db.query(CommunityPost).filter(CommunityPost.id == rep.post_id).first()
-            if p:
-                item["post_title"] = p.title
-                item["post_content"] = p.content
-        result.append(item)
-    return result
+        for rep in reports
+    ]
 
-@router.patch("/reports/{report_id}")
-@router.patch("/community/reports/{report_id}/resolve")
-def update_report_status(report_id: int, payload: dict = Body(default={}),
-                         db: Session = Depends(get_db),
-                         admin: User = Depends(require_admin)):
-    rep = db.query(Report).filter(Report.id == report_id).first()
-    if not rep:
-        raise HTTPException(404, "ไม่พบรายงาน")
-    
-    action = payload.get("action")
-    new_status = payload.get("status", "resolved")
-    
-    if action == "delete_post" and rep.post_id:
-        p = db.query(CommunityPost).filter(CommunityPost.id == rep.post_id).first()
-        if p:
-            db.delete(p)
-            
-    rep.status = new_status
-    db.add(AuditLog(admin_id=admin.id, action=f"update_report_{new_status}",
-                    target_type="report", target_id=report_id))
-    db.commit()
-    return {"message": "จัดการรายงานสำเร็จ"}
-
-# --- Employers Approval ---
-@router.get("/employers/pending")
-def list_pending_employers(db: Session = Depends(get_db),
-                           admin: User = Depends(require_admin)):
-    return db.query(Employer).filter(Employer.is_approved == False).all()
-
-@router.patch("/employers/{employer_id}/approve")
-def approve_employer(employer_id: int, db: Session = Depends(get_db),
-                     admin: User = Depends(require_admin)):
-    emp = db.query(Employer).filter(Employer.id == employer_id).first()
-    if not emp:
-        raise HTTPException(404, "ไม่พบสถานประกอบการ")
-    emp.is_approved = True
-    db.add(AuditLog(admin_id=admin.id, action="approve_employer",
-                    target_type="employer", target_id=employer_id))
-    db.commit()
-    return {"message": "อนุมัติสถานประกอบการสำเร็จ"}
-
-# --- Audit Logs ---
-@router.get("/logs")
-def list_audit_logs(db: Session = Depends(get_db),
-                    admin: User = Depends(require_admin)):
-    logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(100).all()
+# --- 8. บันทึกประวัติการกระทำของผู้ดูแลระบบ (Audit Logs) ---
+@router.get("/audit-logs")
+def get_audit_logs(skip: int = 0, limit: int = 50,
+                   db: Session = Depends(get_db),
+                   admin: User = Depends(require_admin)):
+    """ ดึงบันทึกประวัติการกระทำของ Admin (Audit Logs) ย้อนหลัง """
+    logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).offset(skip).limit(limit).all()
     result = []
     for l in logs:
-        adm = db.query(User).filter(User.id == l.admin_id).first()
+        admin_name = "System/Admin"
+        if getattr(l, "admin", None) and getattr(l.admin, "name", None):
+            admin_name = l.admin.name
         result.append({
             "id": l.id,
-            "admin_name": adm.name if adm else f"Admin #{l.admin_id}",
+            "admin_id": l.admin_id,
+            "admin_name": admin_name,
             "action": l.action,
             "target_type": l.target_type,
             "target_id": l.target_id,
@@ -608,3 +556,92 @@ def list_audit_logs(db: Session = Depends(get_db),
             "created_at": l.created_at.strftime("%Y-%m-%d %H:%M:%S") if l.created_at else None,
         })
     return result
+
+# --- 9. ฟังก์ชันการลบข้อมูลโดยผู้ดูแลระบบ (Admin Direct Deletions) ---
+@router.delete("/reviews/{review_id}")
+def admin_delete_review(review_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """ ผู้ดูแลระบบสามารถลบรีวิวใดๆ ก็ได้ในระบบโดยตรง """
+    from models import Review, ReviewPhoto
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(404, "ไม่พบรีวิว")
+    db.query(ReviewPhoto).filter(ReviewPhoto.review_id == review_id).delete()
+    db.delete(review)
+    db.add(AuditLog(admin_id=admin.id, action="delete_review", target_type="review", target_id=review_id, reason="Admin manually deleted review"))
+    db.commit()
+    return {"message": "ลบรีวิวสำเร็จ"}
+
+@router.delete("/posts/{post_id}")
+def admin_delete_post(post_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """ ผู้ดูแลระบบสามารถลบกระทู้คอมมูนิตี้ใดๆ ก็ได้ในระบบโดยตรง """
+    from models import CommunityPost, CommunityComment, CommunityLike
+    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+    if not post:
+        raise HTTPException(404, "ไม่พบโพสต์")
+    db.query(CommunityComment).filter(CommunityComment.post_id == post_id).delete()
+    db.query(CommunityLike).filter(CommunityLike.post_id == post_id).delete()
+    db.delete(post)
+    db.add(AuditLog(admin_id=admin.id, action="delete_post", target_type="community_post", target_id=post_id, reason="Admin manually deleted community post"))
+    db.commit()
+    return {"message": "ลบกระทู้สำเร็จ"}
+
+@router.delete("/jobs/{job_id}")
+def admin_delete_job(job_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """ ผู้ดูแลระบบสามารถลบประกาศงานใดๆ ก็ได้ในระบบโดยตรง """
+    from models import JobPosting
+    job = db.query(JobPosting).filter(JobPosting.id == job_id).first()
+    if not job:
+        raise HTTPException(404, "ไม่พบประกาศงาน")
+    db.delete(job)
+    db.add(AuditLog(admin_id=admin.id, action="delete_job", target_type="job_posting", target_id=job_id, reason="Admin manually deleted job posting"))
+    db.commit()
+    return {"message": "ลบประกาศงานสำเร็จ"}
+
+# --- 10. การจัดการสถานประกอบการ (Employers Management) ---
+@router.get("/employers")
+def list_admin_employers(status: str = Query(None),
+                         db: Session = Depends(get_db),
+                         admin: User = Depends(require_admin)):
+    """ ดึงรายชื่อสถานประกอบการทั้งหมด (กรองตามสถานะ: pending, approved, all) """
+    query = db.query(Employer)
+    if status == "pending":
+        query = query.filter(Employer.is_approved == False)
+    elif status == "approved":
+        query = query.filter(Employer.is_approved == True)
+    
+    employers = query.order_by(Employer.created_at.desc()).all()
+    return [
+        {
+            "id": e.id,
+            "email": e.email,
+            "company_name": e.company_name,
+            "address": e.address,
+            "industry": e.industry,
+            "logo_url": e.logo_url,
+            "is_approved": e.is_approved,
+            "created_at": e.created_at.strftime("%Y-%m-%d %H:%M") if e.created_at else None,
+        }
+        for e in employers
+    ]
+
+@router.patch("/employers/{employer_id}/approve")
+def approve_employer(employer_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """ อนุมัติการลงทะเบียนของสถานประกอบการ """
+    emp = db.query(Employer).filter(Employer.id == employer_id).first()
+    if not emp:
+        raise HTTPException(404, "ไม่พบสถานประกอบการ")
+    emp.is_approved = True
+    db.add(AuditLog(admin_id=admin.id, action="approve_employer", target_type="employer", target_id=employer_id, reason="Admin approved employer account"))
+    db.commit()
+    return {"message": "อนุมัติบัญชีสถานประกอบการสำเร็จ"}
+
+@router.delete("/employers/{employer_id}")
+def delete_employer(employer_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """ ลบบัญชีสถานประกอบการออกจากระบบ """
+    emp = db.query(Employer).filter(Employer.id == employer_id).first()
+    if not emp:
+        raise HTTPException(404, "ไม่พบสถานประกอบการ")
+    db.delete(emp)
+    db.add(AuditLog(admin_id=admin.id, action="delete_employer", target_type="employer", target_id=employer_id, reason="Admin manually deleted employer account"))
+    db.commit()
+    return {"message": "ลบบัญชีสถานประกอบการสำเร็จ"}

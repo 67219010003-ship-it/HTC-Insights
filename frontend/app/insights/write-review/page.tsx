@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { getToken } from "@/lib/auth";
-import { ALL_DEPARTMENTS } from "@/components/DepartmentDropdown";
+import DepartmentDropdown, { ALL_DEPARTMENTS } from "@/components/DepartmentDropdown";
 import CompanySearchBar, { SelectedCompany } from "@/components/CompanySearchBar";
 
 export default function WriteReviewPage() {
@@ -402,17 +402,7 @@ export default function WriteReviewPage() {
           <div className="space-y-md">
             <div>
               <label className="block font-label-md text-label-md font-bold text-primary mb-xs">แผนกวิชาที่ฝึกงาน</label>
-              <select
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary"
-              >
-                {ALL_DEPARTMENTS.filter((d) => d.value !== "").map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
+              <DepartmentDropdown value={department} onChange={setDepartment} />
             </div>
 
             <div>
