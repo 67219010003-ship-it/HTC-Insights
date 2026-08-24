@@ -22,8 +22,17 @@ def create_db_engine():
             poolclass=StaticPool,
         )
     
+    # Auto-detect cloud SSL requirements (e.g. TiDB Cloud / Aiven)
+    connect_args = {}
+    if "tidbcloud.com" in DATABASE_URL or "ssl" in DATABASE_URL.lower():
+        ca_path = "/etc/ssl/certs/ca-certificates.crt"
+        if os.path.exists(ca_path):
+            connect_args["ssl"] = {"ca": ca_path}
+        else:
+            connect_args["ssl"] = {}
+
     # เชื่อมต่อตรงกับฐานข้อมูล MySQL ของระบบจริง
-    return create_engine(DATABASE_URL, pool_pre_ping=True)
+    return create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 
 # สร้าง Engine และ Session Factory สำหรับจัดการธุรกรรมฐานข้อมูล
 engine = create_db_engine()
