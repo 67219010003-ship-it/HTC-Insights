@@ -57,20 +57,29 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await res.json();
-    const localResults = data.local_results || [];
+    let rawList: any[] = [];
+    if (Array.isArray(data.local_results)) {
+      rawList = data.local_results;
+    } else if (Array.isArray(data.places_results)) {
+      rawList = data.places_results;
+    } else if (data.place_results) {
+      rawList = [data.place_results];
+    } else if (Array.isArray(data.organic_results)) {
+      rawList = data.organic_results;
+    }
 
     // Map SerpApi result to our SelectedCompany shape
-    const results = localResults.map((item: any) => ({
-      name: item.title || "",
+    const results = rawList.map((item: any) => ({
+      name: item.title || item.name || "",
       address: item.address || "",
       phone: item.phone || "",
-      website: item.website || "",
+      website: item.website || item.link || "",
       lat: item.gps_coordinates?.latitude ?? parseFloat(lat),
       lng: item.gps_coordinates?.longitude ?? parseFloat(lng),
       rating: item.rating,
       reviews: item.reviews,
       type: item.type,
-      cover_image_url: item.thumbnail || "",
+      cover_image_url: item.thumbnail || item.photos?.[0]?.image || "",
       source: "google" as const,
     }));
 
