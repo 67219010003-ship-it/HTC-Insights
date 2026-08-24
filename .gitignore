@@ -29,3 +29,8 @@ frontend/tsconfig.tsbuildinfo
 
 # Utility / Executables
 run.bat
+
+# Project Documentation & Local Database dumps
+docs/
+database/
+htc_insights_erd.png
