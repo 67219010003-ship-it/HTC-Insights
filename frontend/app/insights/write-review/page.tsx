@@ -136,8 +136,8 @@ export default function WriteReviewPage() {
     if (s === 2) {
       if (dailyAllowance !== "") {
         const allowanceNum = parseInt(dailyAllowance);
-        if (isNaN(allowanceNum) || allowanceNum < 0 || allowanceNum > 2000) {
-          return "เบี้ยเลี้ยงรายวันต้องอยู่ระหว่าง 0 - 2,000 บาท/วัน";
+        if (isNaN(allowanceNum) || allowanceNum < 0 || allowanceNum > 99999) {
+          return "เบี้ยเลี้ยงรายวันต้องอยู่ระหว่าง 0 - 99,999 บาท/วัน";
         }
       }
       if (periodStart && periodEnd && periodStart > periodEnd) {
@@ -436,17 +436,17 @@ export default function WriteReviewPage() {
             <div>
               <div className="flex justify-between items-center mb-xs">
                 <label className="block font-label-md text-label-md font-bold text-primary">เบี้ยเลี้ยงรายวัน (บาท/วัน)</label>
-                <span className="text-[11px] text-on-surface-variant">จำกัด 0 - 2,000 บาท</span>
+                <span className="text-[11px] text-on-surface-variant">จำกัด 0 - 99,999 บาท</span>
               </div>
               <input
                 type="number"
                 min={0}
-                max={2000}
+                max={99999}
                 placeholder="เช่น 300 (ใส่ 0 หรือเว้นว่างได้ถ้าไม่มีเบี้ยเลี้ยง)"
                 value={dailyAllowance}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === "" || (Number(val) >= 0 && Number(val) <= 2000)) {
+                  if (val === "" || (Number(val) >= 0 && Number(val) <= 99999)) {
                     setDailyAllowance(val);
                   }
                 }}
@@ -459,20 +459,38 @@ export default function WriteReviewPage() {
               <div>
                 <label className="block font-label-md text-label-md font-bold text-primary mb-xs">เวลาเข้างาน</label>
                 <input
-                  type="time"
+                  type="text"
+                  inputMode="numeric"
                   value={workStartTime}
-                  onChange={(e) => setWorkStartTime(e.target.value)}
-                  className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary focus:ring-2 focus:ring-secondary"
+                  placeholder="เช่น 08:30"
+                  maxLength={5}
+                  pattern="([01]\d|2[0-3]):[0-5]\d"
+                  onChange={(e) => {
+                    let val = e.target.value.replace(/[^0-9:]/g, "");
+                    if (val.length === 2 && !val.includes(":") && workStartTime.length < 2) val = val + ":";
+                    if (val.length <= 5) setWorkStartTime(val);
+                  }}
+                  className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary focus:ring-2 focus:ring-secondary font-mono tracking-widest"
                 />
+                <p className="text-[10px] text-on-surface-variant mt-1">รูปแบบ 24 ชั่วโมง เช่น 08:00 หรือ 13:30</p>
               </div>
               <div>
                 <label className="block font-label-md text-label-md font-bold text-primary mb-xs">เวลาเลิกงาน</label>
                 <input
-                  type="time"
+                  type="text"
+                  inputMode="numeric"
                   value={workEndTime}
-                  onChange={(e) => setWorkEndTime(e.target.value)}
-                  className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary focus:ring-2 focus:ring-secondary"
+                  placeholder="เช่น 17:00"
+                  maxLength={5}
+                  pattern="([01]\d|2[0-3]):[0-5]\d"
+                  onChange={(e) => {
+                    let val = e.target.value.replace(/[^0-9:]/g, "");
+                    if (val.length === 2 && !val.includes(":") && workEndTime.length < 2) val = val + ":";
+                    if (val.length <= 5) setWorkEndTime(val);
+                  }}
+                  className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-bold text-primary focus:ring-2 focus:ring-secondary font-mono tracking-widest"
                 />
+                <p className="text-[10px] text-on-surface-variant mt-1">รูปแบบ 24 ชั่วโมง เช่น 17:00 หรือ 18:30</p>
               </div>
             </div>
           </div>

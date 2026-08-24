@@ -9,7 +9,7 @@ class ReviewCreate(BaseModel):
     period_start: date
     period_end: date
     department: str = Field(..., min_length=2, max_length=100)
-    daily_allowance: Optional[int] = Field(None, ge=0, le=2000, description="เบี้ยเลี้ยง 0-2000 บาท/วัน")
+    daily_allowance: Optional[int] = Field(None, ge=0, le=99999, description="เบี้ยเลี้ยง 0-99,999 บาท/วัน")
     has_transport: bool = False
     work_start_time: Optional[str] = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$", description="เวลาเริ่มงาน HH:MM")
     work_end_time: Optional[str] = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$", description="เวลาเลิกงาน HH:MM")
