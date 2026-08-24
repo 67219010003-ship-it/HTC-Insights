@@ -6,8 +6,12 @@ import os
 
 load_dotenv()
 
-# กำหนด URL ของฐานข้อมูล MySQL จาก environment variables (ค่าเริ่มต้นคือ root:@localhost/htc_insights)
-DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:@localhost:3306/htc_insights")
+# กำหนด URL ของฐานข้อมูล MySQL จาก environment variables
+raw_db_url = os.getenv("DATABASE_URL", "mysql+pymysql://root:@localhost:3306/htc_insights")
+if raw_db_url.startswith("mysql://"):
+    DATABASE_URL = raw_db_url.replace("mysql://", "mysql+pymysql://", 1)
+else:
+    DATABASE_URL = raw_db_url
 
 def create_db_engine():
     """ สร้าง SQLAlchemy Engine สำหรับการเชื่อมต่อฐานข้อมูล (รองรับทั้ง SQLite สำหรับการทดสอบ และ MySQL) """
