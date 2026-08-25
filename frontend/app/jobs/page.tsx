@@ -5,6 +5,7 @@ import Link from "next/link";
 import JobCard, { JobData } from "@/components/jobs/JobCard";
 import JobDetailView from "@/components/jobs/JobDetailView";
 import DepartmentDropdown from "@/components/DepartmentDropdown";
+import Pagination from "@/components/Pagination";
 import { api } from "@/lib/api";
 import { getToken, getRole, getUser, isStudent } from "@/lib/auth";
 
@@ -16,6 +17,8 @@ export default function JobsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -116,7 +119,10 @@ export default function JobsPage() {
               type="text"
               placeholder="ค้นหาตำแหน่งงาน, ชื่อบริษัท หรือทักษะที่สนใจ..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/30 rounded-xl text-xs md:text-sm focus:outline-none focus:border-primary shadow-sm"
             />
           </div>
@@ -125,13 +131,19 @@ export default function JobsPage() {
           <div className="w-full md:w-64 shrink-0">
             <DepartmentDropdown
               value={selectedDepartment}
-              onChange={setSelectedDepartment}
+              onChange={(val) => {
+                setSelectedDepartment(val);
+                setPage(1);
+              }}
             />
           </div>
 
           <select
             value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
+            onChange={(e) => {
+              setSelectedLocation(e.target.value);
+              setPage(1);
+            }}
             className="w-full md:w-auto px-4 py-2.5 bg-surface-container-lowest border border-outline-variant/30 rounded-xl text-xs md:text-sm text-on-surface-variant focus:outline-none focus:border-primary shadow-sm cursor-pointer shrink-0"
           >
             <option value="">ทุกอำเภอ / ทุกจังหวัด</option>
@@ -209,14 +221,28 @@ export default function JobsPage() {
               )}
             </div>
           ) : (
-            filteredJobs.map((job) => (
-              <JobCard
-                key={job.id}
-                job={job}
-                isSelected={selectedJob?.id === job.id}
-                onSelect={(selected) => setSelectedJob(selected)}
-              />
-            ))
+            <>
+              {filteredJobs
+                .slice((page - 1) * pageSize, page * pageSize)
+                .map((job) => (
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    isSelected={selectedJob?.id === job.id}
+                    onSelect={(selected) => setSelectedJob(selected)}
+                  />
+                ))}
+
+              {filteredJobs.length > pageSize && (
+                <div className="pt-2">
+                  <Pagination
+                    currentPage={page}
+                    totalPages={Math.ceil(filteredJobs.length / pageSize) || 1}
+                    onPageChange={setPage}
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
 

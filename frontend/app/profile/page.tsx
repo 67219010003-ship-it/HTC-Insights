@@ -7,6 +7,7 @@ import Link from "next/link";
 import ConfirmModal from "@/components/ConfirmModal";
 import Toast from "@/components/Toast";
 import ImageLightboxModal from "@/components/ImageLightboxModal";
+import Pagination from "@/components/Pagination";
 
 interface UserProfile {
   id: number;
@@ -78,6 +79,9 @@ export default function StudentProfilePage() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [jobsLoading, setJobsLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [postsPage, setPostsPage] = useState(1);
+  const [jobsPage, setJobsPage] = useState(1);
+  const profilePageSize = 5;
 
   // Custom Modal & Toast States
   const [confirmModal, setConfirmModal] = useState<{
@@ -541,92 +545,106 @@ export default function StudentProfilePage() {
               </div>
             </div>
           ) : (
-            employerJobs.map((job) => (
-              <div key={job.id} className="bg-white border border-outline-variant/60 rounded-2xl p-5 shadow-xs space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-base text-primary">{job.title}</h3>
-                      {job.department && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-secondary-container/40 text-secondary border border-secondary/20 px-2 py-0.5 rounded-md">
-                          <span className="material-symbols-outlined text-[12px]">school</span>
-                          {job.department}
+            <>
+              {employerJobs
+                .slice((jobsPage - 1) * profilePageSize, jobsPage * profilePageSize)
+                .map((job) => (
+                  <div key={job.id} className="bg-white border border-outline-variant/60 rounded-2xl p-5 shadow-xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-base text-primary">{job.title}</h3>
+                          {job.department && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-secondary-container/40 text-secondary border border-secondary/20 px-2 py-0.5 rounded-md">
+                              <span className="material-symbols-outlined text-[12px]">school</span>
+                              {job.department}
+                            </span>
+                          )}
+                          {job.daily_allowance ? (
+                            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                              ฿{job.daily_allowance} / วัน
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-[11px] text-on-surface-variant flex items-center gap-3 flex-wrap">
+                          {job.location && (
+                            <span className="flex items-center gap-0.5">
+                              <span className="material-symbols-outlined text-[13px] text-secondary">location_on</span>
+                              {job.location}
+                            </span>
+                          )}
+                          <span>ประกาศเมื่อ: {job.created_at || "-"}</span>
+                        </div>
+                      </div>
+
+                      {/* Status Badge */}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                            job.status === "approved"
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : job.status === "rejected"
+                              ? "bg-rose-50 text-rose-800 border-rose-200"
+                              : "bg-amber-50 text-amber-800 border-amber-200"
+                          }`}
+                        >
+                          {job.status === "approved"
+                            ? "✓ อนุมัติแล้ว"
+                            : job.status === "rejected"
+                            ? "✕ ถูกปฏิเสธ"
+                            : "⏳ รอการอนุมัติ"}
                         </span>
-                      )}
-                      {job.daily_allowance ? (
-                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                          ฿{job.daily_allowance} / วัน
-                        </span>
-                      ) : null}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-on-surface-variant flex items-center gap-3 flex-wrap">
-                      {job.location && (
-                        <span className="flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-[13px] text-secondary">location_on</span>
-                          {job.location}
+
+                    {/* Rejection Alert */}
+                    {job.status === "rejected" && job.rejection_reason && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-1">
+                        <strong className="font-bold flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[15px]">info</span>
+                          เหตุผลที่ประกาศงานไม่ผ่านการอนุมัติ:
+                        </strong>
+                        <p>{job.rejection_reason}</p>
+                      </div>
+                    )}
+
+                    {/* Description Preview */}
+                    {job.description && (
+                      <p className="text-xs text-on-surface-variant bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/30 leading-relaxed line-clamp-2">
+                        {job.description}
+                      </p>
+                    )}
+
+                    {/* Action footer */}
+                    <div className="flex items-center justify-between pt-2 border-t border-outline-variant/30 text-xs">
+                      <span className={`font-semibold flex items-center gap-1 ${job.is_active ? "text-emerald-700" : "text-slate-500"}`}>
+                        <span className="material-symbols-outlined text-[14px]">
+                          {job.is_active ? "check_circle" : "pause_circle"}
                         </span>
-                      )}
-                      <span>ประกาศเมื่อ: {job.created_at || "-"}</span>
+                        สถานะการเปิดรับ: {job.is_active ? "เปิดรับสมัครอยู่" : "ปิดรับสมัครชั่วคราว"}
+                      </span>
+
+                      <Link
+                        href="/employer/dashboard"
+                        className="px-3 py-1.5 rounded-xl border border-secondary/30 text-secondary hover:bg-secondary/10 font-bold text-xs transition-colors flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">edit_note</span>
+                        จัดการในแดชบอร์ด
+                      </Link>
                     </div>
                   </div>
+                ))}
 
-                  {/* Status Badge */}
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                        job.status === "approved"
-                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                          : job.status === "rejected"
-                          ? "bg-rose-50 text-rose-800 border-rose-200"
-                          : "bg-amber-50 text-amber-800 border-amber-200"
-                      }`}
-                    >
-                      {job.status === "approved"
-                        ? "✓ อนุมัติแล้ว"
-                        : job.status === "rejected"
-                        ? "✕ ถูกปฏิเสธ"
-                        : "⏳ รอการอนุมัติ"}
-                    </span>
-                  </div>
+              {employerJobs.length > profilePageSize && (
+                <div className="pt-2">
+                  <Pagination
+                    currentPage={jobsPage}
+                    totalPages={Math.ceil(employerJobs.length / profilePageSize) || 1}
+                    onPageChange={setJobsPage}
+                  />
                 </div>
-
-                {/* Rejection Alert */}
-                {job.status === "rejected" && job.rejection_reason && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-1">
-                    <strong className="font-bold flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[15px]">info</span>
-                      เหตุผลที่ประกาศงานไม่ผ่านการอนุมัติ:
-                    </strong>
-                    <p>{job.rejection_reason}</p>
-                  </div>
-                )}
-
-                {/* Description Preview */}
-                {job.description && (
-                  <p className="text-xs text-on-surface-variant bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/30 leading-relaxed line-clamp-2">
-                    {job.description}
-                  </p>
-                )}
-
-                {/* Action footer */}
-                <div className="flex items-center justify-between pt-2 border-t border-outline-variant/30 text-xs">
-                  <span className={`font-semibold flex items-center gap-1 ${job.is_active ? "text-emerald-700" : "text-slate-500"}`}>
-                    <span className="material-symbols-outlined text-[14px]">
-                      {job.is_active ? "check_circle" : "pause_circle"}
-                    </span>
-                    สถานะการเปิดรับ: {job.is_active ? "เปิดรับสมัครอยู่" : "ปิดรับสมัครชั่วคราว"}
-                  </span>
-
-                  <Link
-                    href="/employer/dashboard"
-                    className="px-3 py-1.5 rounded-xl border border-secondary/30 text-secondary hover:bg-secondary/10 font-bold text-xs transition-colors flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">edit_note</span>
-                    จัดการในแดชบอร์ด
-                  </Link>
-                </div>
-              </div>
-            ))
+              )}
+            </>
           )}
         </div>
       )}
@@ -905,7 +923,8 @@ export default function StudentProfilePage() {
               </div>
             </div>
           ) : (
-            posts.map((post) => (
+            <>
+              {posts.slice((postsPage - 1) * profilePageSize, postsPage * profilePageSize).map((post) => (
               <div key={post.id} className="bg-white border border-outline-variant/60 rounded-2xl p-5 shadow-xs space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-1">
@@ -998,10 +1017,21 @@ export default function StudentProfilePage() {
                       <span className="material-symbols-outlined text-[14px]">delete</span>
                       ลบกระทู้
                     </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+
+              {posts.length > profilePageSize && (
+                <div className="pt-2">
+                  <Pagination
+                    currentPage={postsPage}
+                    totalPages={Math.ceil(posts.length / profilePageSize) || 1}
+                    onPageChange={setPostsPage}
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { isEmployer } from "@/lib/auth";
 import ReportModal from "@/components/ReportModal";
 import Toast from "@/components/Toast";
+import Pagination from "@/components/Pagination";
 
 export default function ThreadDetailPage() {
   const params = useParams();
@@ -14,6 +15,8 @@ export default function ThreadDetailPage() {
   const [post, setPost] = useState<any>(null);
   const [comment, setComment] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6;
   const [toast, setToast] = useState<{ isOpen: boolean; message: string; type: "success" | "error" | "info" }>({
     isOpen: false,
     message: "",
@@ -182,43 +185,65 @@ export default function ThreadDetailPage() {
 
       {/* Comments List */}
       <div className="space-y-3">
-        <h3 className="text-sm font-bold text-primary px-1">
-          ความคิดเห็น ({post.comments?.length || 0})
-        </h3>
-        {post.comments?.length === 0 ? (
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-sm font-bold text-primary">
+            ความคิดเห็น ({post.comments?.length || 0})
+          </h3>
+          {post.comments?.length > pageSize && (
+            <span className="text-[11px] text-on-surface-variant font-medium">
+              หน้า {currentPage} จาก {Math.ceil(post.comments.length / pageSize)}
+            </span>
+          )}
+        </div>
+        {(!post.comments || post.comments.length === 0) ? (
           <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/20 text-xs text-on-surface-variant text-center">
             ยังไม่มีความคิดเห็น เป็นคนแรกที่แสดงความคิดเห็น!
           </div>
         ) : (
-          post.comments?.map((c: any) => (
-            <div key={c.id} className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/20 text-sm space-y-1">
-              <div className="flex justify-between items-center text-xs text-on-surface-variant mb-1">
-                <span className="font-bold text-primary">
-                  {c.is_anonymous ? "นักศึกษาไม่ระบุชื่อ" : c.author_name || "นักศึกษา"}
-                </span>
-                <div className="flex items-center gap-3">
-                  <span>{c.created_at}</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setReportModal({
-                        isOpen: true,
-                        targetType: "comment",
-                        targetId: c.id,
-                        title: "รายงานความคิดเห็น",
-                      })
-                    }
-                    className="text-slate-400 hover:text-amber-600 flex items-center gap-0.5 text-[11px] font-medium transition-colors cursor-pointer"
-                    title="รายงานความคิดเห็นนี้"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">flag</span>
-                    รายงานความคิดเห็น
-                  </button>
+          <>
+            {post.comments
+              .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+              .map((c: any) => (
+                <div key={c.id} className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/20 text-sm space-y-1">
+                  <div className="flex justify-between items-center text-xs text-on-surface-variant mb-1">
+                    <span className="font-bold text-primary">
+                      {c.is_anonymous ? "นักศึกษาไม่ระบุชื่อ" : c.author_name || "นักศึกษา"}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <span>{c.created_at}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReportModal({
+                            isOpen: true,
+                            targetType: "comment",
+                            targetId: c.id,
+                            title: "รายงานความคิดเห็น",
+                          })
+                        }
+                        className="text-slate-400 hover:text-amber-600 flex items-center gap-0.5 text-[11px] font-medium transition-colors cursor-pointer"
+                        title="รายงานความคิดเห็นนี้"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">flag</span>
+                        รายงานความคิดเห็น
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-on-surface leading-relaxed">{c.content}</p>
                 </div>
+              ))}
+
+            {/* Comments Pagination */}
+            {post.comments.length > pageSize && (
+              <div className="pt-2">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={Math.ceil(post.comments.length / pageSize) || 1}
+                  onPageChange={setCurrentPage}
+                />
               </div>
-              <p className="text-on-surface leading-relaxed">{c.content}</p>
-            </div>
-          ))
+            )}
+          </>
         )}
       </div>
 

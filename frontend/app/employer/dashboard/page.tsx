@@ -7,11 +7,14 @@ import { useRouter } from "next/navigation";
 
 import Toast from "@/components/Toast";
 import ConfirmModal from "@/components/ConfirmModal";
+import Pagination from "@/components/Pagination";
 
 export default function EmployerDashboardPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
   const [postings, setPostings] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6;
   const [title, setTitle] = useState("");
   const [department, setDepartment] = useState("ช่างอิเล็กทรอนิกส์");
   const [description, setDescription] = useState("");
@@ -125,32 +128,52 @@ export default function EmployerDashboardPage() {
       </div>
 
       {/* Postings Grid */}
-      <h2 className="text-lg font-bold text-primary font-headline mb-4">รายการประกาศของคุณ ({postings.length})</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {postings.map((p) => (
-          <div key={p.id} className="bg-white border border-outline-variant rounded-xl p-5 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-start mb-2">
-                <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${p.is_active ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-600"}`}>
-                  {p.is_active ? "เปิดรับสมัคร" : "ปิดประกาศแล้ว"}
-                </span>
-                <span className="text-xs text-secondary font-bold">฿{p.daily_allowance}/วัน</span>
-              </div>
-              <h3 className="font-bold text-base text-primary mb-1">{p.title}</h3>
-              <p className="text-xs text-on-surface-variant mb-3">{p.department}</p>
-              <p className="text-xs text-on-surface-variant line-clamp-2">{p.description}</p>
-            </div>
-            {p.is_active && (
-              <button
-                onClick={() => setCloseTargetId(p.id)}
-                className="mt-4 text-xs font-bold text-error border border-error/20 py-1.5 rounded-lg hover:bg-error/10 transition-colors"
-              >
-                ปิดประกาศ
-              </button>
-            )}
-          </div>
-        ))}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-bold text-primary font-headline">รายการประกาศของคุณ ({postings.length})</h2>
+        {postings.length > pageSize && (
+          <span className="text-xs text-on-surface-variant font-medium">
+            หน้า {currentPage} จาก {Math.ceil(postings.length / pageSize)}
+          </span>
+        )}
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {postings
+          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+          .map((p) => (
+            <div key={p.id} className="bg-white border border-outline-variant rounded-xl p-5 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-start mb-2">
+                  <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${p.is_active ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-600"}`}>
+                    {p.is_active ? "เปิดรับสมัคร" : "ปิดประกาศแล้ว"}
+                  </span>
+                  <span className="text-xs text-secondary font-bold">฿{p.daily_allowance}/วัน</span>
+                </div>
+                <h3 className="font-bold text-base text-primary mb-1">{p.title}</h3>
+                <p className="text-xs text-on-surface-variant mb-3">{p.department}</p>
+                <p className="text-xs text-on-surface-variant line-clamp-2">{p.description}</p>
+              </div>
+              {p.is_active && (
+                <button
+                  onClick={() => setCloseTargetId(p.id)}
+                  className="mt-4 text-xs font-bold text-error border border-error/20 py-1.5 rounded-lg hover:bg-error/10 transition-colors"
+                >
+                  ปิดประกาศ
+                </button>
+              )}
+            </div>
+          ))}
+      </div>
+
+      {/* Postings Pagination */}
+      {postings.length > pageSize && (
+        <div className="pt-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(postings.length / pageSize) || 1}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      )}
 
       {/* Create Modal */}
       {showModal && (
