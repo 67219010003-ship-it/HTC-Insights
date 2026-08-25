@@ -316,6 +316,10 @@ def update_user_role(user_id: int, payload: dict = Body(...),
     if target_user.is_super_admin and not admin.is_super_admin:
         raise HTTPException(403, "เฉพาะ Super Admin เท่านั้นที่สามารถเปลี่ยน Role ของ Super Admin ได้")
     
+    # เฉพาะ Super Admin เท่านั้นที่สามารถแต่งตั้งหรือปลดยศ Admin คนอื่นได้
+    if (new_role == "admin" or target_user.role == UserRole.admin) and not admin.is_super_admin:
+        raise HTTPException(403, "เฉพาะ Super Admin เท่านั้นที่สามารถแต่งตั้งหรือปลดยศ Admin ได้")
+    
     if target_user.id == admin.id and target_user.is_super_admin and new_role != "admin":
         raise HTTPException(400, "ไม่สามารถลดสิทธิ์ Admin ของตนเองได้")
         
@@ -360,6 +364,8 @@ def ban_user(user_id: int, payload: dict = Body(default={}),
         raise HTTPException(404, "ไม่พบผู้ใช้")
     if target_user.is_super_admin:
         raise HTTPException(403, "ไม่สามารถระงับบัญชี Super Admin ได้")
+    if target_user.role == UserRole.admin and not admin.is_super_admin:
+        raise HTTPException(403, "เฉพาะ Super Admin เท่านั้นที่สามารถระงับบัญชีของ Admin ได้")
         
     reason = payload.get("reason", "ระงับการใช้งานโดย Admin")
     target_user.is_verified = not target_user.is_verified

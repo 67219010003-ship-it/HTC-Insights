@@ -309,18 +309,36 @@ export default function AdminUsersPage() {
                           <select
                             value={u.role}
                             onChange={(e) => handleRoleChange(u, e.target.value)}
-                            disabled={actionLoading === u.id || (isSelf && u.is_super_admin)}
-                            className={`px-3 py-1 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
+                            disabled={
+                              actionLoading === u.id ||
+                              (isSelf && u.is_super_admin) ||
+                              (u.role === "admin" && !(mounted && isSuperAdmin())) ||
+                              u.is_super_admin
+                            }
+                            className={`px-3 py-1 rounded-xl text-xs font-bold border transition-all ${
                               u.role === "admin"
                                 ? "bg-amber-50 text-amber-800 border-amber-300"
                                 : u.role === "student"
                                 ? "bg-primary/10 text-primary border-primary/20"
                                 : "bg-surface-container text-on-surface-variant border-outline-variant/50"
-                            } ${isSelf && u.is_super_admin ? "opacity-50 cursor-not-allowed" : ""}`}
+                            } ${
+                              (isSelf && u.is_super_admin) ||
+                              (u.role === "admin" && !(mounted && isSuperAdmin())) ||
+                              u.is_super_admin
+                                ? "opacity-50 cursor-not-allowed"
+                                : "cursor-pointer"
+                            }`}
+                            title={
+                              u.role === "admin" && !(mounted && isSuperAdmin())
+                                ? "เฉพาะ Super Admin เท่านั้นที่สามารถเปลี่ยนสิทธิ์ Admin ได้"
+                                : ""
+                            }
                           >
                             <option value="student">Student</option>
                             <option value="external">External</option>
-                            <option value="admin">Admin</option>
+                            <option value="admin" disabled={!(mounted && isSuperAdmin())}>
+                              Admin {!(mounted && isSuperAdmin()) ? "(เฉพาะ Super Admin)" : ""}
+                            </option>
                           </select>
                         </td>
                         <td className="py-3.5 px-4 whitespace-nowrap">
@@ -328,12 +346,22 @@ export default function AdminUsersPage() {
                             type="button"
                             onClick={() => handleToggleSuperAdmin(u)}
                             disabled={!(mounted && isSuperAdmin()) || actionLoading === u.id || isSelf}
-                            title={isSelf ? "ไม่สามารถถอดสิทธิ์ Super Admin ของตนเองได้" : ""}
-                            className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1 cursor-pointer ${
+                            title={
+                              isSelf
+                                ? "ไม่สามารถถอดสิทธิ์ Super Admin ของตนเองได้"
+                                : !(mounted && isSuperAdmin())
+                                ? "เฉพาะ Super Admin เท่านั้นที่สามารถจัดการสิทธิ์นี้ได้"
+                                : ""
+                            }
+                            className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1 ${
                               u.is_super_admin
                                 ? "bg-purple-100 text-purple-900 border-purple-300 hover:bg-purple-200"
                                 : "bg-surface-container text-on-surface-variant border-outline-variant/40 hover:bg-surface-container-high"
-                            } ${!(mounted && isSuperAdmin()) || isSelf ? "opacity-40 cursor-not-allowed" : ""}`}
+                            } ${
+                              !(mounted && isSuperAdmin()) || isSelf
+                                ? "opacity-40 cursor-not-allowed"
+                                : "cursor-pointer"
+                            }`}
                           >
                             {u.is_super_admin ? (
                               <>
@@ -360,12 +388,28 @@ export default function AdminUsersPage() {
                           <button
                             type="button"
                             onClick={() => handleToggleBan(u)}
-                            disabled={u.is_super_admin || actionLoading === u.id || isSelf}
-                            className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                            disabled={
+                              u.is_super_admin ||
+                              (u.role === "admin" && !(mounted && isSuperAdmin())) ||
+                              actionLoading === u.id ||
+                              isSelf
+                            }
+                            title={
+                              u.role === "admin" && !(mounted && isSuperAdmin())
+                                ? "เฉพาะ Super Admin เท่านั้นที่สามารถระงับบัญชี Admin ได้"
+                                : ""
+                            }
+                            className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
                               u.is_verified
                                 ? "border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100"
                                 : "border-emerald-200 bg-emerald-50/70 text-emerald-700 hover:bg-emerald-100"
-                            } ${u.is_super_admin || isSelf ? "opacity-30 cursor-not-allowed" : ""}`}
+                            } ${
+                              u.is_super_admin ||
+                              (u.role === "admin" && !(mounted && isSuperAdmin())) ||
+                              isSelf
+                                ? "opacity-30 cursor-not-allowed"
+                                : "cursor-pointer"
+                            }`}
                           >
                             {u.is_verified ? "ระงับบัญชี" : "คืนสิทธิ์ใช้งาน"}
                           </button>
