@@ -40,6 +40,63 @@ export default function Navbar() {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
+  const formatThaiNotificationTime = (rawDate?: string | null): string => {
+    if (!rawDate) return "";
+    try {
+      const dateStr = rawDate.endsWith("Z") || rawDate.includes("+") ? rawDate : `${rawDate}Z`;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "";
+
+      const now = new Date();
+      const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+
+      if (diffSec < 60) {
+        return "เมื่อสักครู่";
+      }
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffMin < 60) {
+        return `${diffMin} นาทีที่แล้ว`;
+      }
+
+      const timeFormatted = d.toLocaleTimeString("th-TH", {
+        timeZone: "Asia/Bangkok",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+
+      const isToday =
+        d.getDate() === now.getDate() &&
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear();
+
+      if (isToday) {
+        return `วันนี้ ${timeFormatted} น.`;
+      }
+
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const isYesterday =
+        d.getDate() === yesterday.getDate() &&
+        d.getMonth() === yesterday.getMonth() &&
+        d.getFullYear() === yesterday.getFullYear();
+
+      if (isYesterday) {
+        return `เมื่อวาน ${timeFormatted} น.`;
+      }
+
+      const dateFormatted = d.toLocaleDateString("th-TH", {
+        timeZone: "Asia/Bangkok",
+        day: "numeric",
+        month: "short",
+      });
+
+      return `${dateFormatted} ${timeFormatted} น.`;
+    } catch {
+      return "";
+    }
+  };
+
   const fetchNotifications = () => {
     const currentToken = getToken();
     if (!currentToken) return;
@@ -53,7 +110,7 @@ export default function Navbar() {
               title: n.title,
               message: n.message,
               type: n.type || "info",
-              time: n.created_at ? new Date(n.created_at).toLocaleString("th-TH", { hour: "2-digit", minute: "2-digit" }) : "",
+              time: formatThaiNotificationTime(n.created_at),
               isRead: Boolean(n.is_read),
               link: n.link,
             }))

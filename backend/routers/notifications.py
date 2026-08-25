@@ -28,6 +28,11 @@ def create_notification(
     db.refresh(notif)
     return notif
 
+def format_utc_iso(dt):
+    if not dt:
+        return None
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
 @router.get("")
 @router.get("/")
 def get_notifications(
@@ -50,7 +55,7 @@ def get_notifications(
             "type": n.type,
             "is_read": n.is_read,
             "link": n.link,
-            "created_at": n.created_at.isoformat() if n.created_at else None,
+            "created_at": format_utc_iso(n.created_at),
         }
         for n in notifs
     ]
@@ -94,5 +99,5 @@ def mark_notification_as_read(
         "type": notif.type,
         "is_read": notif.is_read,
         "link": notif.link,
-        "created_at": notif.created_at.isoformat() if notif.created_at else None,
+        "created_at": format_utc_iso(notif.created_at),
     }

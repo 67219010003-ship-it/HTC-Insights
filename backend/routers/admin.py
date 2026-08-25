@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
+from datetime import timedelta
 from database import get_db
 from models import (Review, Employer, ReviewStatus, AuditLog, User, UserRole,
                     JobPosting, CommunityPost, CommunityComment, Report,
@@ -9,6 +10,12 @@ from auth import decrypt_identity
 from routers.notifications import create_notification
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+def to_thai_str(dt, fmt="%Y-%m-%d %H:%M"):
+    """ แปลงเวลา UTC จากฐานข้อมูลเป็นเวลาประเทศไทย (UTC+7) """
+    if not dt:
+        return None
+    return (dt + timedelta(hours=7)).strftime(fmt)
 
 # --- 1. แดชบอร์ดสรุปสถิติระบบ (Stats Dashboard) ---
 @router.get("/stats")
@@ -106,7 +113,7 @@ def list_reviews(status: str = Query(None),
             "status": r.status.value if r.status else "pending",
             "rejection_reason": r.rejection_reason,
             "photo_urls": [p.url for p in r.photos],
-            "created_at": r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else None,
+            "created_at": to_thai_str(r.created_at),
         })
     return result
 
@@ -211,7 +218,7 @@ def list_admin_posts(status: str = Query(None),
             "status": p.status or "pending",
             "rejection_reason": p.rejection_reason,
             "is_pinned": p.is_pinned,
-            "created_at": p.created_at.strftime("%Y-%m-%d %H:%M") if p.created_at else None,
+            "created_at": to_thai_str(p.created_at),
         }
         for p in posts
     ]
@@ -288,7 +295,7 @@ def list_users(role: str = Query(None), q: str = Query(None),
             "department": u.department,
             "level": u.level,
             "is_verified": u.is_verified,
-            "created_at": u.created_at.strftime("%Y-%m-%d %H:%M") if u.created_at else None,
+            "created_at": to_thai_str(u.created_at),
         }
         for u in users
     ]
@@ -386,7 +393,7 @@ def list_admin_jobs(status: str = Query(None),
             "is_active": j.is_active,
             "status": j.status or "pending",
             "rejection_reason": j.rejection_reason,
-            "created_at": j.created_at.strftime("%Y-%m-%d %H:%M") if j.created_at else None,
+            "created_at": to_thai_str(j.created_at),
         }
         for j in jobs
     ]
@@ -475,7 +482,7 @@ def list_upgrade_requests(status: str = Query(None),
             "status": r.status.value if r.status else "pending",
             "rejection_reason": r.rejection_reason,
             "card_image_url": r.card_image_url,
-            "created_at": r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else None,
+            "created_at": to_thai_str(r.created_at),
         }
         for r in reqs
     ]
@@ -553,7 +560,7 @@ def list_reports(db: Session = Depends(get_db), admin: User = Depends(require_ad
             "company_name": rep.review.company.name if rep.review and rep.review.company else None,
             "reason": rep.reason,
             "status": rep.status,
-            "created_at": rep.created_at.strftime("%Y-%m-%d %H:%M") if rep.created_at else None,
+            "created_at": to_thai_str(rep.created_at),
         }
         for rep in reports
     ]
@@ -605,7 +612,7 @@ def get_audit_logs(skip: int = 0, limit: int = 50,
             "target_type": l.target_type,
             "target_id": l.target_id,
             "reason": l.reason,
-            "created_at": l.created_at.strftime("%Y-%m-%d %H:%M:%S") if l.created_at else None,
+            "created_at": to_thai_str(l.created_at, "%Y-%m-%d %H:%M:%S"),
         })
     return result
 
@@ -671,7 +678,7 @@ def list_admin_employers(status: str = Query(None),
             "industry": e.industry,
             "logo_url": e.logo_url,
             "is_approved": e.is_approved,
-            "created_at": e.created_at.strftime("%Y-%m-%d %H:%M") if e.created_at else None,
+            "created_at": to_thai_str(e.created_at),
         }
         for e in employers
     ]

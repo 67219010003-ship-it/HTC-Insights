@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from datetime import timedelta
 from database import get_db
 from models import (CommunityPost, CommunityComment, CommunityLike,
                     Report, PostType, User, UserRole)
@@ -9,6 +10,11 @@ from auth import encrypt_identity
 from routers.notifications import create_notification
 
 router = APIRouter(prefix="/community", tags=["community"])
+
+def to_thai_str(dt, fmt="%Y-%m-%d %H:%M"):
+    if not dt:
+        return None
+    return (dt + timedelta(hours=7)).strftime(fmt)
 
 @router.get("/posts")
 def list_posts(department: str = None, type: str = None,
@@ -153,7 +159,7 @@ def _format_post(post: CommunityPost) -> dict:
         "is_pinned": post.is_pinned,
         "status": post.status or "pending",
         "rejection_reason": post.rejection_reason,
-        "created_at": post.created_at.strftime("%Y-%m-%d %H:%M") if post.created_at else None,
+        "created_at": to_thai_str(post.created_at),
     }
 
 def _format_comment(comment: CommunityComment) -> dict:
@@ -165,5 +171,5 @@ def _format_comment(comment: CommunityComment) -> dict:
         "parent_id": comment.parent_id,
         "is_best_answer": comment.is_best_answer,
         "like_count": len(comment.likes),
-        "created_at": comment.created_at.strftime("%Y-%m-%d %H:%M") if comment.created_at else None,
+        "created_at": to_thai_str(comment.created_at),
     }

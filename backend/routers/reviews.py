@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
-from datetime import date
+from datetime import date, timedelta
 import os
 from database import get_db
 from models import Review, ReviewPhoto, Company, User, ReviewStatus, Gender, UserRole
@@ -11,6 +11,11 @@ from services.cloudinary_service import upload_review_photo
 from routers.notifications import create_notification
 
 router = APIRouter(tags=["reviews"])
+
+def to_thai_date(dt):
+    if not dt:
+        return None
+    return (dt + timedelta(hours=7)).strftime("%Y-%m-%d")
 
 def is_auto_approve() -> bool:
     """ ตรวจสอบว่าระบบเปิดโหมดอนุมัติรีวิวอัตโนมัติหรือไม่ """
@@ -46,7 +51,7 @@ def get_all_reviews(skip: int = 0, limit: int = 20, db: Session = Depends(get_db
             author_department=None if r.is_anonymous else author_dept,
             photo_urls=photo_urls,
             status=r.status.value if r.status else "approved",
-            created_at=r.created_at.strftime("%Y-%m-%d") if r.created_at else None,
+            created_at=to_thai_date(r.created_at),
         ))
     return result
 
@@ -77,6 +82,9 @@ def create_review(data: ReviewCreate,
     gender_enum = Gender(data.gender) if data.gender in Gender.__members__ else Gender.prefer_not
     anon_enc = encrypt_identity(current_user.id) if data.is_anonymous else None
 
+    sub_scores = [s for s in [data.score_work, data.score_env, data.score_mentor, data.score_welfare] if s is not None]
+    computed_overall = round(sum(sub_scores) / len(sub_scores), 1) if sub_scores else (data.score_overall or 5.0)
+
     review = Review(
         company_id=data.company_id,
         user_id=current_user.id,
@@ -88,7 +96,7 @@ def create_review(data: ReviewCreate,
         has_transport=data.has_transport,
         work_start_time=data.work_start_time,
         work_end_time=data.work_end_time,
-        score_overall=data.score_overall,
+        score_overall=computed_overall,
         score_work=data.score_work,
         score_env=data.score_env,
         score_mentor=data.score_mentor,
@@ -207,7 +215,7 @@ def get_company_reviews(company_id: int,
             author_department=None if r.is_anonymous else author_dept,
             photo_urls=photo_urls,
             status=r.status.value if r.status else "approved",
-            created_at=r.created_at.strftime("%Y-%m-%d") if r.created_at else None,
+            created_at=to_thai_date(r.created_at),
         ))
     return result
 
@@ -236,7 +244,7 @@ def get_my_reviews(current_user: User = Depends(require_student),
             author_department=r.department or current_user.department,
             photo_urls=[p.url for p in r.photos],
             status=r.status.value if r.status else "pending",
-            created_at=r.created_at.strftime("%Y-%m-%d") if r.created_at else None,
+            created_at=to_thai_date(r.created_at),
         ))
     return result
 
@@ -268,6 +276,9 @@ def update_review(
     gender_enum = Gender(data.gender) if data.gender in Gender.__members__ else Gender.prefer_not
     anon_enc = encrypt_identity(current_user.id) if data.is_anonymous else None
 
+    sub_scores = [s for s in [data.score_work, data.score_env, data.score_mentor, data.score_welfare] if s is not None]
+    computed_overall = round(sum(sub_scores) / len(sub_scores), 1) if sub_scores else (data.score_overall or 5.0)
+
     review.department = data.department
     review.gender = gender_enum
     review.period_start = data.period_start
@@ -276,7 +287,7 @@ def update_review(
     review.has_transport = data.has_transport
     review.work_start_time = data.work_start_time
     review.work_end_time = data.work_end_time
-    review.score_overall = data.score_overall
+    review.score_overall = computed_overall
     review.score_work = data.score_work
     review.score_env = data.score_env
     review.score_mentor = data.score_mentor

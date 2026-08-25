@@ -336,7 +336,7 @@ export default function WriteReviewPage() {
         daily_allowance: parseInt(dailyAllowance) || 0,
         work_start_time: workStartTime || null,
         work_end_time: workEndTime || null,
-        score_overall: scoreOverall,
+        score_overall: Number(((scoreWork + scoreEnv + scoreMentor + scoreWelfare) / 4).toFixed(1)),
         score_work: scoreWork,
         score_env: scoreEnv,
         score_mentor: scoreMentor,
@@ -700,30 +700,58 @@ export default function WriteReviewPage() {
         {/* Step 3: Structured Ratings */}
         {step === 3 && (
           <div className="space-y-md">
-            <h3 className="font-headline-sm text-headline-sm font-bold text-primary">ให้คะแนนความพึงพอใจด้านต่างๆ</h3>
-            {[
-              { label: "คะแนนรวมความพึงพอใจการฝึกงาน", val: scoreOverall, set: setScoreOverall },
-              { label: "ความเหมาะสมของงานที่ได้รับมอบหมาย", val: scoreWork, set: setScoreWork },
-              { label: "บรรยากาศและสิ่งแวดล้อมที่ทำงาน", val: scoreEnv, set: setScoreEnv },
-              { label: "พี่เลี้ยง/ผู้ดูแลดูแลดีสอนงานดี", val: scoreMentor, set: setScoreMentor },
-              { label: "สวัสดิการและค่าตอบแทนต่างๆ", val: scoreWelfare, set: setScoreWelfare },
-            ].map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center bg-surface-container-low p-md rounded-2xl border border-outline-variant/60">
-                <span className="font-label-md text-label-md font-bold text-primary">{item.label}</span>
-                <div className="flex gap-xs">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => item.set(star)}
-                      className={`material-symbols-outlined text-[26px] hover:scale-115 transition-transform cursor-pointer ${star <= item.val ? "text-secondary active-tab" : "text-outline-variant"}`}
-                    >
-                      star
-                    </button>
-                  ))}
-                </div>
+            <div>
+              <h3 className="font-headline-sm text-headline-sm font-bold text-primary">ให้คะแนนความพึงพอใจด้านต่างๆ</h3>
+              <p className="text-xs text-on-surface-variant mt-0.5">
+                ประเมินคะแนนทั้ง 4 ด้านย่อย ระบบจะคำนวณคะแนนภาพรวมเฉลี่ยให้อัตโนมัติ
+              </p>
+            </div>
+
+            {/* Live Auto-computed Overall Score Card */}
+            <div className="bg-gradient-to-r from-secondary/15 via-secondary/10 to-transparent border border-secondary/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-secondary uppercase tracking-wide flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px]">calculate</span>
+                  คะแนนภาพรวม (คำนวณเฉลี่ยอัตโนมัติ)
+                </span>
+                <p className="text-xs text-on-surface-variant">
+                  คิดจากค่าเฉลี่ยของคะแนน 4 ด้านย่อยด้านล่าง
+                </p>
               </div>
-            ))}
+              <div className="flex items-center gap-2 bg-white/90 px-4 py-2 rounded-xl border border-secondary/30 shadow-xs">
+                <span className="material-symbols-outlined text-secondary text-[26px] active-tab">star</span>
+                <span className="text-2xl font-black text-primary font-mono">{Number(((scoreWork + scoreEnv + scoreMentor + scoreWelfare) / 4).toFixed(1))}</span>
+                <span className="text-xs text-on-surface-variant font-bold">/ 5.0</span>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {[
+                { label: "1. ความเหมาะสมของงานที่ได้รับมอบหมาย", val: scoreWork, set: setScoreWork },
+                { label: "2. บรรยากาศและสิ่งแวดล้อมที่ทำงาน", val: scoreEnv, set: setScoreEnv },
+                { label: "3. พี่เลี้ยง/ผู้ดูแลดูแลดีสอนงานดี", val: scoreMentor, set: setScoreMentor },
+                { label: "4. สวัสดิการและค่าตอบแทนต่างๆ", val: scoreWelfare, set: setScoreWelfare },
+              ].map((item, idx) => (
+                <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-surface-container-low p-3.5 sm:p-4 rounded-2xl border border-outline-variant/60">
+                  <span className="font-label-md text-label-md font-bold text-primary">{item.label}</span>
+                  <div className="flex items-center gap-1 self-end sm:self-auto">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => item.set(star)}
+                        className={`material-symbols-outlined text-[28px] hover:scale-115 transition-transform cursor-pointer ${star <= item.val ? "text-secondary active-tab" : "text-outline-variant"}`}
+                      >
+                        star
+                      </button>
+                    ))}
+                    <span className="text-xs font-bold text-on-surface-variant ml-2 min-w-[36px] text-right font-mono">
+                      {item.val}/5
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -931,7 +959,7 @@ export default function WriteReviewPage() {
                 <p>• <strong>แผนกวิชา:</strong> {department}</p>
                 <p>• <strong>เบี้ยเลี้ยง:</strong> {dailyAllowance ? `${dailyAllowance} บาท/วัน` : "ไม่มี"}</p>
                 <p>• <strong>เวลาปฏิบัติงาน:</strong> {workStartTime} - {workEndTime} น.</p>
-                <p>• <strong>คะแนนรวม:</strong> {scoreOverall}/5 ดาว</p>
+                <p>• <strong>คะแนนภาพรวม (เฉลี่ยอัตโนมัติ):</strong> {Number(((scoreWork + scoreEnv + scoreMentor + scoreWelfare) / 4).toFixed(1))} / 5.0 ดาว (งาน: {scoreWork}, บรรยากาศ: {scoreEnv}, พี่เลี้ยง: {scoreMentor}, สวัสดิการ: {scoreWelfare})</p>
                 <p>• <strong>รูปภาพแนบ:</strong> {existingPhotos.length + selectedFiles.length > 0 ? `${existingPhotos.length + selectedFiles.length} รูป` : "ไม่มีรูปภาพแนบ"}</p>
                 {(existingPhotos.length > 0 || filePreviews.length > 0) && (
                   <div className="flex gap-2 pt-2 flex-wrap">
