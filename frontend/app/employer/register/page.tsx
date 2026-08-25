@@ -466,7 +466,7 @@ export default function EmployerRegisterPage() {
                           mapError ? "text-red-700 font-bold" : "text-primary group-hover:text-secondary"
                         }`}
                       >
-                        {mapError ? "⚠️ กรุณาคลิกเลือกสถานที่ตั้งสถานประกอบการจากแผนที่ก่อนดำเนินการต่อ" : "คลิกเพื่อเลือกสถานที่ตั้งสถานประกอบการ"}
+                        {mapError ? "กรุณาคลิกเลือกสถานที่ตั้งสถานประกอบการจากแผนที่ก่อนดำเนินการต่อ" : "คลิกเพื่อเลือกสถานที่ตั้งสถานประกอบการ"}
                       </div>
                       <div
                         className={`text-xs mt-1 ${

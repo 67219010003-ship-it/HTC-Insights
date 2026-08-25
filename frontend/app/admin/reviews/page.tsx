@@ -8,6 +8,7 @@ import Link from "next/link";
 import RejectReasonModal from "@/components/RejectReasonModal";
 import RevealAnonymousModal from "@/components/RevealAnonymousModal";
 import Pagination from "@/components/Pagination";
+import ImageLightboxModal from "@/components/ImageLightboxModal";
 
 export default function AdminReviewModerationPage() {
   const router = useRouter();
@@ -20,6 +21,16 @@ export default function AdminReviewModerationPage() {
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6;
+
+  const [lightbox, setLightbox] = useState<{
+    isOpen: boolean;
+    images: string[];
+    index: number;
+  }>({
+    isOpen: false,
+    images: [],
+    index: 0,
+  });
 
   const fetchPending = () => {
     setLoading(true);
@@ -129,10 +140,28 @@ export default function AdminReviewModerationPage() {
               </div>
 
               {r.photo_urls && r.photo_urls.length > 0 && (
-                <div className="flex gap-2 mb-4">
-                  {r.photo_urls.map((url: string, idx: number) => (
-                    <img key={idx} src={url} alt="Review photo" className="w-20 h-20 object-cover rounded-lg border border-gray-200" />
-                  ))}
+                <div className="space-y-1.5 mb-4">
+                  <span className="text-[11px] font-bold text-gray-600 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[15px] text-gray-500">photo_library</span>
+                    รูปภาพแนบ ({r.photo_urls.length} รูป - คลิกเพื่อดูภาพขยาย):
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {r.photo_urls.map((url: string, idx: number) => (
+                      <button
+                        type="button"
+                        key={idx}
+                        onClick={() => setLightbox({ isOpen: true, images: r.photo_urls, index: idx })}
+                        className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-gray-200 hover:border-gray-400 hover:scale-105 transition-all shadow-xs group relative cursor-pointer"
+                      >
+                        <img src={url} alt={`Review photo ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 flex items-center justify-center transition-colors">
+                          <span className="material-symbols-outlined text-white text-[18px] opacity-0 group-hover:opacity-100 transition-opacity drop-shadow">
+                            zoom_in
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -196,6 +225,14 @@ export default function AdminReviewModerationPage() {
         isOpen={!!revealTargetId}
         reviewId={revealTargetId}
         onClose={() => setRevealTargetId(null)}
+      />
+
+      {/* Image Lightbox Modal */}
+      <ImageLightboxModal
+        isOpen={lightbox.isOpen}
+        images={lightbox.images}
+        initialIndex={lightbox.index}
+        onClose={() => setLightbox((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

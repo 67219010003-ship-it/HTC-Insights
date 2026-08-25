@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import ConfirmModal from "@/components/ConfirmModal";
 import Toast from "@/components/Toast";
 import ReportModal from "@/components/ReportModal";
+import ImageLightboxModal from "@/components/ImageLightboxModal";
 
 export default function CompanyDetailPage() {
   const params = useParams();
@@ -54,6 +55,16 @@ export default function CompanyDetailPage() {
     isOpen: false,
     message: "",
     type: "success",
+  });
+
+  const [lightbox, setLightbox] = useState<{
+    isOpen: boolean;
+    images: string[];
+    index: number;
+  }>({
+    isOpen: false,
+    images: [],
+    index: 0,
   });
 
   const handleCopyLink = () => {
@@ -554,14 +565,30 @@ export default function CompanyDetailPage() {
                   )}
                 </div>
 
-                {/* Photos Gallery */}
+                {/* Photos Gallery - Responsive & Overflow Safe */}
                 {r.photo_urls && r.photo_urls.length > 0 && (
-                  <div className="flex gap-sm mt-md overflow-x-auto py-1">
-                    {r.photo_urls.map((url: string, idx: number) => (
-                      <a href={url} target="_blank" rel="noopener noreferrer" key={idx} className="shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-outline-variant hover:scale-105 transition-transform shadow-sm">
-                        <img src={url} alt="Review photo" className="w-full h-full object-cover" />
-                      </a>
-                    ))}
+                  <div className="mt-md space-y-1.5">
+                    <div className="text-[11px] font-bold text-on-surface-variant flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[16px] text-secondary">photo_camera</span>
+                      รูปภาพบรรยากาศจริง ({r.photo_urls.length} รูป)
+                    </div>
+                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+                      {r.photo_urls.map((url: string, idx: number) => (
+                        <button
+                          type="button"
+                          key={idx}
+                          onClick={() => setLightbox({ isOpen: true, images: r.photo_urls, index: idx })}
+                          className="w-full h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border border-outline-variant/60 shadow-xs hover:opacity-95 hover:scale-[1.02] hover:border-secondary transition-all cursor-pointer bg-surface-container-low group relative"
+                        >
+                          <img src={url} alt={`Review photo ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+                            <span className="material-symbols-outlined text-white text-[20px] opacity-0 group-hover:opacity-100 transition-opacity drop-shadow">
+                              zoom_in
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -599,6 +626,14 @@ export default function CompanyDetailPage() {
         targetType="review"
         targetId={reportModal.targetId}
         onClose={() => setReportModal({ isOpen: false, targetId: 0 })}
+      />
+
+      {/* Image Lightbox Modal for Zooming Photos */}
+      <ImageLightboxModal
+        isOpen={lightbox.isOpen}
+        images={lightbox.images}
+        initialIndex={lightbox.index}
+        onClose={() => setLightbox((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

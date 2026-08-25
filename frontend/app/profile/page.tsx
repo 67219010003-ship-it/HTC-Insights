@@ -6,6 +6,7 @@ import { isStudent, getToken, clearToken, getRole } from "@/lib/auth";
 import Link from "next/link";
 import ConfirmModal from "@/components/ConfirmModal";
 import Toast from "@/components/Toast";
+import ImageLightboxModal from "@/components/ImageLightboxModal";
 
 interface UserProfile {
   id: number;
@@ -31,6 +32,7 @@ interface MyReview {
   text_cons?: string;
   text_advice?: string;
   is_anonymous: boolean;
+  photo_urls?: string[];
   status: string;
   rejection_reason?: string;
   created_at: string;
@@ -102,6 +104,16 @@ export default function StudentProfilePage() {
     isOpen: false,
     message: "",
     type: "success",
+  });
+
+  const [lightbox, setLightbox] = useState<{
+    isOpen: boolean;
+    images: string[];
+    index: number;
+  }>({
+    isOpen: false,
+    images: [],
+    index: 0,
   });
 
   const fetchUserData = async () => {
@@ -792,7 +804,39 @@ export default function StudentProfilePage() {
                       <strong>ข้อเสีย:</strong> {r.text_cons}
                     </p>
                   )}
+                  {r.text_advice && (
+                    <p className="mt-0.5 text-blue-800">
+                      <strong>คำแนะนำ:</strong> {r.text_advice}
+                    </p>
+                  )}
                 </div>
+
+                {/* Attached Review Photos */}
+                {r.photo_urls && r.photo_urls.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-on-surface-variant flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[15px] text-secondary">photo_camera</span>
+                      รูปภาพประกอบที่แนบ ({r.photo_urls.length} รูป - คลิกเพื่อดูภาพใหญ่):
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {r.photo_urls.map((url, idx) => (
+                        <button
+                          type="button"
+                          key={idx}
+                          onClick={() => setLightbox({ isOpen: true, images: r.photo_urls || [], index: idx })}
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-outline-variant/60 hover:border-secondary hover:scale-105 transition-all shadow-xs group relative cursor-pointer"
+                        >
+                          <img src={url} alt={`Review photo ${idx + 1}`} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 flex items-center justify-center transition-colors">
+                            <span className="material-symbols-outlined text-white text-[16px] opacity-0 group-hover:opacity-100 transition-opacity drop-shadow">
+                              zoom_in
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-outline-variant/30">
@@ -1045,6 +1089,14 @@ export default function StudentProfilePage() {
         message={toast.message}
         type={toast.type}
         onClose={() => setToast((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Image Lightbox Modal for Review Photos */}
+      <ImageLightboxModal
+        isOpen={lightbox.isOpen}
+        images={lightbox.images}
+        initialIndex={lightbox.index}
+        onClose={() => setLightbox((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

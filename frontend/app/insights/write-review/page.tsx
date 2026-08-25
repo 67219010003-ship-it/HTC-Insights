@@ -45,8 +45,61 @@ export default function WriteReviewPage() {
   const [existingReview, setExistingReview] = useState<any | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(true);
 
-  // Photos state
+  // Photos state (Max 2 photos)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
+  const [photoError, setPhotoError] = useState<string>("");
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPhotoError("");
+    if (!e.target.files) return;
+    const incomingFiles = Array.from(e.target.files);
+    
+    // Check total count
+    const totalCurrent = selectedFiles.length + existingPhotos.length;
+    if (totalCurrent + incomingFiles.length > 2) {
+      setPhotoError("สามารถแนบรูปภาพได้สูงสุดไม่เกิน 2 รูปเท่านั้น");
+      return;
+    }
+
+    const validNewFiles: File[] = [];
+    const validNewPreviews: string[] = [];
+
+    for (const file of incomingFiles) {
+      if (!file.type.startsWith("image/")) {
+        setPhotoError(`ไฟล์ ${file.name} ไม่ใช่ไฟล์รูปภาพ`);
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setPhotoError(`ไฟล์ ${file.name} มีขนาดเกิน 5MB (จำกัดไม่เกิน 5MB ต่อรูป)`);
+        return;
+      }
+      validNewFiles.push(file);
+      validNewPreviews.push(URL.createObjectURL(file));
+    }
+
+    setSelectedFiles((prev) => [...prev, ...validNewFiles]);
+    setFilePreviews((prev) => [...prev, ...validNewPreviews]);
+    e.target.value = "";
+  };
+
+  const handleRemoveSelectedFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setFilePreviews((prev) => {
+      // revoke URL to free memory
+      try {
+        URL.revokeObjectURL(prev[index]);
+      } catch {}
+      return prev.filter((_, i) => i !== index);
+    });
+    setPhotoError("");
+  };
+
+  const handleRemoveExistingPhoto = (index: number) => {
+    setExistingPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPhotoError("");
+  };
 
   useEffect(() => {
     if (!getToken()) {
@@ -118,6 +171,7 @@ export default function WriteReviewPage() {
         setIsAnonymous(!!match.is_anonymous);
         if (match.period_start) setPeriodStart(match.period_start);
         if (match.period_end) setPeriodEnd(match.period_end);
+        if (match.photo_urls && Array.isArray(match.photo_urls)) setExistingPhotos(match.photo_urls);
       };
 
       api.get("/reviews/my").then((res) => {
@@ -192,6 +246,7 @@ export default function WriteReviewPage() {
     setIsAnonymous(!!rev.is_anonymous);
     if (rev.period_start) setPeriodStart(rev.period_start);
     if (rev.period_end) setPeriodEnd(rev.period_end);
+    if (rev.photo_urls && Array.isArray(rev.photo_urls)) setExistingPhotos(rev.photo_urls);
 
     try {
       window.history.pushState({}, "", `/insights/write-review?company_id=${rev.company_id}&review_id=${rev.id}`);
@@ -296,21 +351,33 @@ export default function WriteReviewPage() {
       let reviewId = editingReviewId;
       if (editingReviewId) {
         await api.put(`/reviews/${editingReviewId}`, reviewData);
+        // If user changed files or removed existing photos
+        if (selectedFiles.length > 0) {
+          // Clear old photos and upload newly selected ones
+          await api.delete(`/reviews/${editingReviewId}/photos`).catch(() => {});
+          const formData = new FormData();
+          selectedFiles.forEach((file) => {
+            formData.append("files", file);
+          });
+          await api.post(`/reviews/${editingReviewId}/photos`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+        } else if (existingPhotos.length === 0) {
+          // User cleared all existing photos
+          await api.delete(`/reviews/${editingReviewId}/photos`).catch(() => {});
+        }
       } else {
         const res = await api.post("/reviews", reviewData);
         reviewId = res.data.review_id;
-      }
-
-      // Real photo upload if files are chosen
-      if (selectedFiles.length > 0 && reviewId) {
-        const formData = new FormData();
-        selectedFiles.forEach((file) => {
-          formData.append("files", file);
-        });
-
-        await api.post(`/reviews/${reviewId}/photos`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        if (selectedFiles.length > 0 && reviewId) {
+          const formData = new FormData();
+          selectedFiles.forEach((file) => {
+            formData.append("files", file);
+          });
+          await api.post(`/reviews/${reviewId}/photos`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+        }
       }
 
       setSubmitted(true);
@@ -406,13 +473,13 @@ export default function WriteReviewPage() {
         </div>
         <p className="text-body-sm text-body-sm text-on-surface-variant mb-6">
           {editingReviewId
-            ? "ขั้นตอนที่ " + step + " จาก 5 — แก้ไขรีวิว (การบันทึกจะส่งให้ผู้ดูแลระบบตรวจสอบใหม่)"
-            : "ขั้นตอนที่ " + step + " จาก 5 — ประสบการณ์ฝึกงานของคุณบน HTC Insights มีคุณค่าอย่างยิ่งสำหรับรุ่นน้อง"}
+            ? "ขั้นตอนที่ " + step + " จาก 6 — แก้ไขรีวิว (การบันทึกจะส่งให้ผู้ดูแลระบบตรวจสอบใหม่)"
+            : "ขั้นตอนที่ " + step + " จาก 6 — ประสบการณ์ฝึกงานของคุณบน HTC Insights มีคุณค่าอย่างยิ่งสำหรับรุ่นน้อง"}
         </p>
 
         {/* Progress Bar */}
         <div className="w-full bg-surface-container-high h-2.5 rounded-full mb-8 overflow-hidden">
-          <div className="bg-secondary h-full transition-all duration-300" style={{ width: `${(step / 5) * 100}%` }} />
+          <div className="bg-secondary h-full transition-all duration-300" style={{ width: `${(step / 6) * 100}%` }} />
         </div>
 
         {error && <div className="p-3 mb-6 bg-error-container text-on-error-container rounded-xl text-xs font-bold">{error}</div>}
@@ -725,17 +792,157 @@ export default function WriteReviewPage() {
           </div>
         )}
 
-        {/* Step 5: Summary & Privacy Settings */}
+        {/* Step 5: Dedicated Photo Upload Section */}
         {step === 5 && (
+          <div className="space-y-md">
+            <div className="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-5 space-y-3">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary text-[24px]">add_photo_alternate</span>
+                    <h3 className="font-bold text-primary text-base">แนบรูปภาพประกอบรีวิว (ไม่บังคับ)</h3>
+                  </div>
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    แนบภาพถ่ายบรรยากาศสถานที่ฝึกงาน โต๊ะทำงาน เครื่องมือ หรือผลงานจริงที่ได้รับอนุญาต เพื่อให้รุ่นน้องเห็นภาพการทำงานชัดเจนยิ่งขึ้น
+                  </p>
+                </div>
+                <span className="text-xs font-bold text-secondary bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full shrink-0 ml-2">
+                  {selectedFiles.length + existingPhotos.length} / 2 รูป
+                </span>
+              </div>
+
+              {photoError && (
+                <div className="p-3 bg-error-container text-on-error-container rounded-xl text-xs font-bold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px]">error</span>
+                  {photoError}
+                </div>
+              )}
+
+              {/* Upload Dropzone / Button */}
+              {selectedFiles.length + existingPhotos.length < 2 && (
+                <label className="border-2 border-dashed border-outline-variant hover:border-secondary hover:bg-secondary/5 transition-all rounded-2xl py-8 px-5 flex flex-col items-center justify-center gap-3 cursor-pointer group text-center block mt-2 bg-white">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    multiple
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <div className="w-12 h-12 rounded-full bg-secondary/10 group-hover:bg-secondary/20 flex items-center justify-center text-secondary transition-colors shadow-xs">
+                    <span className="material-symbols-outlined text-[28px]">cloud_upload</span>
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-primary group-hover:text-secondary transition-colors">
+                      คลิกเพื่อเลือกรูปภาพจากอุปกรณ์ หรือลากไฟล์มาวางที่นี่
+                    </div>
+                    <div className="text-xs text-on-surface-variant mt-1">
+                      รองรับไฟล์ JPG, PNG, WEBP (จำกัดคนละไม่เกิน 2 รูป, ขนาดไม่เกิน 5MB ต่อรูป)
+                    </div>
+                  </div>
+                </label>
+              )}
+
+              {/* Preview Cards Grid - Responsive and overflow protected */}
+              {(existingPhotos.length > 0 || filePreviews.length > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  {/* Existing Photos */}
+                  {existingPhotos.map((url, idx) => (
+                    <div
+                      key={`existing-${idx}`}
+                      className="bg-white border border-outline-variant/60 rounded-2xl overflow-hidden p-3 flex flex-col gap-2 shadow-xs group"
+                    >
+                      <div className="w-full h-44 rounded-xl overflow-hidden bg-black/5 relative">
+                        <img
+                          src={url}
+                          alt={`Existing photo ${idx + 1}`}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-1 rounded-md">
+                          รูปเดิมในระบบ #{idx + 1}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between px-1 pt-1">
+                        <span className="text-xs font-bold text-on-surface-variant truncate">รูปภาพเดิม</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExistingPhoto(idx)}
+                          className="text-xs text-error font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">delete</span>
+                          ลบรูปนี้
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Newly Selected Files */}
+                  {filePreviews.map((previewUrl, idx) => {
+                    const file = selectedFiles[idx];
+                    const sizeStr = file ? (file.size / (1024 * 1024)).toFixed(1) + " MB" : "";
+                    return (
+                      <div
+                        key={`new-${idx}`}
+                        className="bg-white border border-outline-variant/60 rounded-2xl overflow-hidden p-3 flex flex-col gap-2 shadow-xs group"
+                      >
+                        <div className="w-full h-44 rounded-xl overflow-hidden bg-black/5 relative">
+                          <img
+                            src={previewUrl}
+                            alt={`Preview ${idx + 1}`}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                          <span className="absolute top-2.5 left-2.5 bg-secondary text-on-secondary text-[11px] font-bold px-2.5 py-1 rounded-md shadow-sm">
+                            รูปที่เลือก #{idx + 1}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between px-1 pt-1">
+                          <span className="text-xs font-bold text-primary truncate max-w-[160px]">
+                            {file?.name || `รูปที่ ${idx + 1}`} {sizeStr ? `(${sizeStr})` : ""}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSelectedFile(idx)}
+                            className="text-xs text-error font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">close</span>
+                            นำออก
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="text-[11px] text-on-surface-variant flex items-center gap-1.5 pt-2">
+                <span className="material-symbols-outlined text-[16px] text-secondary">info</span>
+                หากไม่มีรูปภาพ สามารถกดปุ่ม <strong>"ถัดไป →"</strong> ด้านล่างเพื่อข้ามไปยังขั้นตอนสรุปได้ทันที
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 6: Summary & Privacy Settings */}
+        {step === 6 && (
           <div className="space-y-md">
             <div className="bg-surface-container-low border border-outline-variant rounded-2xl p-md space-y-sm">
               <h4 className="font-bold text-primary text-sm">ทบทวนข้อมูลความถูกต้องก่อนส่ง:</h4>
-              <div className="text-xs space-y-1 text-on-surface-variant">
+              <div className="text-xs space-y-1.5 text-on-surface-variant">
                 <p>• <strong>สถานประกอบการ:</strong> {selectedCompany?.name || "ไม่ระบุ"}</p>
                 <p>• <strong>แผนกวิชา:</strong> {department}</p>
                 <p>• <strong>เบี้ยเลี้ยง:</strong> {dailyAllowance ? `${dailyAllowance} บาท/วัน` : "ไม่มี"}</p>
                 <p>• <strong>เวลาปฏิบัติงาน:</strong> {workStartTime} - {workEndTime} น.</p>
                 <p>• <strong>คะแนนรวม:</strong> {scoreOverall}/5 ดาว</p>
+                <p>• <strong>รูปภาพแนบ:</strong> {existingPhotos.length + selectedFiles.length > 0 ? `${existingPhotos.length + selectedFiles.length} รูป` : "ไม่มีรูปภาพแนบ"}</p>
+                {(existingPhotos.length > 0 || filePreviews.length > 0) && (
+                  <div className="flex gap-2 pt-2 flex-wrap">
+                    {existingPhotos.map((url, idx) => (
+                      <img key={`sum-ex-${idx}`} src={url} alt="Review attachment" className="w-16 h-16 rounded-xl object-cover border border-outline-variant shrink-0" />
+                    ))}
+                    {filePreviews.map((url, idx) => (
+                      <img key={`sum-new-${idx}`} src={url} alt="Review attachment" className="w-16 h-16 rounded-xl object-cover border border-outline-variant shrink-0" />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -759,12 +966,12 @@ export default function WriteReviewPage() {
         {/* Navigation Buttons */}
         <div className="flex justify-between items-center mt-lg pt-md border-t border-outline-variant">
           {step > 1 ? (
-            <button onClick={() => setStep(step - 1)} className="px-lg py-3 font-label-md text-label-md font-bold text-on-surface-variant border border-outline-variant rounded-xl hover:bg-surface-container-high transition-colors">
+            <button onClick={() => setStep(step - 1)} className="px-lg py-3 font-label-md text-label-md font-bold text-on-surface-variant border border-outline-variant rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer">
               ย้อนกลับ
             </button>
           ) : <div />}
 
-          {step < 5 ? (
+          {step < 6 ? (
             <button onClick={handleNextStep} className="px-lg py-3 bg-primary text-on-primary font-label-md text-label-md font-bold rounded-xl hover:bg-primary-container transition-colors shadow-md cursor-pointer">
               ถัดไป →
             </button>
@@ -772,7 +979,7 @@ export default function WriteReviewPage() {
             <button
               onClick={handleSubmit}
               disabled={loading}
-              className="px-xl py-3.5 bg-secondary text-on-secondary font-label-md text-label-md font-bold rounded-xl hover:bg-opacity-90 transition-opacity shadow-lg"
+              className="px-xl py-3.5 bg-secondary text-on-secondary font-label-md text-label-md font-bold rounded-xl hover:bg-opacity-90 transition-opacity shadow-lg cursor-pointer"
             >
               {loading ? "กำลังส่ง..." : "ส่งรีวิวเพื่อรออนุมัติ"}
             </button>
