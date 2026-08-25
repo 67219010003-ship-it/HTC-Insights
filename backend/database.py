@@ -23,7 +23,7 @@ if "tidbcloud.com" in raw_db_url:
 DATABASE_URL = raw_db_url
 
 def create_db_engine():
-    """ สร้าง SQLAlchemy Engine สำหรับการเชื่อมต่อฐานข้อมูล (รองรับทั้ง SQLite สำหรับการทดสอบ และ MySQL) """
+    """ สร้าง SQLAlchemy Engine สำหรับการเชื่อมต่อฐานข้อมูล (รองรับทั้ง SQLite และ MySQL) """
     if os.getenv("TESTING") == "1":
         return create_engine(
             "sqlite:///:memory:",
@@ -31,6 +31,12 @@ def create_db_engine():
             poolclass=StaticPool,
         )
     
+    if DATABASE_URL.startswith("sqlite"):
+        return create_engine(
+            DATABASE_URL,
+            connect_args={"check_same_thread": False},
+        )
+
     # Auto-detect cloud SSL requirements (e.g. TiDB Cloud / Aiven)
     connect_args = {}
     if "tidbcloud.com" in DATABASE_URL or "ssl" in DATABASE_URL.lower():
@@ -40,8 +46,17 @@ def create_db_engine():
         else:
             connect_args["ssl"] = {}
 
-    # เชื่อมต่อตรงกับฐานข้อมูล MySQL ของระบบจริง
-    return create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
+    try:
+        eng = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
+        with eng.connect() as conn:
+            pass
+        return eng
+    except Exception as e:
+        print(f"[Database Warning] MySQL connection failed. Falling back to local SQLite database (sqlite:///./htc_insights.db)")
+        return create_engine(
+            "sqlite:///./htc_insights.db",
+            connect_args={"check_same_thread": False},
+        )
 
 # สร้าง Engine และ Session Factory สำหรับจัดการธุรกรรมฐานข้อมูล
 engine = create_db_engine()

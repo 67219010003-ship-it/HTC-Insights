@@ -446,7 +446,7 @@ export default function CompanyDetailPage() {
                         <span>{r.department}</span>
                         <span className="text-outline-variant">•</span>
                         <span className="inline-flex items-center gap-0.5 bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-md text-[10px]">
-                          เพศ: {r.gender === "male" || r.gender === "ชาย" ? "ชาย" : r.gender === "female" || r.gender === "หญิง" ? "หญิง" : "ไม่ระบุ"}
+                          เพศ: {r.gender === "male" || r.gender === "ชาย" ? "ชาย" : r.gender === "female" || r.gender === "หญิง" ? "หญิง" : "อื่นๆ"}
                         </span>
                       </div>
                     </div>

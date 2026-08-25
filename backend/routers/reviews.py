@@ -68,15 +68,11 @@ def create_review(data: ReviewCreate,
     if data.text_advice and len(data.text_advice) > 500:
         raise HTTPException(400, "คำแนะนำแก่น้องๆ ต้องไม่เกิน 500 ตัวอักษร")
 
-    today = date.today()
-    academic_year_start = date(today.year if today.month >= 5 else today.year - 1, 5, 1)
     existing = db.query(Review).filter(
         Review.user_id == current_user.id,
-        Review.company_id == data.company_id,
-        Review.created_at >= academic_year_start,
     ).first()
     if existing:
-        raise HTTPException(400, "คุณเขียนรีวิวบริษัทนี้ไปแล้วในปีการศึกษานี้")
+        raise HTTPException(400, "คุณได้ส่งรีวิวสถานประกอบการในระบบแล้ว (จำกัด 1 ผู้ใช้ ต่อ 1 รีวิว)")
 
     gender_enum = Gender(data.gender) if data.gender in Gender.__members__ else Gender.prefer_not
     anon_enc = encrypt_identity(current_user.id) if data.is_anonymous else None
@@ -134,16 +130,18 @@ def upload_photos(
     current_user: User = Depends(require_student),
     db: Session = Depends(get_db),
 ):
-    """ อัปโหลดรูปภาพประกอบรีวิวไปยัง Cloudinary (สูงสุด 5 รูป) """
+    """ อัปโหลดรูปภาพประกอบรีวิวไปยัง Cloudinary (สูงสุด 2 รูปต่อรีวิว) """
     review = db.query(Review).filter(
         Review.id == review_id, Review.user_id == current_user.id
     ).first()
     if not review:
         raise HTTPException(404, "ไม่พบรีวิวหรือไม่มีสิทธิ์")
+    
+    current_photo_count = db.query(ReviewPhoto).filter(ReviewPhoto.review_id == review.id).count()
+    if current_photo_count + len(files) > 2:
+        raise HTTPException(400, f"แนบรูปได้สูงสุดรวมไม่เกิน 2 รูป (ปัจจุบันมีแล้ว {current_photo_count} รูป)")
     if len(files) < 1:
-        raise HTTPException(400, "ต้องแนบรูปอย่างน้อย 1 ใบ")
-    if len(files) > 5:
-        raise HTTPException(400, "แนบรูปได้สูงสุด 5 ใบ")
+        raise HTTPException(400, "ต้องแนบรูปอย่างน้อย 1 รูป")
 
     urls = []
     for file in files:
@@ -157,6 +155,23 @@ def upload_photos(
         urls.append(url)
     db.commit()
     return {"uploaded": len(urls), "urls": urls}
+
+@router.delete("/reviews/{review_id}/photos")
+def clear_review_photos(
+    review_id: int,
+    current_user: User = Depends(require_student),
+    db: Session = Depends(get_db),
+):
+    """ ลบรูปภาพประกอบทั้งหมดของรีวิว (สำหรับการอัปโหลดใหม่ในโหมดแก้ไข) """
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(404, "ไม่พบรีวิว")
+    if review.user_id != current_user.id and current_user.role.value != "admin":
+        raise HTTPException(403, "ไม่มีสิทธิ์จัดการรูปภาพรีวิวนี้")
+    
+    db.query(ReviewPhoto).filter(ReviewPhoto.review_id == review.id).delete()
+    db.commit()
+    return {"message": "ลบรูปภาพประกอบรีวิวเรียบร้อยแล้ว"}
 
 @router.get("/companies/{company_id}/reviews", response_model=list[ReviewPublic])
 def get_company_reviews(company_id: int,

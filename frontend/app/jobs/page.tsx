@@ -4,16 +4,20 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import JobCard, { JobData } from "@/components/jobs/JobCard";
 import JobDetailView from "@/components/jobs/JobDetailView";
+import DepartmentDropdown from "@/components/DepartmentDropdown";
 import { api } from "@/lib/api";
-import { getToken } from "@/lib/auth";
+import { getToken, getRole, getUser, isStudent } from "@/lib/auth";
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobData[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getToken();
@@ -22,14 +26,25 @@ export default function JobsPage() {
       return;
     }
 
+    const cachedUser = getUser();
+    const cachedRole = getRole();
+    if (cachedUser?.email) setUserEmail(cachedUser.email);
+    if (cachedRole) setUserRole(cachedRole);
+
     api
       .get("/auth/me")
       .then((res) => {
         if (res.data?.email) {
           setUserEmail(res.data.email);
         }
+        if (res.data?.role) {
+          setUserRole(res.data.role);
+        }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        setAuthLoading(false);
+      });
 
     setLoading(true);
 
@@ -58,7 +73,8 @@ export default function JobsPage() {
       });
   }, []);
 
-  const isNonHtcEmail = !userEmail || !userEmail.endsWith("@htc.ac.th");
+  const isStudentUser = isStudent() || userRole === "student" || (userEmail?.endsWith("@htc.ac.th") ?? false);
+  const showEmployerBanner = !authLoading && !isStudentUser && userRole === "employer";
 
   const filteredJobs = jobs.filter((job) => {
     const matchesQuery =
@@ -67,7 +83,14 @@ export default function JobsPage() {
       job.company_name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesLocation =
       !selectedLocation || job.location.includes(selectedLocation);
-    return matchesQuery && matchesLocation;
+    
+    // Department filtering using DepartmentDropdown value
+    const cleanSelectedDept = selectedDepartment ? selectedDepartment.replace("แผนกวิชา", "").trim().toLowerCase() : "";
+    const matchesDepartment =
+      !cleanSelectedDept ||
+      (job.department && job.department.replace("แผนกวิชา", "").trim().toLowerCase().includes(cleanSelectedDept));
+
+    return matchesQuery && matchesLocation && matchesDepartment;
   });
 
   return (
@@ -84,8 +107,8 @@ export default function JobsPage() {
         </div>
 
         {/* Search Controls */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+          <div className="flex-1 relative min-w-0">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">
               search
             </span>
@@ -98,10 +121,18 @@ export default function JobsPage() {
             />
           </div>
 
+          {/* Existing Reusable Department Dropdown Filter */}
+          <div className="w-full md:w-64 shrink-0">
+            <DepartmentDropdown
+              value={selectedDepartment}
+              onChange={setSelectedDepartment}
+            />
+          </div>
+
           <select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
-            className="px-4 py-2.5 bg-surface-container-lowest border border-outline-variant/30 rounded-xl text-xs md:text-sm text-on-surface-variant focus:outline-none focus:border-primary shadow-sm cursor-pointer"
+            className="w-full md:w-auto px-4 py-2.5 bg-surface-container-lowest border border-outline-variant/30 rounded-xl text-xs md:text-sm text-on-surface-variant focus:outline-none focus:border-primary shadow-sm cursor-pointer shrink-0"
           >
             <option value="">ทุกอำเภอ / ทุกจังหวัด</option>
             <option value="หาดใหญ่">หาดใหญ่</option>
@@ -111,7 +142,7 @@ export default function JobsPage() {
         </div>
 
         {/* Employer Registration Banner Below Search Bar */}
-        {isNonHtcEmail && (
+        {showEmployerBanner && (
           <div className="p-4 bg-secondary-container/20 border border-secondary/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-secondary text-on-secondary flex items-center justify-center shrink-0 shadow-sm">
@@ -162,16 +193,20 @@ export default function JobsPage() {
               <div>
                 <p className="font-bold text-primary text-sm">ยังไม่มีข้อมูลตำแหน่งงานฝึกงานในขณะนี้</p>
                 <p className="text-xs text-on-surface-variant mt-1">
-                  สถานประกอบการพาร์ทเนอร์สามารถลงทะเบียนเพื่อประกาศเปิดรับสมัครฝึกงานได้เลย
+                  {isStudentUser
+                    ? "ยังไม่มีตำแหน่งงานเปิดรับสมัครที่ตรงกับเงื่อนไขการค้นหา"
+                    : "สถานประกอบการพาร์ทเนอร์สามารถลงทะเบียนเพื่อประกาศเปิดรับสมัครฝึกงานได้เลย"}
                 </p>
               </div>
-              <Link
-                href="/employer/register"
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-secondary text-on-secondary rounded-xl text-xs font-bold shadow-sm hover:bg-secondary/90 transition-all mt-2"
-              >
-                <span className="material-symbols-outlined text-[16px]">add_business</span>
-                ลงทะเบียนเปิดรับนักศึกษาฝึกงาน
-              </Link>
+              {!isStudentUser && (
+                <Link
+                  href="/employer/register"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-secondary text-on-secondary rounded-xl text-xs font-bold shadow-sm hover:bg-secondary/90 transition-all mt-2"
+                >
+                  <span className="material-symbols-outlined text-[16px]">add_business</span>
+                  ลงทะเบียนเปิดรับนักศึกษาฝึกงาน
+                </Link>
+              )}
             </div>
           ) : (
             filteredJobs.map((job) => (

@@ -1,29 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getToken, getUser } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { API_URL } from "@/lib/api";
+import { api } from "@/lib/api";
+import DepartmentDropdown from "@/components/DepartmentDropdown";
 
 export default function ProfileUpgradePage() {
   const router = useRouter();
   const [studentId, setStudentId] = useState("");
   const [department, setDepartment] = useState("แผนกวิชาช่างอิเล็กทรอนิกส์");
+  const [level, setLevel] = useState("pvs");
   const [phone, setPhone] = useState("");
   const [reason, setReason] = useState("");
   const [cardFile, setCardFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ text: string; isError?: boolean } | null>(null);
-
   const user = getUser();
 
   useEffect(() => {
     if (!getToken()) {
-      router.push("/auth/login");
+      window.location.replace("/");
     }
-  }, [router]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,21 +32,22 @@ export default function ProfileUpgradePage() {
       setStatus({ text: "กรุณากรอกรหัสนักศึกษา", isError: true });
       return;
     }
-    if (!cardFile) {
-      setStatus({ text: "กรุณาเลือกไฟล์ภาพหลักฐานบัตรประจำตัวนักศึกษา", isError: true });
-      return;
-    }
 
     const cleanStudentId = studentId.replace(/\D/g, "");
     if (cleanStudentId.length !== 11) {
-      setStatus({ text: "รหัสนักศึกษาต้องเป็นตัวเลข 11 หลัก (เช่น 67219010003)", isError: true });
+      setStatus({ text: "รหัสนักศึกษาต้องเป็นตัวเลข 11 หลักเท่านั้น (เช่น 67219010003)", isError: true });
+      return;
+    }
+
+    if (!cardFile) {
+      setStatus({ text: "กรุณาแนบรูปภาพหลักฐานบัตรประจำตัวนักศึกษา", isError: true });
       return;
     }
 
     if (phone.trim()) {
       const cleanPhone = phone.replace(/\D/g, "");
       if (cleanPhone.length < 9 || cleanPhone.length > 10) {
-        setStatus({ text: "เบอร์โทรศัพท์ต้องเป็นตัวเลข 9 - 10 หลัก", isError: true });
+        setStatus({ text: "เบอร์โทรศัพท์ติดต่อต้องเป็นตัวเลข 9-10 หลัก (เช่น 000-000-0000)", isError: true });
         return;
       }
     }
@@ -62,49 +64,41 @@ export default function ProfileUpgradePage() {
       // 1. Upload proof card first
       const formData = new FormData();
       formData.append("file", cardFile);
-      const uploadRes = await fetch(`${API_URL}/auth/upload-proof`, {
-        method: "POST",
+      const uploadRes = await api.post("/auth/upload-proof", formData, {
         headers: {
-          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "multipart/form-data",
         },
-        body: formData,
       });
-      if (!uploadRes.ok) {
-        const uploadData = await uploadRes.json();
-        throw new Error(uploadData.detail || "อัปโหลดภาพหลักฐานไม่สำเร็จ");
-      }
-      const { url: cardImageUrl } = await uploadRes.json();
+      const cardImageUrl = uploadRes.data?.url;
 
       // 2. Submit request with card_image_url
-      const res = await fetch(`${API_URL}/auth/request-student-verification`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          student_id: cleanStudentId,
-          department,
-          phone: phone.trim() || undefined,
-          reason: reason.trim() || undefined,
-          card_image_url: cardImageUrl,
-        }),
+      await api.post("/auth/request-student-verification", {
+        student_id: cleanStudentId,
+        department,
+        level,
+        phone: phone.trim() || undefined,
+        reason: reason.trim() || undefined,
+        card_image_url: cardImageUrl,
       });
 
-      const data = await res.json();
-      if (res.ok) {
-        setStatus({ text: data.message });
-        setCardFile(null);
-        setPreviewUrl(null);
-      } else {
-        setStatus({ text: data.detail || "เกิดข้อผิดพลาดในการยื่นคำร้อง", isError: true });
-      }
+      setStatus({
+        text: "ส่งคำขอตรวจสอบสิทธิ์นักศึกษาเรียบร้อยแล้ว แอดมินจะดำเนินการตรวจสอบภายใน 1-2 วันทำการ",
+        isError: false,
+      });
+      setCardFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setTimeout(() => {
+        router.push("/profile");
+      }, 2500);
     } catch (err: any) {
-      setStatus({ text: err.message || "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้", isError: true });
+      const errorMsg = err.response?.data?.detail || err.message || "เกิดข้อผิดพลาดในการยื่นคำร้อง";
+      setStatus({ text: errorMsg, isError: true });
     } finally {
       setLoading(false);
     }
   };
+
+  if (!getToken()) return null;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
@@ -157,29 +151,39 @@ export default function ProfileUpgradePage() {
             <input
               type="text"
               required
-              placeholder="เช่น 6530128001"
+              maxLength={11}
+              placeholder="เช่น 67219010003 (11 หลัก)"
               value={studentId}
-              onChange={(e) => setStudentId(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              onChange={(e) => {
+                const filtered = e.target.value.replace(/\D/g, "").slice(0, 11);
+                setStudentId(filtered);
+              }}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">แผนกวิชา / สาขาวิชา</label>
-            <select
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              แผนกวิชา / สาขาวิชา <span className="text-red-500">*</span>
+            </label>
+            <DepartmentDropdown
               value={department}
-              onChange={(e) => setDepartment(e.target.value)}
+              onChange={(val) => setDepartment(val)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              ระดับชั้น <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={level}
+              onChange={(e) => setLevel(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
-              <option value="แผนกวิชาช่างอิเล็กทรอนิกส์">แผนกวิชาช่างอิเล็กทรอนิกส์</option>
-              <option value="แผนกวิชาช่างไฟฟ้ากำลัง">แผนกวิชาช่างไฟฟ้ากำลัง</option>
-              <option value="แผนกวิชาช่างยนต์">แผนกวิชาช่างยนต์</option>
-              <option value="แผนกวิชาช่างกลโรงงาน">แผนกวิชาช่างกลโรงงาน</option>
-              <option value="แผนกวิชาช่างเชื่อมโลหะ">แผนกวิชาช่างเชื่อมโลหะ</option>
-              <option value="แผนกวิชาช่างเทคนิคคอมพิวเตอร์">แผนกวิชาช่างเทคนิคคอมพิวเตอร์</option>
-              <option value="แผนกวิชาการบัญชี">แผนกวิชาการบัญชี</option>
-              <option value="แผนกวิชาการตลาด">แผนกวิชาการตลาด</option>
-              <option value="แผนกวิชาเทคโนโลยีสารสนเทศ">แผนกวิชาเทคโนโลยีสารสนเทศ</option>
+              <option value="pvc">ระดับประกาศนียบัตรวิชาชีพ (ปวช.)</option>
+              <option value="pvs">ระดับประกาศนียบัตรวิชาชีพชั้นสูง (ปวส.)</option>
+              <option value="btech">ระดับปริญญาตรี (หลักสูตรเทคโนโลยีบัณฑิต - ทล.บ.)</option>
             </select>
           </div>
 
@@ -195,27 +199,53 @@ export default function ProfileUpgradePage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">ภาพหลักฐานบัตรประจำตัวนักเรียน/นักศึกษา <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">ภาพหลักฐานบัตรประจำตัวนักเรียน/นักศึกษา <span className="text-red-500">*</span></label>
+            
             <input
               type="file"
+              ref={fileInputRef}
               accept="image/*"
-              required
+              className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0] || null;
                 setCardFile(file);
                 if (file) {
-                  setPreviewUrl(URL.createObjectURL(file));
-                } else {
-                  setPreviewUrl(null);
+                  setStatus(null);
                 }
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
             />
-            {previewUrl && (
-              <div className="mt-2 relative w-full h-40 rounded-xl overflow-hidden border border-gray-200 shadow-sm max-w-sm">
-                <img src={previewUrl} alt="Student Card Preview" className="w-full h-full object-cover" />
-              </div>
-            )}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-4 py-2.5 bg-gray-100 border border-gray-300 hover:border-purple-500 hover:bg-purple-50 text-gray-800 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px] text-purple-600">upload_file</span>
+                เลือกไฟล์ (Choose File)
+              </button>
+
+              {cardFile ? (
+                <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl text-xs text-emerald-900 font-medium">
+                  <span className="material-symbols-outlined text-[15px] text-emerald-600">attach_file</span>
+                  <span className="truncate max-w-[180px] sm:max-w-xs font-semibold">{cardFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCardFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="text-rose-600 hover:text-rose-700 font-bold p-0.5 rounded-md hover:bg-rose-100 transition-colors ml-1 cursor-pointer flex items-center gap-0.5 text-[11px]"
+                    title="ลบไฟล์ที่แนบ"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">close</span>
+                    ลบภาพ
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xs text-gray-500">ยังไม่ได้เลือกไฟล์ภาพ</span>
+              )}
+            </div>
           </div>
 
           <div>

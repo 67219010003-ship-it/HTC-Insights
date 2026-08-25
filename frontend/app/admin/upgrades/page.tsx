@@ -5,6 +5,7 @@ import { isAdmin, getToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import RejectReasonModal from "@/components/RejectReasonModal";
+import Pagination from "@/components/Pagination";
 import { API_URL } from "@/lib/api";
 
 interface UpgradeItem {
@@ -23,14 +24,18 @@ interface UpgradeItem {
 
 export default function AdminUpgradesPage() {
   const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
   const [requests, setRequests] = useState<UpgradeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
   const [rejectModalItem, setRejectModalItem] = useState<{ id: number; title: string } | null>(null);
   const [rejecting, setRejecting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6;
 
   const fetchRequests = async () => {
     setLoading(true);
+    setCurrentPage(1);
     try {
       const res = await fetch(`${API_URL}/admin/upgrade-requests?status=pending`, {
         headers: { Authorization: `Bearer ${getToken()}` },
@@ -48,11 +53,12 @@ export default function AdminUpgradesPage() {
 
   useEffect(() => {
     if (!isAdmin()) {
-      router.push("/auth/login");
+      window.location.replace("/");
       return;
     }
+    setAuthorized(true);
     fetchRequests();
-  }, [router]);
+  }, []);
 
   const handleApprove = async (id: number) => {
     try {
@@ -99,6 +105,8 @@ export default function AdminUpgradesPage() {
     }
   };
 
+  if (!authorized) return null;
+
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
       <div className="flex items-center gap-2 mb-6">
@@ -132,7 +140,7 @@ export default function AdminUpgradesPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {requests.map((req) => (
+            {requests.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((req) => (
               <div key={req.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -158,19 +166,32 @@ export default function AdminUpgradesPage() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setRejectModalItem({ id: req.id, title: `คำขอของ ${req.user_name} (รหัส ${req.student_id})` })}
-                    className="px-4 py-2 text-sm font-medium border border-rose-300 text-rose-700 hover:bg-rose-50 rounded-xl transition-colors"
+                    className="px-4 py-2 text-sm font-medium border border-rose-300 text-rose-700 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                   >
                     ปฏิเสธคำขอ
                   </button>
                   <button
                     onClick={() => handleApprove(req.id)}
-                    className="px-5 py-2 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-colors flex items-center gap-1"
+                    className="px-5 py-2 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-colors flex items-center gap-1 cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-base">check</span> อนุมัติสิทธิ์นักศึกษา
                   </button>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {requests.length > pageSize && (
+          <div className="p-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50/50">
+            <span className="text-xs text-gray-500">
+              แสดง {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, requests.length)} จาก {requests.length} รายการ
+            </span>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(requests.length / pageSize) || 1}
+              onPageChange={(page) => setCurrentPage(page)}
+            />
           </div>
         )}
       </div>

@@ -13,10 +13,13 @@ desktop.ini
 # Python / Backend
 **/__pycache__/
 *.pyc
+*.db
+*.sqlite3
 backend/.env
 backend/.venv/
 backend/venv/
 backend/env/
+backend/*.db
 
 # Node / Frontend
 frontend/node_modules/

@@ -10,6 +10,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 
 export default function EmployerDashboardPage() {
   const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
   const [postings, setPostings] = useState<any[]>([]);
   const [title, setTitle] = useState("");
   const [department, setDepartment] = useState("ช่างอิเล็กทรอนิกส์");
@@ -27,9 +28,10 @@ export default function EmployerDashboardPage() {
 
   useEffect(() => {
     if (!isEmployer()) {
-      router.push("/auth/login");
+      window.location.replace("/");
       return;
     }
+    setAuthorized(true);
     fetchPostings();
   }, []);
 
@@ -103,6 +105,8 @@ export default function EmployerDashboardPage() {
       setToast({ isOpen: true, message: "เกิดข้อผิดพลาดในการปิดประกาศ", type: "error" });
     }
   };
+
+  if (!authorized) return null;
 
   return (
     <div className="max-w-container-max mx-auto px-4 md:px-8 py-8">

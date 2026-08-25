@@ -4,7 +4,7 @@ from database import get_db
 from models import User, Employer, Company, JobPosting, UserRole, UpgradeRequest, UpgradeRequestStatus
 from schemas.auth import StudentRegister, EmployerRegister, LoginRequest, TokenResponse
 from auth import hash_password, verify_password, create_access_token, decode_token
-from dependencies import get_current_user, oauth2_scheme
+from dependencies import get_current_user, get_any_current_user, oauth2_scheme
 from services.cloudinary_service import upload_review_photo
 from routers.notifications import create_notification
 import secrets
@@ -260,7 +260,7 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
     }
 
 @router.post("/upload-proof")
-def upload_proof_file(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+def upload_proof_file(file: UploadFile = File(...), current_user: User = Depends(get_any_current_user)):
     """ อัปโหลดรูปภาพหลักฐาน เช่น บัตรประจำตัวนักศึกษา ขึ้นสู่ Cloudinary """
     if not file.content_type.startswith("image/"):
         raise HTTPException(400, "ไฟล์ต้องเป็นรูปภาพเท่านั้น")
@@ -273,7 +273,7 @@ def upload_proof_file(file: UploadFile = File(...), current_user: User = Depends
 @router.post("/request-student-verification")
 def request_student_verification(payload: dict = Body(...),
                                  db: Session = Depends(get_db),
-                                 current_user: User = Depends(get_current_user)):
+                                 current_user: User = Depends(get_any_current_user)):
     """ ส่งคำขอยืนยันสิทธิ์นักศึกษาสำหรับผู้ที่ใช้อีเมลส่วนตัว (Personal Gmail) """
     student_id = payload.get("student_id", "")
     department = payload.get("department", "")
@@ -281,8 +281,9 @@ def request_student_verification(payload: dict = Body(...),
     reason = payload.get("reason", "")
     card_image_url = payload.get("card_image_url", None)
 
-    if not student_id:
-        raise HTTPException(400, "กรุณากรอกรหัสนักศึกษา")
+    clean_student_id = re.sub(r"\D", "", str(student_id))
+    if len(clean_student_id) != 11:
+        raise HTTPException(400, "รหัสนักศึกษาต้องเป็นตัวเลข 11 หลักเท่านั้น (เช่น 67219010003)")
 
     if not card_image_url:
         raise HTTPException(400, "กรุณาแนบรูปภาพหลักฐานบัตรประจำตัวนักศึกษา")
@@ -301,7 +302,7 @@ def request_student_verification(payload: dict = Body(...),
 
     req = UpgradeRequest(
         user_id=current_user.id,
-        student_id=student_id,
+        student_id=clean_student_id,
         department=department or current_user.department,
         phone=phone,
         reason=reason,
@@ -341,6 +342,7 @@ def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
             "name": emp.company_name,
             "role": "employer",
             "is_super_admin": False,
+            "is_approved": bool(emp.is_approved),
             "avatar_url": emp.logo_url,
             "company_name": emp.company_name,
             "industry": emp.industry,

@@ -265,3 +265,83 @@ def test_public_content_filtering():
     revs_data = res_revs.json()
     assert len(revs_data) == 1
     assert revs_data[0]["id"] == rev1.id
+
+def test_user_cannot_create_multiple_reviews():
+    student, student_headers = create_test_student()
+    db = SessionLocal()
+    comp1 = Company(name="Company A", address="Hatyai", is_verified=True)
+    comp2 = Company(name="Company B", address="Hatyai", is_verified=True)
+    db.add_all([comp1, comp2])
+    db.commit()
+
+    review_payload_1 = {
+        "company_id": comp1.id,
+        "department": "แผนกวิชาช่างอิเล็กทรอนิกส์",
+        "gender": "male",
+        "period_start": "2025-05-01",
+        "period_end": "2025-08-31",
+        "score_overall": 5,
+        "score_work": 5,
+        "score_env": 5,
+        "score_mentor": 5,
+        "score_welfare": 5,
+        "text_work": "ลักษณะงานที่ปฏิบัติจริงมีความท้าทายและได้เรียนรู้งานจริงมาก 12345",
+        "is_anonymous": False,
+    }
+    res1 = client.post("/reviews", json=review_payload_1, headers=student_headers)
+    assert res1.status_code == 201
+
+    # Attempting second review (even for a different company) must fail
+    review_payload_2 = {
+        "company_id": comp2.id,
+        "department": "แผนกวิชาช่างอิเล็กทรอนิกส์",
+        "gender": "male",
+        "period_start": "2025-05-01",
+        "period_end": "2025-08-31",
+        "score_overall": 4,
+        "score_work": 4,
+        "score_env": 4,
+        "score_mentor": 4,
+        "score_welfare": 4,
+        "text_work": "ลักษณะงานที่ปฏิบัติจริงมีความท้าทายและได้เรียนรู้งานจริงมาก 67890",
+        "is_anonymous": False,
+    }
+    res2 = client.post("/reviews", json=review_payload_2, headers=student_headers)
+    assert res2.status_code == 400
+    assert "จำกัด 1 ผู้ใช้ ต่อ 1 รีวิว" in res2.json()["detail"]
+
+def test_super_admin_cannot_demote_self():
+    db = SessionLocal()
+    admin = User(email="superadmin_test@htc.ac.th", password_hash="hash", name="Super Admin Test", role=UserRole.admin, is_super_admin=True, is_verified=True)
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
+    token = create_access_token({"sub": admin.id, "role": "admin"})
+    admin_headers = {"Authorization": f"Bearer {token}"}
+
+    # Attempt to demote self via toggle_super_admin
+    res = client.patch(f"/admin/users/{admin.id}/super-admin", json={"is_super_admin": False}, headers=admin_headers)
+    assert res.status_code == 400
+    assert "ไม่สามารถถอดสิทธิ์ Super Admin ของตนเองได้" in res.json()["detail"]
+
+    # Attempt to change self role away from admin
+    res2 = client.patch(f"/admin/users/{admin.id}/role", json={"role": "student"}, headers=admin_headers)
+    assert res2.status_code == 400
+    assert "ไม่สามารถลดสิทธิ์ Admin ของตนเองได้" in res2.json()["detail"]
+
+def test_my_community_posts_endpoint():
+    student, student_headers = create_test_student()
+    db = SessionLocal()
+    post1 = CommunityPost(user_id=student.id, type=PostType.qa, title="My Post 1", content="Content 1", status="pending")
+    post2 = CommunityPost(user_id=student.id, type=PostType.qa, title="My Post 2", content="Content 2", status="rejected", rejection_reason="Not allowed")
+    db.add_all([post1, post2])
+    db.commit()
+
+    res = client.get("/community/my-posts", headers=student_headers)
+    assert res.status_code == 200
+    posts = res.json()
+    assert len(posts) == 2
+    assert posts[0]["title"] in ["My Post 1", "My Post 2"]
+    rejected_post = next((p for p in posts if p["status"] == "rejected"), None)
+    assert rejected_post is not None
+    assert rejected_post["rejection_reason"] == "Not allowed"

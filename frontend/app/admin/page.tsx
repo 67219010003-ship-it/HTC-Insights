@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import RejectReasonModal from "@/components/RejectReasonModal";
 import RevealAnonymousModal from "@/components/RevealAnonymousModal";
 import AdminHeader from "@/components/AdminHeader";
+import Pagination from "@/components/Pagination";
+import AdminDetailModal from "@/components/AdminDetailModal";
 import { api } from "@/lib/api";
 
 interface StatsData {
@@ -97,6 +99,7 @@ interface RejectTarget {
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("moderation");
   const [modCategory, setModCategory] = useState<ModerationCategory>("all");
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -120,7 +123,17 @@ export default function AdminDashboardPage() {
   const [pendingReports, setPendingReports] = useState<PendingReport[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
 
+  // Pagination states
+  const [pageMod, setPageMod] = useState(1);
+  const [pageAllReviews, setPageAllReviews] = useState(1);
+  const [pageAllPosts, setPageAllPosts] = useState(1);
+  const [pageAllJobs, setPageAllJobs] = useState(1);
+  const [pageReports, setPageReports] = useState(1);
+  const [pageAuditLogs, setPageAuditLogs] = useState(1);
+  const pageSize = 6;
+
   // Modals & Action status
+  const [detailModalItem, setDetailModalItem] = useState<{ type: "review" | "post" | "job" | "upgrade" | "report" | "employer"; title?: string; data: any } | null>(null);
   const [rejectTarget, setRejectTarget] = useState<RejectTarget | null>(null);
   const [revealTargetId, setRevealTargetId] = useState<number | null>(null);
   const [rejecting, setRejecting] = useState(false);
@@ -160,11 +173,12 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     setMounted(true);
     if (!isAdmin()) {
-      router.push("/auth/login");
+      window.location.replace("/");
       return;
     }
+    setAuthorized(true);
     fetchDashboardData();
-  }, [router, fetchDashboardData]);
+  }, [fetchDashboardData]);
 
   // Admin approvals
   const handleApprove = async (type: ItemType, id: number) => {
@@ -329,7 +343,15 @@ export default function AdminDashboardPage() {
     return matchAction && matchSearch;
   });
 
-  if (!mounted) return null;
+  // Filtered Moderation Items for Unified Pagination
+  const filteredModList = [
+    ...pendingReviews.map((r) => ({ type: "review" as const, data: r, id: `rev-${r.id}` })),
+    ...pendingPosts.map((p) => ({ type: "post" as const, data: p, id: `post-${p.id}` })),
+    ...pendingJobs.map((j) => ({ type: "job" as const, data: j, id: `job-${j.id}` })),
+    ...pendingUpgrades.map((u) => ({ type: "upgrade" as const, data: u, id: `upg-${u.id}` })),
+  ].filter((item) => modCategory === "all" || item.type === modCategory);
+
+  if (!mounted || !authorized) return null;
 
   return (
     <div className="min-h-screen bg-background text-on-surface pb-xl">
@@ -472,7 +494,7 @@ export default function AdminDashboardPage() {
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">history</span>
-              <span>ประวัติระบบ (Audit Logs)</span>
+              <span>ประวัติระบบ</span>
             </button>
           </div>
         </div>
@@ -495,7 +517,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
                     <button
-                      onClick={() => setModCategory("all")}
+                      onClick={() => { setModCategory("all"); setPageMod(1); }}
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
                         modCategory === "all"
                           ? "bg-primary text-on-primary"
@@ -505,7 +527,7 @@ export default function AdminDashboardPage() {
                       ทั้งหมด ({totalPending})
                     </button>
                     <button
-                      onClick={() => setModCategory("review")}
+                      onClick={() => { setModCategory("review"); setPageMod(1); }}
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
                         modCategory === "review"
                           ? "bg-primary text-on-primary"
@@ -515,7 +537,7 @@ export default function AdminDashboardPage() {
                       รีวิว ({pendingReviews.length})
                     </button>
                     <button
-                      onClick={() => setModCategory("post")}
+                      onClick={() => { setModCategory("post"); setPageMod(1); }}
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
                         modCategory === "post"
                           ? "bg-primary text-on-primary"
@@ -525,7 +547,7 @@ export default function AdminDashboardPage() {
                       กระทู้ ({pendingPosts.length})
                     </button>
                     <button
-                      onClick={() => setModCategory("job")}
+                      onClick={() => { setModCategory("job"); setPageMod(1); }}
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
                         modCategory === "job"
                           ? "bg-primary text-on-primary"
@@ -535,7 +557,7 @@ export default function AdminDashboardPage() {
                       ประกาศงาน ({pendingJobs.length})
                     </button>
                     <button
-                      onClick={() => setModCategory("upgrade")}
+                      onClick={() => { setModCategory("upgrade"); setPageMod(1); }}
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
                         modCategory === "upgrade"
                           ? "bg-primary text-on-primary"
@@ -565,331 +587,410 @@ export default function AdminDashboardPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-md">
-                    {/* 1. Pending Reviews */}
-                    {(modCategory === "all" || modCategory === "review") &&
-                      pendingReviews.map((rev) => (
-                        <div
-                          key={`rev-${rev.id}`}
-                          className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
-                        >
-                          <div className="space-y-2.5">
-                            {/* Header row */}
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-primary/10 text-primary border border-primary/20">
-                                    รีวิวสถานประกอบการ
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-md">
+                      {filteredModList.slice((pageMod - 1) * pageSize, pageMod * pageSize).map((modItem) => {
+                        if (modItem.type === "review") {
+                          const rev = modItem.data as AdminReview;
+                          return (
+                            <div
+                              key={`rev-${rev.id}`}
+                              className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
+                            >
+                              <div className="space-y-2.5">
+                                {/* Header row */}
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-primary/10 text-primary border border-primary/20">
+                                        รีวิวสถานประกอบการ
+                                      </span>
+                                      {rev.is_anonymous && (
+                                        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-amber-50 text-amber-800 border border-amber-200">
+                                          โหมดไม่ระบุตัวตน
+                                        </span>
+                                      )}
+                                      <span className="text-[10px] text-on-surface-variant font-mono">
+                                        {rev.created_at || "-"}
+                                      </span>
+                                    </div>
+                                    <h4 className="text-base font-bold font-headline-sm text-primary">
+                                      {rev.company_name}
+                                    </h4>
+                                  </div>
+
+                                  {/* Star Rating Badge */}
+                                  <div className="flex items-center gap-1 px-3 py-1 bg-secondary-container text-on-secondary-container rounded-xl text-xs font-bold shrink-0">
+                                    <span className="material-symbols-outlined text-[15px] text-secondary active-tab">star</span>
+                                    <span>{rev.score_overall} / 5</span>
+                                  </div>
+                                </div>
+
+                                {/* Author Info */}
+                                <div className="text-xs text-on-surface-variant bg-surface-container-low/70 p-2.5 rounded-xl border border-outline-variant/30 flex items-center justify-between flex-wrap gap-2">
+                                  <span>
+                                    ผู้เขียนจริง:{" "}
+                                    {rev.is_anonymous ? (
+                                      <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 text-[11px]">
+                                        <span className="material-symbols-outlined text-[13px]">lock</span>
+                                        ไม่ระบุตัวตน (ข้อมูลถูกเข้ารหัส)
+                                      </span>
+                                    ) : (
+                                      <>
+                                        <strong className="text-on-surface">{rev.real_author}</strong> ({rev.real_email})
+                                      </>
+                                    )}
                                   </span>
                                   {rev.is_anonymous && (
-                                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-amber-50 text-amber-800 border border-amber-200">
-                                      โหมดไม่ระบุตัวตน
-                                    </span>
+                                    <button
+                                      onClick={() => setRevealTargetId(rev.id)}
+                                      className="text-[11px] font-bold text-secondary hover:underline flex items-center gap-1 cursor-pointer bg-surface-container px-2.5 py-1 rounded-lg border border-outline-variant/40 hover:bg-secondary/10 transition-colors"
+                                    >
+                                      <span className="material-symbols-outlined text-[13px]">lock_open</span>
+                                      ถอดรหัสตัวตน (Audit Log)
+                                    </button>
                                   )}
+                                </div>
+
+                                {/* Review Content */}
+                                <div className="space-y-1.5 text-xs text-on-surface">
+                                  <p className="font-semibold text-on-surface-variant text-[11px]">ใจความสำคัญของงาน:</p>
+                                  <p className="bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 italic leading-relaxed">
+                                    "{rev.text_work}"
+                                  </p>
+                                </div>
+
+                                {/* Pros & Cons Preview */}
+                                {(rev.text_pros || rev.text_cons) && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                                    {rev.text_pros && (
+                                      <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-150 text-emerald-900">
+                                        <span className="font-bold block text-[11px] mb-0.5 text-emerald-800">
+                                          + ข้อดี:
+                                        </span>
+                                        <span className="line-clamp-2">{rev.text_pros}</span>
+                                      </div>
+                                    )}
+                                    {rev.text_cons && (
+                                      <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-150 text-rose-900">
+                                        <span className="font-bold block text-[11px] mb-0.5 text-rose-800">
+                                          - ข้อเสีย / ข้อควรระวัง:
+                                        </span>
+                                        <span className="line-clamp-2">{rev.text_cons}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Attached Photos */}
+                                {rev.photo_urls && rev.photo_urls.length > 0 && (
+                                  <div className="flex gap-2 pt-1 overflow-x-auto">
+                                    {rev.photo_urls.map((url, idx) => (
+                                      <a
+                                        key={idx}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="shrink-0 group relative rounded-lg overflow-hidden border border-outline-variant/40"
+                                      >
+                                        <img
+                                          src={url}
+                                          alt="Attached evidence"
+                                          className="w-16 h-16 object-cover group-hover:scale-105 transition-transform"
+                                        />
+                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                                          <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                                        </div>
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDetailModalItem({
+                                      type: "review",
+                                      title: `รีวิว ${rev.company_name}`,
+                                      data: rev,
+                                    })
+                                  }
+                                  className="px-3.5 py-2 rounded-xl border border-outline-variant/60 bg-surface-container-low hover:bg-surface-container text-primary text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                                >
+                                  <span className="material-symbols-outlined text-[16px] text-secondary">visibility</span>
+                                  ดูฉบับเต็ม
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    setRejectTarget({
+                                      type: "review",
+                                      id: rev.id,
+                                      title: `รีวิว ${rev.company_name} โดย ${rev.real_author}`,
+                                    })
+                                  }
+                                  className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">close</span>
+                                  ปฏิเสธ
+                                </button>
+                                <button
+                                  onClick={() => handleApprove("review", rev.id)}
+                                  disabled={actionLoading?.type === "review" && actionLoading?.id === rev.id}
+                                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">check</span>
+                                  อนุมัติรีวิว
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (modItem.type === "post") {
+                          const post = modItem.data as AdminPost;
+                          return (
+                            <div
+                              key={`post-${post.id}`}
+                              className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
+                            >
+                              <div className="space-y-2.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-secondary/10 text-secondary border border-secondary/20">
+                                    กระทู้คอมมูนิตี้ ({post.type || "ทั่วไป"})
+                                  </span>
                                   <span className="text-[10px] text-on-surface-variant font-mono">
-                                    {rev.created_at || "-"}
+                                    {post.created_at || "-"}
+                                  </span>
+                                </div>
+                                <h4 className="text-base font-bold font-headline-sm text-primary line-clamp-2">
+                                  {post.title}
+                                </h4>
+                                <p className="text-xs text-on-surface-variant bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 leading-relaxed line-clamp-3">
+                                  {post.content}
+                                </p>
+                                <div className="text-xs text-on-surface-variant">
+                                  โพสต์โดย: <strong className="text-on-surface">{post.author_name}</strong>
+                                </div>
+                              </div>
+
+                              <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDetailModalItem({
+                                      type: "post",
+                                      title: post.title,
+                                      data: post,
+                                    })
+                                  }
+                                  className="px-3.5 py-2 rounded-xl border border-outline-variant/60 bg-surface-container-low hover:bg-surface-container text-primary text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                                >
+                                  <span className="material-symbols-outlined text-[16px] text-secondary">visibility</span>
+                                  ดูฉบับเต็ม
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    setRejectTarget({
+                                      type: "post",
+                                      id: post.id,
+                                      title: `กระทู้ ${post.title}`,
+                                    })
+                                  }
+                                  className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">close</span>
+                                  ปฏิเสธ
+                                </button>
+                                <button
+                                  onClick={() => handleApprove("post", post.id)}
+                                  disabled={actionLoading?.type === "post" && actionLoading?.id === post.id}
+                                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">check</span>
+                                  อนุมัติกระทู้
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (modItem.type === "job") {
+                          const job = modItem.data as AdminJob;
+                          return (
+                            <div
+                              key={`job-${job.id}`}
+                              className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
+                            >
+                              <div className="space-y-2.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                    ประกาศรับสมัครงาน
+                                  </span>
+                                  <span className="text-[10px] text-on-surface-variant font-mono">
+                                    {job.created_at || "-"}
                                   </span>
                                 </div>
                                 <h4 className="text-base font-bold font-headline-sm text-primary">
-                                  {rev.company_name}
+                                  {job.title}
                                 </h4>
+                                <div className="text-xs text-on-surface-variant flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-on-surface">{job.employer_name}</span>
+                                  {job.location && (
+                                    <span className="flex items-center gap-0.5 text-on-surface-variant">
+                                      <span className="material-symbols-outlined text-[14px]">location_on</span>
+                                      {job.location}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-on-surface-variant bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 leading-relaxed line-clamp-3">
+                                  {job.description}
+                                </p>
                               </div>
 
-                              {/* Star Rating Badge */}
-                              <div className="flex items-center gap-1 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold shrink-0">
-                                <span className="material-symbols-outlined text-[15px] fill-current">star</span>
-                                <span>{rev.score_overall} / 5</span>
-                              </div>
-                            </div>
-
-                            {/* Author Info */}
-                            <div className="text-xs text-on-surface-variant bg-surface-container-low/70 p-2.5 rounded-xl border border-outline-variant/30 flex items-center justify-between flex-wrap gap-2">
-                              <span>
-                                ผู้เขียนจริง:{" "}
-                                {rev.is_anonymous ? (
-                                  <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 text-[11px]">
-                                    <span className="material-symbols-outlined text-[13px]">lock</span>
-                                    ไม่ระบุตัวตน (ข้อมูลถูกเข้ารหัส)
-                                  </span>
-                                ) : (
-                                  <>
-                                    <strong className="text-on-surface">{rev.real_author}</strong> ({rev.real_email})
-                                  </>
-                                )}
-                              </span>
-                              {rev.is_anonymous && (
+                              <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
                                 <button
-                                  onClick={() => setRevealTargetId(rev.id)}
-                                  className="text-[11px] font-bold text-secondary hover:underline flex items-center gap-1 cursor-pointer bg-surface-container px-2.5 py-1 rounded-lg border border-outline-variant/40 hover:bg-secondary/10 transition-colors"
+                                  type="button"
+                                  onClick={() =>
+                                    setDetailModalItem({
+                                      type: "job",
+                                      title: job.title,
+                                      data: job,
+                                    })
+                                  }
+                                  className="px-3.5 py-2 rounded-xl border border-outline-variant/60 bg-surface-container-low hover:bg-surface-container text-primary text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0"
                                 >
-                                  <span className="material-symbols-outlined text-[13px]">lock_open</span>
-                                  ถอดรหัสตัวตน (Audit Log)
+                                  <span className="material-symbols-outlined text-[16px] text-secondary">visibility</span>
+                                  ดูฉบับเต็ม
                                 </button>
-                              )}
-                            </div>
-
-                            {/* Review Content */}
-                            <div className="space-y-1.5 text-xs text-on-surface">
-                              <p className="font-semibold text-on-surface-variant text-[11px]">ใจความสำคัญของงาน:</p>
-                              <p className="bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 italic leading-relaxed">
-                                "{rev.text_work}"
-                              </p>
-                            </div>
-
-                            {/* Pros & Cons Preview */}
-                            {(rev.text_pros || rev.text_cons) && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                                {rev.text_pros && (
-                                  <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-150 text-emerald-900">
-                                    <span className="font-bold block text-[11px] mb-0.5 text-emerald-800">
-                                      + ข้อดี:
-                                    </span>
-                                    <span className="line-clamp-2">{rev.text_pros}</span>
-                                  </div>
-                                )}
-                                {rev.text_cons && (
-                                  <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-150 text-rose-900">
-                                    <span className="font-bold block text-[11px] mb-0.5 text-rose-800">
-                                      - ข้อเสีย / ข้อควรระวัง:
-                                    </span>
-                                    <span className="line-clamp-2">{rev.text_cons}</span>
-                                  </div>
-                                )}
+                                <button
+                                  onClick={() =>
+                                    setRejectTarget({
+                                      type: "job",
+                                      id: job.id,
+                                      title: `ตำแหน่งงาน ${job.title} (${job.employer_name})`,
+                                    })
+                                  }
+                                  className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">close</span>
+                                  ปฏิเสธ
+                                </button>
+                                <button
+                                  onClick={() => handleApprove("job", job.id)}
+                                  disabled={actionLoading?.type === "job" && actionLoading?.id === job.id}
+                                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">check</span>
+                                  อนุมัติประกาศงาน
+                                </button>
                               </div>
-                            )}
+                            </div>
+                          );
+                        }
 
-                            {/* Attached Photos */}
-                            {rev.photo_urls && rev.photo_urls.length > 0 && (
-                              <div className="flex gap-2 pt-1 overflow-x-auto">
-                                {rev.photo_urls.map((url, idx) => (
+                        if (modItem.type === "upgrade") {
+                          const upg = modItem.data as PendingUpgrade;
+                          return (
+                            <div
+                              key={`upg-${upg.id}`}
+                              className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
+                            >
+                              <div className="space-y-2.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-purple-50 text-purple-800 border border-purple-200">
+                                    คำขอยืนยันสิทธิ์นักศึกษา
+                                  </span>
+                                  <span className="text-[10px] text-on-surface-variant font-mono">
+                                    {upg.created_at || "-"}
+                                  </span>
+                                </div>
+                                <h4 className="text-base font-bold font-headline-sm text-primary">
+                                  {upg.user_name}
+                                </h4>
+                                <div className="text-xs space-y-1 text-on-surface-variant bg-surface-container-low/50 p-3 rounded-xl border border-outline-variant/20">
+                                  <p>
+                                    อีเมล: <strong className="text-on-surface font-mono">{upg.user_email}</strong>
+                                  </p>
+                                  <p>
+                                    รหัสนักศึกษา: <strong className="text-primary font-mono">{upg.student_id}</strong>
+                                  </p>
+                                  <p>
+                                    แผนกวิชา: <strong className="text-on-surface">{upg.department}</strong>
+                                  </p>
+                                </div>
+                                {upg.card_image_url && (
                                   <a
-                                    key={idx}
-                                    href={url}
+                                    href={upg.card_image_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="shrink-0 group relative rounded-lg overflow-hidden border border-outline-variant/40"
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-secondary hover:underline"
                                   >
-                                    <img
-                                      src={url}
-                                      alt="Attached evidence"
-                                      className="w-16 h-16 object-cover group-hover:scale-105 transition-transform"
-                                    />
-                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
-                                      <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                                    </div>
+                                    <span className="material-symbols-outlined text-[16px]">id_card</span>
+                                    ดูรูปภาพบัตรประจำตัวนักศึกษา →
                                   </a>
-                                ))}
+                                )}
                               </div>
-                            )}
-                          </div>
 
-                          {/* Action Buttons */}
-                          <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
-                            <button
-                              onClick={() =>
-                                setRejectTarget({
-                                  type: "review",
-                                  id: rev.id,
-                                  title: `รีวิว ${rev.company_name} โดย ${rev.real_author}`,
-                                })
-                              }
-                              className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            >
-                              <span className="material-symbols-outlined text-[15px]">close</span>
-                              ปฏิเสธ
-                            </button>
-                            <button
-                              onClick={() => handleApprove("review", rev.id)}
-                              disabled={actionLoading?.type === "review" && actionLoading?.id === rev.id}
-                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
-                            >
-                              <span className="material-symbols-outlined text-[15px]">check</span>
-                              อนุมัติรีวิว
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-
-                    {/* 2. Pending Posts */}
-                    {(modCategory === "all" || modCategory === "post") &&
-                      pendingPosts.map((post) => (
-                        <div
-                          key={`post-${post.id}`}
-                          className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
-                        >
-                          <div className="space-y-2.5">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-secondary/10 text-secondary border border-secondary/20">
-                                กระทู้คอมมูนิตี้ ({post.type || "ทั่วไป"})
-                              </span>
-                              <span className="text-[10px] text-on-surface-variant font-mono">
-                                {post.created_at || "-"}
-                              </span>
+                              <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDetailModalItem({
+                                      type: "upgrade",
+                                      title: `คำขอยืนยันสิทธิ์ของ ${upg.user_name}`,
+                                      data: upg,
+                                    })
+                                  }
+                                  className="px-3.5 py-2 rounded-xl border border-outline-variant/60 bg-surface-container-low hover:bg-surface-container text-primary text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                                >
+                                  <span className="material-symbols-outlined text-[16px] text-secondary">visibility</span>
+                                  ดูฉบับเต็ม
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    setRejectTarget({
+                                      type: "upgrade",
+                                      id: upg.id,
+                                      title: `คำขอยืนยันสิทธิ์ของ ${upg.user_name}`,
+                                    })
+                                  }
+                                  className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">close</span>
+                                  ปฏิเสธ
+                                </button>
+                                <button
+                                  onClick={() => handleApprove("upgrade", upg.id)}
+                                  disabled={actionLoading?.type === "upgrade" && actionLoading?.id === upg.id}
+                                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">check</span>
+                                  อนุมัติสิทธิ์นักศึกษา
+                                </button>
+                              </div>
                             </div>
-                            <h4 className="text-base font-bold font-headline-sm text-primary line-clamp-2">
-                              {post.title}
-                            </h4>
-                            <p className="text-xs text-on-surface-variant bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 leading-relaxed line-clamp-3">
-                              {post.content}
-                            </p>
-                            <div className="text-xs text-on-surface-variant">
-                              โพสต์โดย: <strong className="text-on-surface">{post.author_name}</strong>
-                            </div>
-                          </div>
+                          );
+                        }
 
-                          <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
-                            <button
-                              onClick={() =>
-                                setRejectTarget({
-                                  type: "post",
-                                  id: post.id,
-                                  title: `กระทู้ ${post.title}`,
-                                })
-                              }
-                              className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            >
-                              <span className="material-symbols-outlined text-[15px]">close</span>
-                              ปฏิเสธ
-                            </button>
-                            <button
-                              onClick={() => handleApprove("post", post.id)}
-                              disabled={actionLoading?.type === "post" && actionLoading?.id === post.id}
-                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
-                            >
-                              <span className="material-symbols-outlined text-[15px]">check</span>
-                              อนุมัติกระทู้
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        return null;
+                      })}
+                    </div>
 
-                    {/* 3. Pending Jobs */}
-                    {(modCategory === "all" || modCategory === "job") &&
-                      pendingJobs.map((job) => (
-                        <div
-                          key={`job-${job.id}`}
-                          className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
-                        >
-                          <div className="space-y-2.5">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                ประกาศรับสมัครงาน
-                              </span>
-                              <span className="text-[10px] text-on-surface-variant font-mono">
-                                {job.created_at || "-"}
-                              </span>
-                            </div>
-                            <h4 className="text-base font-bold font-headline-sm text-primary">
-                              {job.title}
-                            </h4>
-                            <div className="text-xs text-on-surface-variant flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-on-surface">{job.employer_name}</span>
-                              {job.location && (
-                                <span className="flex items-center gap-0.5 text-on-surface-variant">
-                                  <span className="material-symbols-outlined text-[14px]">location_on</span>
-                                  {job.location}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-on-surface-variant bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 leading-relaxed line-clamp-3">
-                              {job.description}
-                            </p>
-                          </div>
-
-                          <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
-                            <button
-                              onClick={() =>
-                                setRejectTarget({
-                                  type: "job",
-                                  id: job.id,
-                                  title: `ตำแหน่งงาน ${job.title} (${job.employer_name})`,
-                                })
-                              }
-                              className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            >
-                              <span className="material-symbols-outlined text-[15px]">close</span>
-                              ปฏิเสธ
-                            </button>
-                            <button
-                              onClick={() => handleApprove("job", job.id)}
-                              disabled={actionLoading?.type === "job" && actionLoading?.id === job.id}
-                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
-                            >
-                              <span className="material-symbols-outlined text-[15px]">check</span>
-                              อนุมัติประกาศงาน
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-
-                    {/* 4. Pending Student Upgrades */}
-                    {(modCategory === "all" || modCategory === "upgrade") &&
-                      pendingUpgrades.map((upg) => (
-                        <div
-                          key={`upg-${upg.id}`}
-                          className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
-                        >
-                          <div className="space-y-2.5">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-purple-50 text-purple-800 border border-purple-200">
-                                คำขอยืนยันสิทธิ์นักศึกษา
-                              </span>
-                              <span className="text-[10px] text-on-surface-variant font-mono">
-                                {upg.created_at || "-"}
-                              </span>
-                            </div>
-                            <h4 className="text-base font-bold font-headline-sm text-primary">
-                              {upg.user_name}
-                            </h4>
-                            <div className="text-xs space-y-1 text-on-surface-variant bg-surface-container-low/50 p-3 rounded-xl border border-outline-variant/20">
-                              <p>
-                                อีเมล: <strong className="text-on-surface font-mono">{upg.user_email}</strong>
-                              </p>
-                              <p>
-                                รหัสนักศึกษา: <strong className="text-primary font-mono">{upg.student_id}</strong>
-                              </p>
-                              <p>
-                                แผนกวิชา: <strong className="text-on-surface">{upg.department}</strong>
-                              </p>
-                            </div>
-                            {upg.card_image_url && (
-                              <a
-                                href={upg.card_image_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs font-bold text-secondary hover:underline"
-                              >
-                                <span className="material-symbols-outlined text-[16px]">id_card</span>
-                                ดูรูปภาพบัตรประจำตัวนักศึกษา →
-                              </a>
-                            )}
-                          </div>
-
-                          <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
-                            <button
-                              onClick={() =>
-                                setRejectTarget({
-                                  type: "upgrade",
-                                  id: upg.id,
-                                  title: `คำขอยืนยันสิทธิ์ของ ${upg.user_name}`,
-                                })
-                              }
-                              className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                            >
-                              <span className="material-symbols-outlined text-[15px]">close</span>
-                              ปฏิเสธ
-                            </button>
-                            <button
-                              onClick={() => handleApprove("upgrade", upg.id)}
-                              disabled={actionLoading?.type === "upgrade" && actionLoading?.id === upg.id}
-                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
-                            >
-                              <span className="material-symbols-outlined text-[15px]">check</span>
-                              อนุมัติสิทธิ์นักศึกษา
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                    {filteredModList.length > pageSize && (
+                      <div className="p-4 bg-surface-container-lowest border border-outline-variant/40 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+                        <span className="text-xs text-on-surface-variant">
+                          แสดง {(pageMod - 1) * pageSize + 1} - {Math.min(pageMod * pageSize, filteredModList.length)} จาก {filteredModList.length} รายการ
+                        </span>
+                        <Pagination
+                          currentPage={pageMod}
+                          totalPages={Math.ceil(filteredModList.length / pageSize) || 1}
+                          onPageChange={(page) => setPageMod(page)}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -955,7 +1056,7 @@ export default function AdminDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant/20 font-body-sm">
-                        {filteredReviews.map((rev) => (
+                        {filteredReviews.slice((pageAllReviews - 1) * pageSize, pageAllReviews * pageSize).map((rev) => (
                           <tr key={rev.id} className="hover:bg-surface-container-low/40 transition-colors">
                             <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant font-mono">
                               {rev.created_at || "-"}
@@ -1006,7 +1107,21 @@ export default function AdminDashboardPage() {
                                   : "รออนุมัติ"}
                               </span>
                             </td>
-                            <td className="py-3 px-3 text-right whitespace-nowrap">
+                            <td className="py-3 px-3 text-right whitespace-nowrap space-x-1.5">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDetailModalItem({
+                                    type: "review",
+                                    title: `รีวิว ${rev.company_name}`,
+                                    data: rev,
+                                  })
+                                }
+                                className="px-2.5 py-1.5 bg-surface-container hover:bg-surface-container-high text-primary font-bold border border-outline-variant/50 rounded-xl text-[11px] transition-all cursor-pointer inline-flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[13px] text-secondary">visibility</span>
+                                ดู
+                              </button>
                               <button
                                 onClick={() => handleDelete("review", rev.id)}
                                 disabled={deleting?.type === "review" && deleting?.id === rev.id}
@@ -1021,6 +1136,19 @@ export default function AdminDashboardPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+
+                {filteredReviews.length > pageSize && (
+                  <div className="pt-4 border-t border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className="text-xs text-on-surface-variant">
+                      แสดง {(pageAllReviews - 1) * pageSize + 1} - {Math.min(pageAllReviews * pageSize, filteredReviews.length)} จาก {filteredReviews.length} รายการ
+                    </span>
+                    <Pagination
+                      currentPage={pageAllReviews}
+                      totalPages={Math.ceil(filteredReviews.length / pageSize) || 1}
+                      onPageChange={(page) => setPageAllReviews(page)}
+                    />
                   </div>
                 )}
               </div>
@@ -1084,7 +1212,7 @@ export default function AdminDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant/20 font-body-sm">
-                        {filteredPosts.map((post) => (
+                        {filteredPosts.slice((pageAllPosts - 1) * pageSize, pageAllPosts * pageSize).map((post) => (
                           <tr key={post.id} className="hover:bg-surface-container-low/40 transition-colors">
                             <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant font-mono">
                               {post.created_at || "-"}
@@ -1115,7 +1243,21 @@ export default function AdminDashboardPage() {
                                   : "รออนุมัติ"}
                               </span>
                             </td>
-                            <td className="py-3 px-3 text-right whitespace-nowrap">
+                            <td className="py-3 px-3 text-right whitespace-nowrap space-x-1.5">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDetailModalItem({
+                                    type: "post",
+                                    title: post.title,
+                                    data: post,
+                                  })
+                                }
+                                className="px-2.5 py-1.5 bg-surface-container hover:bg-surface-container-high text-primary font-bold border border-outline-variant/50 rounded-xl text-[11px] transition-all cursor-pointer inline-flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[13px] text-secondary">visibility</span>
+                                ดู
+                              </button>
                               <button
                                 onClick={() => handleDelete("post", post.id)}
                                 disabled={deleting?.type === "post" && deleting?.id === post.id}
@@ -1130,6 +1272,19 @@ export default function AdminDashboardPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+
+                {filteredPosts.length > pageSize && (
+                  <div className="pt-4 border-t border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className="text-xs text-on-surface-variant">
+                      แสดง {(pageAllPosts - 1) * pageSize + 1} - {Math.min(pageAllPosts * pageSize, filteredPosts.length)} จาก {filteredPosts.length} รายการ
+                    </span>
+                    <Pagination
+                      currentPage={pageAllPosts}
+                      totalPages={Math.ceil(filteredPosts.length / pageSize) || 1}
+                      onPageChange={(page) => setPageAllPosts(page)}
+                    />
                   </div>
                 )}
               </div>
@@ -1193,7 +1348,7 @@ export default function AdminDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant/20 font-body-sm">
-                        {filteredJobs.map((job) => (
+                        {filteredJobs.slice((pageAllJobs - 1) * pageSize, pageAllJobs * pageSize).map((job) => (
                           <tr key={job.id} className="hover:bg-surface-container-low/40 transition-colors">
                             <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant font-mono">
                               {job.created_at || "-"}
@@ -1224,7 +1379,21 @@ export default function AdminDashboardPage() {
                                   : "รออนุมัติ"}
                               </span>
                             </td>
-                            <td className="py-3 px-3 text-right whitespace-nowrap">
+                            <td className="py-3 px-3 text-right whitespace-nowrap space-x-1.5">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDetailModalItem({
+                                    type: "job",
+                                    title: job.title,
+                                    data: job,
+                                  })
+                                }
+                                className="px-2.5 py-1.5 bg-surface-container hover:bg-surface-container-high text-primary font-bold border border-outline-variant/50 rounded-xl text-[11px] transition-all cursor-pointer inline-flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[13px] text-secondary">visibility</span>
+                                ดู
+                              </button>
                               <button
                                 onClick={() => handleDelete("job", job.id)}
                                 disabled={deleting?.type === "job" && deleting?.id === job.id}
@@ -1239,6 +1408,19 @@ export default function AdminDashboardPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+
+                {filteredJobs.length > pageSize && (
+                  <div className="pt-4 border-t border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className="text-xs text-on-surface-variant">
+                      แสดง {(pageAllJobs - 1) * pageSize + 1} - {Math.min(pageAllJobs * pageSize, filteredJobs.length)} จาก {filteredJobs.length} รายการ
+                    </span>
+                    <Pagination
+                      currentPage={pageAllJobs}
+                      totalPages={Math.ceil(filteredJobs.length / pageSize) || 1}
+                      onPageChange={(page) => setPageAllJobs(page)}
+                    />
                   </div>
                 )}
               </div>
@@ -1267,7 +1449,7 @@ export default function AdminDashboardPage() {
                   </div>
                 ) : (
                   <div className="divide-y divide-outline-variant/30">
-                    {pendingReports.map((rep) => (
+                    {pendingReports.slice((pageReports - 1) * pageSize, pageReports * pageSize).map((rep) => (
                       <div
                         key={rep.id}
                         className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
@@ -1292,6 +1474,20 @@ export default function AdminDashboardPage() {
 
                         <div className="flex items-center gap-2 shrink-0">
                           <button
+                            type="button"
+                            onClick={() =>
+                              setDetailModalItem({
+                                type: "report",
+                                title: `รายงาน #${rep.id}`,
+                                data: rep,
+                              })
+                            }
+                            className="px-3 py-2 bg-surface-container hover:bg-surface-container-high text-primary font-bold border border-outline-variant/50 rounded-xl text-xs transition-all cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[15px] text-secondary">visibility</span>
+                            ดูรายละเอียด
+                          </button>
+                          <button
                             onClick={() => handleResolveReport(rep.id, "resolved", "deleted")}
                             className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1"
                           >
@@ -1309,6 +1505,19 @@ export default function AdminDashboardPage() {
                     ))}
                   </div>
                 )}
+
+                {pendingReports.length > pageSize && (
+                  <div className="pt-4 border-t border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className="text-xs text-on-surface-variant">
+                      แสดง {(pageReports - 1) * pageSize + 1} - {Math.min(pageReports * pageSize, pendingReports.length)} จาก {pendingReports.length} รายการ
+                    </span>
+                    <Pagination
+                      currentPage={pageReports}
+                      totalPages={Math.ceil(pendingReports.length / pageSize) || 1}
+                      onPageChange={(page) => setPageReports(page)}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -1319,7 +1528,7 @@ export default function AdminDashboardPage() {
                   <div>
                     <h3 className="text-lg font-bold font-headline-sm text-primary flex items-center gap-2">
                       <span className="material-symbols-outlined text-[22px]">security</span>
-                      ประวัติการดำเนินงานของผู้ดูแลระบบ (Audit Logs)
+                      ประวัติการดำเนินงานของผู้ดูแลระบบ
                     </h3>
                     <p className="text-xs text-on-surface-variant font-body-sm">
                       บันทึกความโปร่งใสและการตัดสินใจคัดกรองเนื้อหาทั้งหมด
@@ -1371,7 +1580,7 @@ export default function AdminDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant/20 font-body-sm">
-                        {filteredAuditLogs.map((log) => {
+                        {filteredAuditLogs.slice((pageAuditLogs - 1) * pageSize, pageAuditLogs * pageSize).map((log) => {
                           const act = formatAuditAction(log.action);
                           return (
                             <tr key={log.id} className="hover:bg-surface-container-low/40 transition-colors">
@@ -1399,6 +1608,19 @@ export default function AdminDashboardPage() {
                     </table>
                   </div>
                 )}
+
+                {filteredAuditLogs.length > pageSize && (
+                  <div className="pt-4 border-t border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className="text-xs text-on-surface-variant">
+                      แสดง {(pageAuditLogs - 1) * pageSize + 1} - {Math.min(pageAuditLogs * pageSize, filteredAuditLogs.length)} จาก {filteredAuditLogs.length} รายการ
+                    </span>
+                    <Pagination
+                      currentPage={pageAuditLogs}
+                      totalPages={Math.ceil(filteredAuditLogs.length / pageSize) || 1}
+                      onPageChange={(page) => setPageAuditLogs(page)}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1423,6 +1645,15 @@ export default function AdminDashboardPage() {
           isOpen={revealTargetId !== null}
           reviewId={revealTargetId}
           onClose={() => setRevealTargetId(null)}
+        />
+      )}
+
+      {/* Admin Full Detail Viewer Modal */}
+      {detailModalItem && (
+        <AdminDetailModal
+          isOpen={!!detailModalItem}
+          item={detailModalItem}
+          onClose={() => setDetailModalItem(null)}
         />
       )}
     </div>

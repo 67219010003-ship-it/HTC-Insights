@@ -30,6 +30,15 @@ def list_posts(department: str = None, type: str = None,
     posts = query.offset(skip).limit(limit).all()
     return [_format_post(p) for p in posts]
 
+@router.get("/posts/my")
+@router.get("/my-posts")
+def get_my_posts(db: Session = Depends(get_db), current_user: User = Depends(require_student)):
+    """ ดึงประวัติกระทู้ทั้งหมดที่ตนเองเคยสร้าง (ทั้ง pending, approved, rejected) """
+    posts = db.query(CommunityPost).filter(
+        CommunityPost.user_id == current_user.id
+    ).order_by(CommunityPost.created_at.desc()).all()
+    return [_format_post(p) for p in posts]
+
 @router.post("/posts", status_code=201)
 def create_post(data: PostCreate,
                 current_user: User = Depends(require_student),
@@ -118,6 +127,19 @@ def submit_report(data: ReportCreate,
     db.commit()
     return {"message": "รายงานสำเร็จ Admin จะตรวจสอบ"}
 
+@router.delete("/posts/{post_id}")
+def delete_my_post(post_id: int, current_user: User = Depends(require_student),
+                   db: Session = Depends(get_db)):
+    """ ลบกระทู้ของตนเอง """
+    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="ไม่พบกระทู้ที่ต้องการลบ")
+    if post.user_id != current_user.id and current_user.role not in [UserRole.ADMIN, UserRole.SUPERADMIN]:
+        raise HTTPException(status_code=403, detail="คุณไม่มีสิทธิ์ลบกระทู้นี้")
+    db.delete(post)
+    db.commit()
+    return {"message": "ลบกระทู้เรียบร้อยแล้ว"}
+
 def _format_post(post: CommunityPost) -> dict:
     """ ฟังก์ชันแปลงข้อมูลกระทู้ให้อยู่ในรูปแบบ JSON พร้อมซ่อนชื่อเมื่อเลือก Anonymous """
     return {
@@ -130,6 +152,7 @@ def _format_post(post: CommunityPost) -> dict:
         "comment_count": len(post.comments),
         "is_pinned": post.is_pinned,
         "status": post.status or "pending",
+        "rejection_reason": post.rejection_reason,
         "created_at": post.created_at.strftime("%Y-%m-%d %H:%M") if post.created_at else None,
     }
 

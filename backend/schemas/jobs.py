@@ -20,4 +20,7 @@ class JobPostingPublic(BaseModel):
     location: Optional[str] = None
     deadline: Optional[date] = None
     is_active: bool = True
+    status: Optional[str] = "pending"
+    rejection_reason: Optional[str] = None
+    created_at: Optional[str] = None
     model_config = {"from_attributes": True}

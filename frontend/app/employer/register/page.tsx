@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { ALL_DEPARTMENTS } from "@/components/DepartmentDropdown";
+import DepartmentDropdown, { ALL_DEPARTMENTS } from "@/components/DepartmentDropdown";
 import CompanySearchBar, { SelectedCompany } from "@/components/CompanySearchBar";
 import { JobData } from "@/components/jobs/JobCard";
 
@@ -16,6 +16,7 @@ export default function EmployerRegisterPage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [mapOpen, setMapOpen] = useState(false);
+  const [mapError, setMapError] = useState(false);
 
   // Step 1: Company Profile & Location Picker
   const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
@@ -36,6 +37,7 @@ export default function EmployerRegisterPage() {
 
   // Step 3: Target Departments Selection (Starts EMPTY)
   const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
+  const [selectedDeptDropdown, setSelectedDeptDropdown] = useState("");
 
   // Step 4: Allowances & Benefits
   const [dailyAllowance, setDailyAllowance] = useState("400");
@@ -63,37 +65,158 @@ export default function EmployerRegisterPage() {
     if (comp.phone) setPhone(comp.phone);
     if (comp.website) setWebsite(comp.website);
     setMapOpen(false);
+    setMapError(false);
     setError("");
+  };
+
+  const validateStep1 = (): boolean => {
+    if (!selectedCompany) {
+      setMapError(true);
+      setError("กรุณาใช้ช่องค้นหาหรือปักหมุดเพื่อเลือกสถานที่ตั้งสถานประกอบการจากระบบแผนที่");
+      return false;
+    }
+    setMapError(false);
+    if (!companyName.trim() || companyName.trim().length < 3) {
+      setError("กรุณากรอกชื่อสถานประกอบการ / บริษัทอย่างน้อย 3 ตัวอักษร");
+      return false;
+    }
+    if (!address.trim() || address.trim().length < 5) {
+      setError("กรุณากรอกที่อยู่สถานที่ตั้งอย่างน้อย 5 ตัวอักษร หรือค้นหาและปักหมุดบนแผนที่");
+      return false;
+    }
+    if (!district.trim()) {
+      setError("กรุณาระบุอำเภอที่ตั้งของสถานประกอบการ");
+      return false;
+    }
+    if (!province.trim()) {
+      setError("กรุณาระบุจังหวัดที่ตั้งของสถานประกอบการ");
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep2 = (): boolean => {
+    if (!contactPerson.trim() || contactPerson.trim().length < 2) {
+      setError("กรุณากรอกชื่อฝ่าย หรือชื่อผู้ประสานงานรับสมัครฝึกงาน");
+      return false;
+    }
+    if (!phone.trim()) {
+      setError("กรุณากรอกเบอร์โทรศัพท์ติดต่อ");
+      return false;
+    }
+    const digitsOnly = phone.replace(/\D/g, "");
+    if (digitsOnly.length < 9 || digitsOnly.length > 10) {
+      setError("กรุณากรอกเบอร์โทรศัพท์ติดต่อให้ถูกต้อง (ตัวเลข 9-10 หลัก เช่น 000-000-0000 หรือ 000-000-000)");
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim() || !emailRegex.test(email.trim())) {
+      setError("กรุณากรอกอีเมลติดต่อให้ถูกต้อง (เช่น hr@company.co.th)");
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep3 = (): boolean => {
+    if (targetDepartments.length === 0) {
+      setError("กรุณาเลือกสาขาวิชาช่างของ วท.หาดใหญ่ ที่ต้องการเปิดรับอย่างน้อย 1 แผนก");
+      return false;
+    }
+    return true;
+  };
+
+  const validateAll = (): boolean => {
+    if (!validateStep1()) {
+      setStep(1);
+      return false;
+    }
+    if (!validateStep2()) {
+      setStep(2);
+      return false;
+    }
+    if (!validateStep3()) {
+      setStep(3);
+      return false;
+    }
+    return true;
+  };
+
+  const isStepAccessible = (targetNum: number): boolean => {
+    if (targetNum === 1) return true;
+    if (targetNum === 2) {
+      return companyName.trim().length >= 3 && address.trim().length >= 5 && !!district.trim() && !!province.trim();
+    }
+    if (targetNum === 3) {
+      const digitsOnly = phone.replace(/\D/g, "");
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return (
+        isStepAccessible(2) &&
+        contactPerson.trim().length >= 2 &&
+        digitsOnly.length >= 9 &&
+        digitsOnly.length <= 10 &&
+        emailRegex.test(email.trim())
+      );
+    }
+    if (targetNum === 4 || targetNum === 5) {
+      return isStepAccessible(3) && targetDepartments.length > 0;
+    }
+    return false;
+  };
+
+  const handleStepClick = (targetNum: number) => {
+    setError("");
+    if (targetNum === step) return;
+
+    if (targetNum < step) {
+      // Navigating back is always allowed
+      setStep(targetNum);
+      return;
+    }
+
+    // Navigating forward requires previous steps to be valid
+    if (targetNum === 2) {
+      if (!validateStep1()) {
+        setStep(1);
+        return;
+      }
+      setStep(2);
+    } else if (targetNum === 3) {
+      if (!validateStep1()) {
+        setStep(1);
+        return;
+      }
+      if (!validateStep2()) {
+        setStep(2);
+        return;
+      }
+      setStep(3);
+    } else if (targetNum >= 4) {
+      if (!validateStep1()) {
+        setStep(1);
+        return;
+      }
+      if (!validateStep2()) {
+        setStep(2);
+        return;
+      }
+      if (!validateStep3()) {
+        setStep(3);
+        return;
+      }
+      setStep(targetNum);
+    }
   };
 
   const handleNextStep = () => {
     setError("");
     if (step === 1) {
-      if (!companyName.trim()) {
-        setError("กรุณาเลือกหรือกรอกชื่อสถานประกอบการ");
-        return;
-      }
-      if (!address.trim()) {
-        setError("กรุณาระบุที่อยู่หรือเลือกสถานที่ตั้งบนแผนที่");
-        return;
-      }
+      if (!validateStep1()) return;
       setStep(2);
     } else if (step === 2) {
-      if (!contactPerson.trim() || !phone.trim() || !email.trim()) {
-        setError("กรุณากรอกข้อมูลผู้ติดต่อ (ชื่อ, เบอร์โทรศัพท์ และอีเมล)");
-        return;
-      }
-      const digitsOnly = phone.replace(/\D/g, "");
-      if (digitsOnly.length < 9 || digitsOnly.length > 10) {
-        setError("กรุณากรอกเบอร์โทรศัพท์ติดต่อให้ถูกต้อง (ตัวเลข 9-10 หลัก เช่น 000-000-0000 หรือ 000-000-000)");
-        return;
-      }
+      if (!validateStep2()) return;
       setStep(3);
     } else if (step === 3) {
-      if (targetDepartments.length === 0) {
-        setError("กรุณาเลือกสาขาวิชาช่างที่เปิดรับอย่างน้อย 1 แผนก");
-        return;
-      }
+      if (!validateStep3()) return;
       setStep(4);
     } else if (step === 4) {
       setStep(5);
@@ -110,39 +233,37 @@ export default function EmployerRegisterPage() {
   };
 
   const handleSubmitFinal = async () => {
-    if (targetDepartments.length === 0) {
-      setError("กรุณาเลือกสาขาวิชาช่างที่เปิดรับอย่างน้อย 1 แผนก");
-      setStep(3);
+    setError("");
+    if (!validateAll()) {
       return;
     }
 
     setSubmitting(true);
-    setError("");
-
-    // Submit directly to API database backend
 
     try {
       await api.post("/auth/register/employer", {
-        company_name: companyName,
-        email,
-        phone,
-        contact_person: contactPerson,
-        address: `${address} อ.${district} จ.${province}`,
+        company_name: companyName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        contact_person: contactPerson.trim(),
+        address: `${address.trim()} อ.${district.trim()} จ.${province.trim()}`,
         latitude: lat,
         longitude: lng,
-        industry,
-        website,
-        line_id: lineId,
+        industry: industry.trim(),
+        website: website.trim(),
+        line_id: lineId.trim(),
         departments: targetDepartments,
-        daily_allowance: dailyAllowance,
-        benefits,
-        notes,
+        daily_allowance: dailyAllowance.trim(),
+        benefits: benefits.trim(),
+        notes: notes.trim(),
       });
       setSubmitted(true);
     } catch (err: any) {
       console.error("Employer register error:", err);
-      // Fallback to success view in dev environment
-      setSubmitted(true);
+      setError(
+        err.response?.data?.detail ||
+          "เกิดข้อผิดพลาดในการลงทะเบียนสถานประกอบการ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -160,7 +281,7 @@ export default function EmployerRegisterPage() {
             ส่งข้อมูลลงทะเบียนสถานประกอบการเรียบร้อยแล้ว
           </h1>
           <p className="text-sm text-on-surface-variant max-w-md mx-auto leading-relaxed">
-            ขอบคุณ <strong>{companyName}</strong> ที่ร่วมเป็นพาร์ทเนอร์ ตำแหน่งงานฝึกงานของคุณได้รับการบันทึกและแสดงผลบนหน้า Jobs เรียบร้อยแล้ว เจ้าหน้าที่จะทำการติดต่อกลับทาง <strong>({email})</strong> หรือเบอร์ <strong>({phone})</strong> ภายใน 1-2 วันทำการ
+            ขอบคุณ <strong>{companyName}</strong> ที่ร่วมเป็นพาร์ทเนอร์ ตำแหน่งงานฝึกงานของคุณได้รับการบันทึกและส่งให้ผู้ดูแลระบบตรวจสอบเรียบร้อยแล้ว เจ้าหน้าที่จะทำการติดต่อกลับทาง <strong>({email})</strong> หรือเบอร์ <strong>({phone})</strong> ภายใน 1-2 วันทำการ
           </p>
         </div>
 
@@ -193,8 +314,12 @@ export default function EmployerRegisterPage() {
           <button
             type="button"
             onClick={() => {
-              if (step > 1) setStep(step - 1);
-              else router.back();
+              if (step > 1) {
+                setError("");
+                setStep(step - 1);
+              } else {
+                router.back();
+              }
             }}
             className="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded-full transition-colors cursor-pointer"
           >
@@ -218,7 +343,7 @@ export default function EmployerRegisterPage() {
           />
         </div>
 
-        {/* Step Buttons Row */}
+        {/* Step Buttons Row with Anti-Bypass Validation */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 pb-2">
           {[
             { num: 1, title: "1. บริษัท & สถานที่", icon: "domain" },
@@ -229,21 +354,26 @@ export default function EmployerRegisterPage() {
           ].map((s) => {
             const isCurrent = step === s.num;
             const isPassed = step > s.num;
+            const accessible = isStepAccessible(s.num);
+
             return (
               <button
                 key={s.num}
                 type="button"
-                onClick={() => setStep(s.num)}
+                onClick={() => handleStepClick(s.num)}
+                title={!accessible && !isPassed ? "กรุณากรอกข้อมูลขั้นตอนก่อนหน้าให้ครบถ้วน" : ""}
                 className={`py-2 px-1 rounded-xl border text-center transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
                   isCurrent
-                    ? "bg-secondary text-on-secondary border-secondary shadow-sm font-bold"
+                    ? "bg-secondary text-on-secondary border-secondary shadow-sm font-bold ring-2 ring-secondary/30"
                     : isPassed
-                    ? "bg-secondary-container/20 text-secondary border-secondary/30 font-semibold"
-                    : "bg-surface-container-low text-on-surface-variant border-outline-variant/20 opacity-70 hover:opacity-100"
+                    ? "bg-secondary-container/20 text-secondary border-secondary/30 font-semibold hover:bg-secondary-container/40"
+                    : accessible
+                    ? "bg-surface-container-low text-on-surface-variant border-outline-variant/30 hover:border-secondary/50"
+                    : "bg-surface-container-low/50 text-outline border-outline-variant/20 opacity-50 cursor-not-allowed"
                 }`}
               >
                 <span className="material-symbols-outlined text-[15px] shrink-0">
-                  {isPassed ? "check_circle" : s.icon}
+                  {isPassed ? "check_circle" : !accessible ? "lock" : s.icon}
                 </span>
                 <span className="text-[10px] truncate">{s.title}</span>
               </button>
@@ -252,9 +382,9 @@ export default function EmployerRegisterPage() {
         </div>
 
         {error && (
-          <div className="p-3.5 bg-error-container text-on-error-container rounded-xl text-xs font-semibold flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">error</span>
-            {error}
+          <div className="p-3.5 bg-error-container text-on-error-container rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200">
+            <span className="material-symbols-outlined text-[18px] shrink-0">error</span>
+            <span>{error}</span>
           </div>
         )}
 
@@ -313,17 +443,36 @@ export default function EmployerRegisterPage() {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setMapOpen(true)}
-                    className="w-full flex flex-col items-center justify-center gap-3 py-10 border-2 border-dashed border-outline-variant rounded-2xl hover:border-secondary hover:bg-secondary/5 transition-all group cursor-pointer"
+                    onClick={() => {
+                      setMapOpen(true);
+                      setMapError(false);
+                    }}
+                    className={`w-full flex flex-col items-center justify-center gap-3 py-10 border-2 border-dashed rounded-2xl transition-all group cursor-pointer ${
+                      mapError
+                        ? "border-red-500 bg-red-50/50 text-red-700 hover:bg-red-50 shadow-xs animate-shake"
+                        : "border-outline-variant hover:border-secondary hover:bg-secondary/5"
+                    }`}
                   >
-                    <span className="material-symbols-outlined text-[44px] text-on-surface-variant group-hover:text-secondary transition-colors">
-                      map
+                    <span
+                      className={`material-symbols-outlined text-[44px] transition-colors ${
+                        mapError ? "text-red-500" : "text-on-surface-variant group-hover:text-secondary"
+                      }`}
+                    >
+                      {mapError ? "wrong_location" : "map"}
                     </span>
                     <div className="text-center">
-                      <div className="font-bold text-primary group-hover:text-secondary transition-colors text-sm">
-                        คลิกเพื่อเลือกสถานที่ตั้งสถานประกอบการ
+                      <div
+                        className={`font-bold transition-colors text-sm ${
+                          mapError ? "text-red-700 font-bold" : "text-primary group-hover:text-secondary"
+                        }`}
+                      >
+                        {mapError ? "⚠️ กรุณาคลิกเลือกสถานที่ตั้งสถานประกอบการจากแผนที่ก่อนดำเนินการต่อ" : "คลิกเพื่อเลือกสถานที่ตั้งสถานประกอบการ"}
                       </div>
-                      <div className="text-xs text-on-surface-variant mt-1">
+                      <div
+                        className={`text-xs mt-1 ${
+                          mapError ? "text-red-600 font-medium" : "text-on-surface-variant"
+                        }`}
+                      >
                         ค้นหาชื่อบริษัท หรือปักหมุดบนแผนที่ระบบจริง
                       </div>
                     </div>
@@ -500,7 +649,7 @@ export default function EmployerRegisterPage() {
             </div>
           )}
 
-          {/* STEP 3: Dedicated Target Departments Selection */}
+          {/* STEP 3: Dedicated Target Departments Selection via Dropdown & Tags */}
           {step === 3 && (
             <div className="space-y-4 animate-in fade-in duration-150">
               <div className="flex items-center gap-2 border-b border-outline-variant/20 pb-2">
@@ -512,37 +661,76 @@ export default function EmployerRegisterPage() {
                 </h2>
               </div>
 
-              <div>
-                <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">
-                  กรุณาคลิกเลือกสาขาวิชาช่างที่คุณต้องการรับนักศึกษาฝึกงาน (สามารถเลือกได้มากกว่า 1 แผนก):
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {ALL_DEPARTMENTS.filter((d) => d.value !== "").map((dept) => {
-                    const isChecked = targetDepartments.includes(dept.label);
-                    return (
-                      <button
-                        key={dept.value}
-                        type="button"
-                        onClick={() => toggleDepartment(dept.label)}
-                        className={`p-3 rounded-xl border text-xs font-semibold text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                          isChecked
-                            ? "bg-secondary text-on-secondary border-secondary shadow-sm font-bold"
-                            : "bg-surface-container-low border-outline-variant/30 text-on-surface-variant hover:border-secondary/40 hover:text-secondary"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[20px] shrink-0">
-                          {dept.icon}
-                        </span>
-                        <span className="truncate">{dept.label}</span>
-                      </button>
-                    );
-                  })}
+              <div className="space-y-4">
+                <div className="w-full">
+                  <DepartmentDropdown
+                    value={selectedDeptDropdown}
+                    onChange={(val) => {
+                      if (val && !targetDepartments.includes(val)) {
+                        setTargetDepartments([...targetDepartments, val]);
+                        setError("");
+                      }
+                    }}
+                    className="relative w-full"
+                  />
                 </div>
-                <p className="text-xs font-bold text-secondary mt-3">
-                  {targetDepartments.length > 0
-                    ? `เลือกไปแล้ว ${targetDepartments.length} แผนกวิชา`
-                    : "ยังไม่ได้เลือกแผนกวิชาช่าง (กรุณาเลือกอย่างน้อย 1 แผนก)"}
-                </p>
+
+                {/* Quick Add all / Clear all */}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs font-bold text-secondary flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                    {targetDepartments.length > 0
+                      ? `เลือกไปแล้ว ${targetDepartments.length} แผนกวิชา`
+                      : "ยังไม่ได้เลือกแผนกวิชาช่าง (กรุณาเลือกอย่างน้อย 1 แผนก)"}
+                  </span>
+
+                  {targetDepartments.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTargetDepartments([])}
+                      className="text-xs text-rose-600 hover:text-rose-700 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">delete</span>
+                      ล้างแผนกทั้งหมด
+                    </button>
+                  )}
+                </div>
+
+                {/* Selected Department Tags */}
+                {targetDepartments.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {targetDepartments.map((deptName) => {
+                      const deptObj = ALL_DEPARTMENTS.find((d) => d.label === deptName);
+                      return (
+                        <div
+                          key={deptName}
+                          className="inline-flex items-center gap-2 bg-secondary-container/40 border border-secondary/30 text-on-secondary-container px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs max-w-full"
+                        >
+                          <span className="material-symbols-outlined text-[18px] text-secondary shrink-0">
+                            {deptObj?.icon || "school"}
+                          </span>
+                          <span className="break-words">{deptName}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleDepartment(deptName)}
+                            className="text-on-secondary-container/60 hover:text-rose-600 hover:bg-rose-100 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ml-1"
+                            title={`ลบ ${deptName} ออก`}
+                          >
+                            <span className="material-symbols-outlined text-[16px]">close</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-6 bg-surface-container-low/50 border-2 border-dashed border-outline-variant/40 rounded-2xl text-center space-y-1">
+                    <span className="material-symbols-outlined text-[32px] text-outline">school</span>
+                    <p className="text-xs font-bold text-primary">ยังไม่มีแผนกวิชาที่เลือก</p>
+                    <p className="text-[11px] text-on-surface-variant">
+                      กรุณาคลิกเลือกสาขาวิชาช่างจากเมนูดรอปดาวน์ด้านบน เพื่อระบุกลุ่มนักศึกษาที่ต้องการรับฝึกงาน
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}

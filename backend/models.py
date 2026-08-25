@@ -229,6 +229,10 @@ class Report(Base):
     status = Column(String(20), default="pending")
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    reporter = relationship("User", foreign_keys=[reporter_id])
+    post = relationship("CommunityPost", foreign_keys=[post_id])
+    review = relationship("Review", foreign_keys=[review_id])
+
 class AuditLog(Base):
     """ ตารางบันทึกประวัติการตัดสินใจและการทำงานของผู้ดูแลระบบ (Admin Audit Logs) """
     __tablename__ = "audit_logs"

@@ -101,7 +101,8 @@ def get_employer_postings(employer: Employer = Depends(get_current_employer),
             description=p.description,
             daily_allowance=p.daily_allowance,
             location=p.location, is_active=p.is_active,
-            status=p.status,
+            status=p.status or "pending",
+            rejection_reason=p.rejection_reason,
             created_at=p.created_at.strftime("%Y-%m-%d") if p.created_at else None,
         )
         for p in postings

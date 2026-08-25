@@ -35,7 +35,7 @@ export default function JobDetailView({ job, onBack }: JobDetailViewProps) {
           </span>
         </div>
         <h3 className="text-lg font-bold text-primary mb-1 font-headline">
-          ไม่มีตัวอย่างรายละเอียด (No Preview)
+          เลือกตำแหน่งงานเพื่อดูรายละเอียด
         </h3>
         <p className="text-xs text-on-surface-variant max-w-xs leading-relaxed">
           กรุณาคลิกเลือกรายการตำแหน่งงานฝึกงานทางด้านซ้าย เพื่อดูรายละเอียด สถานที่ทำงาน และเบอร์ติดต่อสถานประกอบการ
@@ -83,12 +83,9 @@ export default function JobDetailView({ job, onBack }: JobDetailViewProps) {
                 className="w-full h-full object-cover rounded-xl"
               />
             ) : (
-              <div className="w-full h-full bg-surface-container-high/60 flex flex-col items-center justify-center p-1 text-center select-none border border-outline-variant/20">
-                <span className="material-symbols-outlined text-[16px] text-on-surface-variant/70">
-                  image_not_supported
-                </span>
-                <span className="text-[7px] font-extrabold text-on-surface-variant/70 uppercase tracking-tight leading-none mt-0.5">
-                  NO PREVIEW
+              <div className="w-full h-full bg-surface-container-high/60 flex items-center justify-center p-1 select-none border border-outline-variant/20">
+                <span className="material-symbols-outlined text-[22px] text-on-surface-variant/60">
+                  business
                 </span>
               </div>
             )}
@@ -134,6 +131,12 @@ export default function JobDetailView({ job, onBack }: JobDetailViewProps) {
             {job.title}
           </h1>
           <div className="flex flex-wrap gap-4 text-xs font-medium text-on-surface-variant">
+            {job.department && (
+              <div className="flex items-center gap-1.5 text-secondary font-bold bg-secondary-container/40 px-2.5 py-1 rounded-lg border border-secondary/20">
+                <span className="material-symbols-outlined text-[16px]">school</span>
+                {job.department}
+              </div>
+            )}
             <div className="flex items-center gap-1.5 text-secondary font-semibold">
               <span className="material-symbols-outlined text-[18px]">location_on</span>
               {job.location}

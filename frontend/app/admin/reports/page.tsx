@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { isAdmin, getToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Pagination from "@/components/Pagination";
 import { API_URL } from "@/lib/api";
 
 interface ReportItem {
@@ -23,12 +24,16 @@ interface ReportItem {
 
 export default function AdminReportsPage() {
   const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6;
 
   const fetchReports = async () => {
     setLoading(true);
+    setCurrentPage(1);
     try {
       const res = await fetch(`${API_URL}/admin/reports?status=pending`, {
         headers: { Authorization: `Bearer ${getToken()}` },
@@ -46,11 +51,12 @@ export default function AdminReportsPage() {
 
   useEffect(() => {
     if (!isAdmin()) {
-      router.push("/auth/login");
+      window.location.replace("/");
       return;
     }
+    setAuthorized(true);
     fetchReports();
-  }, [router]);
+  }, []);
 
   const handleUpdateReport = async (id: number, status: string, action?: string) => {
     try {
@@ -82,6 +88,8 @@ export default function AdminReportsPage() {
     if (r.company_id) return "สถานประกอบการ";
     return "เนื้อหาทั่วไป";
   };
+
+  if (!authorized) return null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
@@ -116,7 +124,7 @@ export default function AdminReportsPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {reports.map((rep) => (
+            {reports.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((rep) => (
               <div key={rep.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
                 <div className="space-y-1.5 flex-1">
                   <div className="flex items-center gap-2">
@@ -142,27 +150,40 @@ export default function AdminReportsPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => handleUpdateReport(rep.id, "dismissed")}
-                    className="px-3.5 py-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                    className="px-3.5 py-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
                   >
                     ยกเลิกรายงาน
                   </button>
                   {rep.post_id && (
                     <button
                       onClick={() => handleUpdateReport(rep.id, "resolved", "delete_post")}
-                      className="px-3.5 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-sm transition-colors"
+                      className="px-3.5 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-sm transition-colors cursor-pointer"
                     >
                       ลบเนื้อหาและยอมรับ
                     </button>
                   )}
                   <button
                     onClick={() => handleUpdateReport(rep.id, "resolved")}
-                    className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-colors"
+                    className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-colors cursor-pointer"
                   >
                     ยอมรับ/จัดการแล้ว
                   </button>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {reports.length > pageSize && (
+          <div className="p-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50/50">
+            <span className="text-xs text-gray-500">
+              แสดง {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, reports.length)} จาก {reports.length} รายการ
+            </span>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(reports.length / pageSize) || 1}
+              onPageChange={(page) => setCurrentPage(page)}
+            />
           </div>
         )}
       </div>

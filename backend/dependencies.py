@@ -35,6 +35,28 @@ def get_current_user(token: str = Depends(oauth2_scheme),
         raise credentials_exception
     return user
 
+def get_any_current_user(token: str = Depends(oauth2_scheme),
+                         db: Session = Depends(get_db)) -> User:
+    """ ดึงข้อมูลผู้ใช้งานปัจจุบัน (รวมถึงผู้ใช้ที่ยังไม่ยืนยันสิทธิ์ is_verified=False เพื่อใช้ยื่นคำขอยืนยันตัวตน) """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    if not token:
+        raise credentials_exception
+    try:
+        payload = decode_token(token)
+        raw_sub = payload.get("sub")
+        user_id = int(raw_sub) if raw_sub is not None else None
+    except (JWTError, ValueError):
+        raise credentials_exception
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise credentials_exception
+    return user
+
 def require_student(current_user: User = Depends(get_current_user)) -> User:
     """ ตรวจสอบสิทธิ์เฉพาะนักศึกษา วท.หาดใหญ่ หรือ Admin เท่านั้น """
     if current_user.role not in (UserRole.student, UserRole.admin):

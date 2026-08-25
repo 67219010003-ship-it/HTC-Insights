@@ -42,6 +42,9 @@ export default function WriteReviewPage() {
   const [textAdvice, setTextAdvice] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(true);
 
+  const [existingReview, setExistingReview] = useState<any | null>(null);
+  const [checkingExisting, setCheckingExisting] = useState(true);
+
   // Photos state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
@@ -65,12 +68,38 @@ export default function WriteReviewPage() {
     const reviewIdParam = urlParams.get("review_id");
     const companyIdParam = urlParams.get("company_id");
 
+    const fetchCompanyData = (cid: number) => {
+      setIsCompanyLocked(true);
+      setCompanyId(cid);
+      api.get(`/companies/${cid}`).then((cRes) => {
+        if (cRes.data) {
+          const comp = cRes.data;
+          setSelectedCompany({
+            id: comp.id,
+            name: comp.name,
+            address: comp.address || "",
+            phone: comp.phone || "",
+            website: comp.website || "",
+            lat: comp.lat || 7.0084,
+            lng: comp.lng || 100.4767,
+            source: "db",
+            cover_image_url: comp.cover_image_url,
+            review_count: comp.review_count,
+            avg_score: comp.avg_score,
+          });
+        }
+      }).catch(() => {});
+    };
+
     if (reviewIdParam) {
       const revId = Number(reviewIdParam);
       setEditingReviewId(revId);
       
       const applyReviewData = (match: any) => {
         if (!match) return;
+        if (match.company_id) {
+          fetchCompanyData(match.company_id);
+        }
         if (match.gender) setGender(match.gender);
         if (match.department) setDepartment(match.department);
         if (match.daily_allowance !== null && match.daily_allowance !== undefined) setDailyAllowance(String(match.daily_allowance));
@@ -96,38 +125,78 @@ export default function WriteReviewPage() {
         if (match) {
           applyReviewData(match);
         } else if (companyIdParam) {
+          fetchCompanyData(Number(companyIdParam));
           api.get(`/companies/${companyIdParam}/reviews`).then((cRes) => {
             const cMatch = cRes.data?.find((r: any) => r.id === revId);
             if (cMatch) applyReviewData(cMatch);
           }).catch(() => {});
         }
-      }).catch(() => {});
+      }).catch(() => {}).finally(() => setCheckingExisting(false));
+    } else {
+      // Check if user already submitted a review
+      api.get("/reviews/my").then((res) => {
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+          setExistingReview(res.data[0]);
+        }
+      }).catch(() => {}).finally(() => setCheckingExisting(false));
+    }
+
+    if (companyIdParam) {
+      fetchCompanyData(Number(companyIdParam));
     }
 
     api.get("/companies").then((res) => {
-      const list = res.data;
-      setCompanies(list);
-      const companyIdParam = urlParams.get("company_id");
-      if (companyIdParam) {
-        setIsCompanyLocked(true);
-        const matched = list.find((c: any) => c.id === Number(companyIdParam));
-        if (matched) {
-          const sel: SelectedCompany = {
-            id: matched.id,
-            name: matched.name,
-            address: matched.address || "",
-            phone: matched.phone || "",
-            website: matched.website || "",
-            lat: matched.lat || 7.0084,
-            lng: matched.lng || 100.4767,
-            source: "db"
-          };
-          setSelectedCompany(sel);
-          setCompanyId(matched.id);
-        }
-      }
+      setCompanies(res.data || []);
     }).catch(() => {});
   }, []);
+
+  const handleStartEditExisting = (rev: any) => {
+    if (!rev) return;
+    setEditingReviewId(rev.id);
+    if (rev.company_id) {
+      setIsCompanyLocked(true);
+      setCompanyId(rev.company_id);
+      api.get(`/companies/${rev.company_id}`).then((cRes) => {
+        if (cRes.data) {
+          const comp = cRes.data;
+          setSelectedCompany({
+            id: comp.id,
+            name: comp.name,
+            address: comp.address || "",
+            phone: comp.phone || "",
+            website: comp.website || "",
+            lat: comp.lat || 7.0084,
+            lng: comp.lng || 100.4767,
+            source: "db",
+            cover_image_url: comp.cover_image_url,
+            review_count: comp.review_count,
+            avg_score: comp.avg_score,
+          });
+        }
+      }).catch(() => {});
+    }
+    if (rev.gender) setGender(rev.gender);
+    if (rev.department) setDepartment(rev.department);
+    if (rev.daily_allowance !== null && rev.daily_allowance !== undefined) setDailyAllowance(String(rev.daily_allowance));
+    if (rev.work_start_time) setWorkStartTime(rev.work_start_time);
+    if (rev.work_end_time) setWorkEndTime(rev.work_end_time);
+    if (rev.score_overall !== undefined && rev.score_overall !== null) setScoreOverall(rev.score_overall);
+    if (rev.score_work !== undefined && rev.score_work !== null) setScoreWork(rev.score_work);
+    if (rev.score_env !== undefined && rev.score_env !== null) setScoreEnv(rev.score_env);
+    if (rev.score_mentor !== undefined && rev.score_mentor !== null) setScoreMentor(rev.score_mentor);
+    if (rev.score_welfare !== undefined && rev.score_welfare !== null) setScoreWelfare(rev.score_welfare);
+    if (rev.text_work) setTextWork(rev.text_work);
+    if (rev.text_pros) setTextPros(rev.text_pros);
+    if (rev.text_cons) setTextCons(rev.text_cons);
+    if (rev.text_advice) setTextAdvice(rev.text_advice);
+    setIsAnonymous(!!rev.is_anonymous);
+    if (rev.period_start) setPeriodStart(rev.period_start);
+    if (rev.period_end) setPeriodEnd(rev.period_end);
+
+    try {
+      window.history.pushState({}, "", `/insights/write-review?company_id=${rev.company_id}&review_id=${rev.id}`);
+    } catch {}
+  };
 
   const validateStep = (s: number): string | null => {
     if (s === 1 && !companyId && !selectedCompany) {
@@ -294,6 +363,36 @@ export default function WriteReviewPage() {
     );
   }
 
+  if (existingReview && !editingReviewId) {
+    return (
+      <div className="max-w-md mx-auto px-margin-mobile py-16 text-center space-y-md bg-white border border-outline-variant rounded-3xl shadow-xl mt-12">
+        <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+          <span className="material-symbols-outlined text-[44px]">info</span>
+        </div>
+        <h2 className="text-2xl font-bold text-primary font-headline">คุณมีรีวิวในระบบแล้ว</h2>
+        <p className="font-body-md text-body-md text-on-surface-variant max-w-sm mx-auto">
+          ระบบจำกัดให้ 1 ผู้ใช้งานสามารถส่งรีวิวสถานประกอบการได้เพียง 1 ที่ (1 รีวิว) เท่านั้น หากต้องการปรับปรุงข้อมูล ท่านสามารถแก้ไขรีวิวเดิมของคุณได้
+        </p>
+        <div className="flex flex-col gap-sm pt-md">
+          <button
+            onClick={() => handleStartEditExisting(existingReview)}
+            className="w-full bg-secondary text-on-secondary py-3 rounded-xl font-label-md text-label-md font-bold shadow-md hover:scale-105 transition-transform cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[20px]">edit</span>
+            แก้ไขรีวิวเดิมของคุณ
+          </button>
+          <button
+            onClick={() => router.push("/profile")}
+            className="w-full border border-outline-variant text-on-surface-variant py-3 rounded-xl font-label-md text-label-md font-bold hover:bg-surface-container-high transition-colors cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[20px]">account_circle</span>
+            ไปหน้าจัดการบัญชี / ดูรีวิวของฉัน
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-margin-mobile py-8">
       <div className="bg-surface border border-outline-variant rounded-3xl p-6 md:p-8 shadow-xl">
@@ -425,12 +524,47 @@ export default function WriteReviewPage() {
             </div>
 
             <div>
-              <label className="block font-label-md text-label-md font-bold text-primary mb-xs">เพศของผู้รีวิว*</label>
-              <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full p-3 bg-white border border-outline-variant rounded-xl text-body-sm font-body-sm font-semibold">
-                <option value="male">ชาย</option>
-                <option value="female">หญิง</option>
-                <option value="prefer_not">ไม่ระบุ / ไม่ต้องการเปิดเผย</option>
-              </select>
+              <label className="block font-label-md text-label-md font-bold text-primary mb-xs">
+                เพศสภาพของผู้รีวิว*
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGender("male")}
+                  className={`p-3 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    gender === "male"
+                      ? "bg-primary text-white border-primary shadow-xs"
+                      : "bg-surface-container-low border-outline-variant/50 text-on-surface-variant hover:border-primary/50"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">male</span>
+                  ชาย
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGender("female")}
+                  className={`p-3 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    gender === "female"
+                      ? "bg-primary text-white border-primary shadow-xs"
+                      : "bg-surface-container-low border-outline-variant/50 text-on-surface-variant hover:border-primary/50"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">female</span>
+                  หญิง
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGender("prefer_not")}
+                  className={`p-3 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    gender === "prefer_not"
+                      ? "bg-primary text-white border-primary shadow-xs"
+                      : "bg-surface-container-low border-outline-variant/50 text-on-surface-variant hover:border-primary/50"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">person</span>
+                  อื่นๆ
+                </button>
+              </div>
             </div>
 
             <div>

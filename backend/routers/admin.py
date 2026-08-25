@@ -88,9 +88,21 @@ def list_reviews(status: str = Query(None),
             "real_email": author_email,
             "is_anonymous": r.is_anonymous,
             "score_overall": r.score_overall,
+            "score_work": r.score_work,
+            "score_env": r.score_env,
+            "score_mentor": r.score_mentor,
+            "score_welfare": r.score_welfare,
+            "department": r.department,
+            "period_start": r.period_start,
+            "period_end": r.period_end,
+            "daily_allowance": r.daily_allowance,
+            "has_transport": r.has_transport,
+            "work_start_time": r.work_start_time,
+            "work_end_time": r.work_end_time,
             "text_work": r.text_work,
             "text_pros": r.text_pros,
             "text_cons": r.text_cons,
+            "text_advice": r.text_advice,
             "status": r.status.value if r.status else "pending",
             "rejection_reason": r.rejection_reason,
             "photo_urls": [p.url for p in r.photos],
@@ -296,6 +308,9 @@ def update_user_role(user_id: int, payload: dict = Body(...),
     
     if target_user.is_super_admin and not admin.is_super_admin:
         raise HTTPException(403, "เฉพาะ Super Admin เท่านั้นที่สามารถเปลี่ยน Role ของ Super Admin ได้")
+    
+    if target_user.id == admin.id and target_user.is_super_admin and new_role != "admin":
+        raise HTTPException(400, "ไม่สามารถลดสิทธิ์ Admin ของตนเองได้")
         
     old_role = target_user.role.value
     target_user.role = UserRole(new_role)
@@ -314,6 +329,9 @@ def toggle_super_admin(user_id: int, payload: dict = Body(...),
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
         raise HTTPException(404, "ไม่พบผู้ใช้")
+    
+    if target_user.id == super_admin.id and not is_super:
+        raise HTTPException(400, "ไม่สามารถถอดสิทธิ์ Super Admin ของตนเองได้")
     
     target_user.is_super_admin = is_super
     if is_super:
@@ -498,7 +516,7 @@ def process_upgrade_request(request_id: int, payload: dict = Body(...),
         
     elif status_str == "rejected":
         if not reason or not str(reason).strip():
-            raise HTTPException(400, "กรุณาระบุเหตุผลการปฏิเสธคำขอ")
+            raise HTTPException(400, "ต้องระบุเหตุผลในการปฏิเสธ")
         req.status = UpgradeRequestStatus.rejected
         req.rejection_reason = str(reason).strip()
         
@@ -539,6 +557,33 @@ def list_reports(db: Session = Depends(get_db), admin: User = Depends(require_ad
         }
         for rep in reports
     ]
+
+@router.patch("/reports/{report_id}")
+def update_report_status(report_id: int, payload: dict = Body(...),
+                         db: Session = Depends(get_db),
+                         admin: User = Depends(require_admin)):
+    """ อัปเดตสถานะรายงานความผิด (resolved, dismissed) และดำเนินการตามคำขอ """
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report:
+        raise HTTPException(404, "ไม่พบรายงาน")
+    
+    new_status = payload.get("status", "resolved")
+    action = payload.get("action")
+    
+    report.status = new_status
+    if action == "delete_post" and report.post_id:
+        from models import CommunityPost, CommunityComment, CommunityLike
+        post = db.query(CommunityPost).filter(CommunityPost.id == report.post_id).first()
+        if post:
+            db.query(CommunityComment).filter(CommunityComment.post_id == post.id).delete()
+            db.query(CommunityLike).filter(CommunityLike.post_id == post.id).delete()
+            db.delete(post)
+            
+    db.add(AuditLog(admin_id=admin.id, action="handle_report",
+                    target_type="report", target_id=report_id,
+                    reason=f"Updated report status to {new_status} (action={action})"))
+    db.commit()
+    return {"message": f"อัปเดตสถานะรายงานเป็น {new_status} สำเร็จ"}
 
 # --- 8. บันทึกประวัติการกระทำของผู้ดูแลระบบ (Audit Logs) ---
 @router.get("/audit-logs")

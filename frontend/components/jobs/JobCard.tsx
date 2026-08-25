@@ -7,6 +7,7 @@ export interface JobData {
   title: string;
   company_name: string;
   company_id?: number;
+  department?: string;
   location: string;
   work_type?: string;
   allowance_range?: string;
@@ -58,6 +59,14 @@ export default function JobCard({
           <p className="font-body-sm text-xs font-semibold text-on-surface-variant mt-0.5 truncate">
             {job.company_name}
           </p>
+          {job.department && (
+            <div className="mt-1">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-secondary-container/50 text-on-secondary-container px-2 py-0.5 rounded-md border border-secondary/20">
+                <span className="material-symbols-outlined text-[12px]">school</span>
+                {job.department}
+              </span>
+            </div>
+          )}
           <p className="font-body-sm text-xs text-on-surface-variant/80 flex items-center gap-1 mt-1">
             <span className="material-symbols-outlined text-[14px]">location_on</span>
             {job.location}
@@ -83,12 +92,9 @@ export default function JobCard({
               className="w-full h-full object-cover rounded-xl"
             />
           ) : (
-            <div className="w-full h-full bg-surface-container-high/60 flex flex-col items-center justify-center p-1 text-center select-none border border-outline-variant/20">
-              <span className="material-symbols-outlined text-[18px] text-on-surface-variant/70">
-                image_not_supported
-              </span>
-              <span className="text-[8px] font-extrabold text-on-surface-variant/70 uppercase tracking-tight leading-none mt-0.5">
-                NO PREVIEW
+            <div className="w-full h-full bg-surface-container-high/60 flex items-center justify-center p-1 select-none border border-outline-variant/20">
+              <span className="material-symbols-outlined text-[24px] text-on-surface-variant/60">
+                business
               </span>
             </div>
           )}

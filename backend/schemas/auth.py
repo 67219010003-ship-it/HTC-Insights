@@ -6,7 +6,7 @@ class StudentRegister(BaseModel):
     password: str = Field(..., min_length=8, max_length=100, description="รหัสผ่านอย่างน้อย 8 ตัวอักษร")
     name: str = Field(..., min_length=2, max_length=100, description="ชื่อ-นามสกุล 2-100 ตัวอักษร")
     department: str = Field(..., min_length=2, max_length=100)
-    level: str = Field(..., pattern=r"^(pvc|pvs)$", description="ระดับชั้น pvc หรือ pvs")
+    level: str = Field(..., pattern=r"^(pvc|pvs|btech)$", description="ระดับชั้น pvc, pvs หรือ btech")
 
     @field_validator("email")
     @classmethod

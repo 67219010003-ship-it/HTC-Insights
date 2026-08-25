@@ -7,32 +7,38 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import RejectReasonModal from "@/components/RejectReasonModal";
 import RevealAnonymousModal from "@/components/RevealAnonymousModal";
+import Pagination from "@/components/Pagination";
 
 export default function AdminReviewModerationPage() {
   const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
   const [pendingReviews, setPendingReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectModalItem, setRejectModalItem] = useState<{ id: number; title: string } | null>(null);
   const [revealTargetId, setRevealTargetId] = useState<number | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
-
-  useEffect(() => {
-    if (!isAdmin()) {
-      router.push("/auth/login");
-      return;
-    }
-    fetchPending();
-  }, [router]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6;
 
   const fetchPending = () => {
     setLoading(true);
+    setCurrentPage(1);
     api
       .get("/admin/reviews/pending")
       .then((res) => setPendingReviews(res.data))
       .catch(() => setMsg({ text: "ไม่สามารถโหลดข้อมูลรีวิวได้", isError: true }))
       .finally(() => setLoading(false));
   };
+
+  useEffect(() => {
+    if (!isAdmin()) {
+      window.location.replace("/");
+      return;
+    }
+    setAuthorized(true);
+    fetchPending();
+  }, []);
 
   const handleApprove = async (id: number) => {
     try {
@@ -61,6 +67,8 @@ export default function AdminReviewModerationPage() {
       setRejecting(false);
     }
   };
+
+  if (!authorized) return null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -93,25 +101,32 @@ export default function AdminReviewModerationPage() {
             <p className="font-semibold text-gray-700">ไม่มีรีวิวที่รออนุมัติในขณะนี้</p>
           </div>
         ) : (
-          pendingReviews.map((r) => (
-            <div key={r.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-              <div className="flex justify-between items-start mb-3">
+          pendingReviews.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((r) => (
+            <div key={r.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex justify-between items-start">
                 <div>
-                  <div className="font-bold text-base text-gray-900">{r.company_name}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    ผู้เขียนจริง (Admin Only): <span className="font-semibold text-gray-800">{r.real_author}</span> ({r.real_email})
-                    {r.is_anonymous && <span className="ml-2 text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded">[โหมดไม่ระบุตัวตน]</span>}
+                  <h3 className="text-lg font-bold text-gray-900">{r.company_name}</h3>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                    <span>แผนก: {r.department || "ไม่ระบุ"}</span>
+                    <span>•</span>
+                    <span>โดย: {r.is_anonymous ? <span className="text-amber-600 font-semibold">ไม่เปิดเผยตัวตน (Anonymous)</span> : r.real_author}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 bg-secondary-container/20 border border-secondary/30 px-2.5 py-1 rounded-lg text-secondary font-bold text-sm">
-                  <span className="material-symbols-outlined text-[16px] text-secondary active-tab">star</span>
-                  {r.score_overall}
+                <div className="text-right">
+                  <div className="flex items-center gap-1 text-amber-500 font-bold">
+                    <span className="material-symbols-outlined text-sm">star</span>
+                    {r.score_overall} / 5
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">{r.created_at}</div>
                 </div>
               </div>
 
-              <p className="text-xs text-gray-700 mb-4 leading-relaxed bg-gray-50 p-3.5 rounded-xl border border-gray-100">
-                {r.text_work}
-              </p>
+              <div className="bg-gray-50 p-4 rounded-xl text-xs text-gray-700 space-y-2 border border-gray-100">
+                <p><strong>ลักษณะงาน:</strong> {r.text_work}</p>
+                {r.text_pros && <p className="text-emerald-700"><strong>ข้อดี:</strong> {r.text_pros}</p>}
+                {r.text_cons && <p className="text-rose-700"><strong>ข้อเสีย:</strong> {r.text_cons}</p>}
+                {r.text_advice && <p className="text-blue-700"><strong>คำแนะนำ:</strong> {r.text_advice}</p>}
+              </div>
 
               {r.photo_urls && r.photo_urls.length > 0 && (
                 <div className="flex gap-2 mb-4">
@@ -149,6 +164,19 @@ export default function AdminReviewModerationPage() {
               </div>
             </div>
           ))
+        )}
+
+        {pendingReviews.length > pageSize && (
+          <div className="p-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-2xl shadow-sm">
+            <span className="text-xs text-gray-500">
+              แสดง {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, pendingReviews.length)} จาก {pendingReviews.length} รายการ
+            </span>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(pendingReviews.length / pageSize) || 1}
+              onPageChange={(page) => setCurrentPage(page)}
+            />
+          </div>
         )}
       </div>
 

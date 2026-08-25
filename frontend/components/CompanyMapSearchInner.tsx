@@ -60,6 +60,31 @@ function FlyTo({ position }: { position: [number, number] | null }) {
   return null;
 }
 
+function MapResizeHandler() {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 150);
+    const t2 = setTimeout(() => map.invalidateSize(), 500);
+    const t3 = setTimeout(() => map.invalidateSize(), 1000);
+
+    const onResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, [map]);
+  return null;
+}
+
 export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanies }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -309,15 +334,18 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
   const canConfirm = hasPin && editName.trim().length > 0;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex">
-      {/* ── SIDEBAR ── */}
-      <div className="w-80 shrink-0 h-full bg-white flex flex-col shadow-2xl z-10">
+    <div className="fixed inset-0 z-[9999] flex flex-col md:flex-row bg-slate-900 overflow-hidden">
+      {/* ── SIDEBAR / BOTTOM DRAWER ON MOBILE ── */}
+      <div className="w-full md:w-80 lg:w-96 shrink-0 h-[50vh] md:h-full bg-white flex flex-col shadow-2xl z-10 order-2 md:order-1 rounded-t-3xl md:rounded-none overflow-hidden border-t md:border-t-0 md:border-r border-outline-variant">
+        {/* Mobile handle indicator */}
+        <div className="w-12 h-1 bg-outline-variant/80 rounded-full mx-auto mt-2.5 mb-1 md:hidden" />
+
         {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b border-outline-variant">
-          <div className="flex items-center justify-between mb-3">
+        <div className="px-4 pt-2 md:pt-4 pb-3 border-b border-outline-variant">
+          <div className="flex items-center justify-between mb-2 md:mb-3">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-secondary text-[22px]">map</span>
-              <h2 className="font-bold text-primary text-base">เลือกสถานประกอบการ</h2>
+              <h2 className="font-bold text-primary text-sm md:text-base">เลือกสถานประกอบการ</h2>
             </div>
             <button type="button" onClick={onClose} className="text-on-surface-variant hover:text-error p-1 rounded-full hover:bg-error-container/20 transition-colors cursor-pointer">
               <span className="material-symbols-outlined text-[22px]">close</span>
@@ -421,9 +449,8 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
             <div className="p-5 text-center space-y-3">
               <span className="material-symbols-outlined text-[40px] text-on-surface-variant/30 block">touch_app</span>
               <p className="text-xs text-on-surface-variant leading-relaxed">
-                พิมพ์ชื่อถนน / ย่าน / พื้นที่<br/>เพื่อนำทางแผนที่ไปยังบริเวณสถานประกอบการ
+                กรุณาใช้ช่องค้นหาพิมพ์ชื่อถนน / ย่าน / พื้นที่<br/>เพื่อนำทางแผนที่ไปยังบริเวณสถานประกอบการ
               </p>
-              <p className="text-[11px] text-secondary font-bold">แล้วคลิกบนแผนที่เพื่อปักหมุด</p>
             </div>
           )}
         </div>
@@ -511,7 +538,7 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
       </div>
 
       {/* ── FULLSCREEN MAP ── */}
-      <div className="flex-1 relative">
+      <div className="w-full flex-1 relative order-1 md:order-2 h-[50vh] md:h-full min-h-[260px]">
         {/* ── TOP CENTER TITLE BAR ── */}
         <div className="absolute top-0 left-0 right-0 z-20 flex justify-center pointer-events-none">
           <div className="mt-4 bg-white/95 backdrop-blur-sm border border-outline-variant shadow-lg rounded-2xl px-5 py-2.5 flex items-center gap-2">
@@ -545,6 +572,7 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
           zoomControl={false}
           className="w-full h-full"
         >
+          <MapResizeHandler />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

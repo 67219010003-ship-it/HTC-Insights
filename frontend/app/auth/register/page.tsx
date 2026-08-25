@@ -216,8 +216,9 @@ export default function RegisterPage() {
                 onChange={(e) => setStudentLevel(e.target.value)}
                 className="w-full p-2.5 bg-surface border border-outline-variant/30 rounded-xl text-sm"
               >
-                <option value="pvc">ประกาศนียบัตรวิชาชีพ (ปวช.)</option>
-                <option value="pvs">ประกาศนียบัตรวิชาชีพชั้นสูง (ปวส.)</option>
+                <option value="pvc">ระดับประกาศนียบัตรวิชาชีพ (ปวช.)</option>
+                <option value="pvs">ระดับประกาศนียบัตรวิชาชีพชั้นสูง (ปวส.)</option>
+                <option value="btech">ระดับปริญญาตรี (หลักสูตรเทคโนโลยีบัณฑิต - ทล.บ.)</option>
               </select>
             </div>
 

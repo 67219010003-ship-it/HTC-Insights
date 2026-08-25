@@ -5,6 +5,8 @@ import { api } from "@/lib/api";
 import { isAdmin } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import AdminHeader from "@/components/AdminHeader";
+import Pagination from "@/components/Pagination";
+import ConfirmModal from "@/components/ConfirmModal";
 
 interface EmployerItem {
   id: number;
@@ -23,15 +25,35 @@ interface EmployerItem {
 export default function AdminEmployerApprovalPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
   const [employers, setEmployers] = useState<EmployerItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<"all" | "pending" | "approved">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6;
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type?: "danger" | "warning" | "info";
+    confirmText?: string;
+    onConfirm: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "danger",
+    confirmText: "ยืนยัน",
+    onConfirm: async () => {},
+  });
 
   const fetchEmployers = useCallback(async (filter: string) => {
     setLoading(true);
+    setCurrentPage(1);
     try {
       localStorage.removeItem("htc_registered_employers");
       localStorage.removeItem("htc_registered_jobs");
@@ -52,11 +74,12 @@ export default function AdminEmployerApprovalPage() {
   useEffect(() => {
     setMounted(true);
     if (!isAdmin()) {
-      router.push("/auth/login");
+      window.location.replace("/");
       return;
     }
+    setAuthorized(true);
     fetchEmployers(activeFilter);
-  }, [activeFilter, router, fetchEmployers]);
+  }, [activeFilter, fetchEmployers]);
 
   const handleApprove = async (id: number) => {
     setActionLoading(id);
@@ -99,11 +122,29 @@ export default function AdminEmployerApprovalPage() {
     );
   });
 
+  const totalPages = Math.ceil(filteredEmployers.length / pageSize) || 1;
+  const paginatedEmployers = filteredEmployers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const confirmDelete = (emp: EmployerItem) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "ยืนยันการลบสถานประกอบการ",
+      message: `คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลสถานประกอบการ "${emp.name}"? การดำเนินการนี้ไม่สามารถเรียกคืนได้`,
+      type: "danger",
+      confirmText: "ยืนยันการลบ",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        await handleDelete(emp.id);
+      },
+    });
+  };
+
   const pendingCount = employers.filter((e) => e.status === "pending").length;
+
+  if (!mounted || !authorized) return null;
 
   return (
     <div className="min-h-screen bg-background text-on-surface pb-xl">
-      {/* Top Admin Navigation Suite Header (NO SIDEBAR) */}
       <AdminHeader
         title="จัดการบัญชีสถานประกอบการ (Employers)"
         subtitle="ตรวจสอบ อนุมัติ และควบคุมรายชื่อสถานประกอบการและพันธมิตรของวิทยาลัยเทคนิคหาดใหญ่"
@@ -112,7 +153,6 @@ export default function AdminEmployerApprovalPage() {
       />
 
       <div className="max-w-container-max mx-auto px-margin-mobile space-y-lg">
-        {/* Flash Message Banner */}
         {msg && (
           <div
             className={`p-4 rounded-2xl text-xs md:text-sm font-semibold flex items-center justify-between shadow-xs border transition-all ${
@@ -129,77 +169,73 @@ export default function AdminEmployerApprovalPage() {
             </div>
             <button
               onClick={() => setMsg(null)}
-              className="p-1 hover:bg-black/5 rounded-lg transition-colors font-bold"
+              className="p-1 hover:bg-black/5 rounded-lg transition-colors font-bold cursor-pointer"
             >
               ✕
             </button>
           </div>
         )}
 
-        {/* Filter and Search Bar */}
         <div className="bg-surface-container-lowest border border-outline-variant/40 p-5 rounded-3xl shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Segmented Filter Pills */}
-          <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto hide-scrollbar">
+          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
             <button
               onClick={() => setActiveFilter("all")}
-              className={`px-4 py-2.5 rounded-xl font-label-md text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeFilter === "all"
                   ? "bg-primary text-on-primary shadow-xs"
-                  : "bg-surface-container-low/60 text-on-surface-variant hover:bg-surface-container border border-outline-variant/40"
+                  : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container"
               }`}
             >
               ทั้งหมด ({employers.length})
             </button>
             <button
               onClick={() => setActiveFilter("pending")}
-              className={`px-4 py-2.5 rounded-xl font-label-md text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                 activeFilter === "pending"
-                  ? "bg-primary text-on-primary shadow-xs"
-                  : "bg-surface-container-low/60 text-on-surface-variant hover:bg-surface-container border border-outline-variant/40"
+                  ? "bg-secondary text-on-secondary shadow-xs"
+                  : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container"
               }`}
             >
-              <span>รอการอนุมัติ</span>
+              <span>รอการตรวจสอบ</span>
               {pendingCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                   {pendingCount}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveFilter("approved")}
-              className={`px-4 py-2.5 rounded-xl font-label-md text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 activeFilter === "approved"
-                  ? "bg-primary text-on-primary shadow-xs"
-                  : "bg-surface-container-low/60 text-on-surface-variant hover:bg-surface-container border border-outline-variant/40"
+                  ? "bg-emerald-700 text-white shadow-xs"
+                  : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container"
               }`}
             >
-              อนุมัติแล้ว ({employers.filter((e) => e.status === "approved").length})
+              อนุมัติแล้ว
             </button>
           </div>
 
-          {/* Search Box */}
-          <div className="relative w-full md:w-80">
+          <div className="relative w-full md:w-72">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
               search
             </span>
             <input
               type="text"
-              placeholder="ค้นหาชื่อสถานประกอบการ, จังหวัด, ผู้ติดต่อ..."
+              placeholder="ค้นหาชื่อ, หมวดหมู่, จังหวัด..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary font-medium"
+              className="w-full pl-9 pr-4 py-2 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary font-medium"
             />
           </div>
         </div>
 
-        {/* Employers Table & Card List */}
         <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-6 shadow-xs space-y-4">
           <div className="border-b border-outline-variant/30 pb-3 flex items-center justify-between">
             <h3 className="text-base font-bold font-headline-sm text-primary">
               รายชื่อสถานประกอบการ ({filteredEmployers.length} รายการ)
             </h3>
             <span className="text-xs text-on-surface-variant">
-              ระบบตรวจสอบสถานะความพร้อมของสถานประกอบการ
+              ระบบตรวจสอบและยืนยันการรับนักศึกษาฝึกงาน
             </span>
           </div>
 
@@ -212,7 +248,7 @@ export default function AdminEmployerApprovalPage() {
             </div>
           ) : filteredEmployers.length === 0 ? (
             <div className="py-16 text-center text-xs text-on-surface-variant font-semibold">
-              ไม่พบสถานประกอบการที่ตรงกับเงื่อนไข
+              ไม่พบข้อมูลสถานประกอบการในหมวดหมู่นี้
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -220,21 +256,18 @@ export default function AdminEmployerApprovalPage() {
                 <thead>
                   <tr className="border-b border-outline-variant/40 bg-surface-container-low/60 font-bold font-label-md text-on-surface">
                     <th className="py-3.5 px-4">ชื่อสถานประกอบการ</th>
-                    <th className="py-3.5 px-4">ประเภทธุรกิจ</th>
-                    <th className="py-3.5 px-4">ที่ตั้ง / จังหวัด</th>
-                    <th className="py-3.5 px-4">ผู้ประสานงาน</th>
+                    <th className="py-3.5 px-4">หมวดหมู่งาน</th>
+                    <th className="py-3.5 px-4">สถานที่ตั้ง / จังหวัด</th>
+                    <th className="py-3.5 px-4">ผู้ติดต่อ & ช่องทาง</th>
                     <th className="py-3.5 px-4">สถานะ</th>
-                    <th className="py-3.5 px-4 text-right">ดำเนินการ</th>
+                    <th className="py-3.5 px-4 text-right">การจัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/20 font-body-sm">
-                  {filteredEmployers.map((emp) => (
+                  {paginatedEmployers.map((emp) => (
                     <tr key={emp.id} className="hover:bg-surface-container-low/40 transition-colors">
                       <td className="py-3.5 px-4 font-bold text-primary whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-[16px] text-secondary">
-                            domain
-                          </span>
                           <span>{emp.name}</span>
                           {emp.is_verified && (
                             <span className="material-symbols-outlined text-[14px] text-secondary fill-current" title="ยืนยันแล้ว">
@@ -287,7 +320,7 @@ export default function AdminEmployerApprovalPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => handleDelete(emp.id)}
+                            onClick={() => confirmDelete(emp)}
                             disabled={actionLoading === emp.id}
                             className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 rounded-xl text-[11px] transition-all cursor-pointer disabled:opacity-50"
                           >
@@ -301,8 +334,31 @@ export default function AdminEmployerApprovalPage() {
               </table>
             </div>
           )}
+          {filteredEmployers.length > pageSize && (
+            <div className="pt-4 border-t border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-xs text-on-surface-variant">
+                แสดง {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredEmployers.length)} จาก {filteredEmployers.length} รายการ
+              </span>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => setCurrentPage(page)}
+              />
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

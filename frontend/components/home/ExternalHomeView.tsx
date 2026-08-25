@@ -274,7 +274,7 @@ export default function ExternalHomeView() {
                     มาตรฐาน สอศ.
                   </div>
                 </div>
-                <div className="text-[11px] text-on-surface-variant">ครอบคลุม 18 แผนกวิชาช่างและเทคโนโลยี</div>
+                <div className="text-[11px] text-on-surface-variant">ครอบคลุม 21 แผนกวิชาช่างและเทคโนโลยี/บริหารธุรกิจ</div>
               </div>
 
               <div className="bg-gradient-to-br from-[#00677c] via-secondary to-[#003c49] text-white p-md rounded-2xl shadow-lg relative overflow-hidden space-y-2">

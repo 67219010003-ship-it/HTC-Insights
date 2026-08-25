@@ -98,7 +98,7 @@ export default function DepartmentDropdown({ value, onChange, className }: Props
 
       {/* Upgraded Dropdown Popover */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-14 bg-white border border-outline-variant rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-80 overflow-y-auto hide-scrollbar">
+        <div className="absolute left-0 right-0 top-14 bg-white border border-outline-variant rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto">
           <div className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/50 mb-1 flex items-center justify-between">
             <span>เลือกแผนกวิชา ({ALL_DEPARTMENTS.length - 1} แผนก)</span>
           </div>

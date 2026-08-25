@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { isAdmin, isSuperAdmin } from "@/lib/auth";
+import { isAdmin, isSuperAdmin, getUser } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import AdminHeader from "@/components/AdminHeader";
+import Pagination from "@/components/Pagination";
+import ConfirmModal from "@/components/ConfirmModal";
 import { api } from "@/lib/api";
 
 interface UserItem {
@@ -21,12 +23,33 @@ interface UserItem {
 export default function AdminUsersPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterRole, setFilterRole] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6;
+
+  // Confirm Modal state (no window.alert / window.confirm)
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type?: "danger" | "warning" | "info";
+    confirmText?: string;
+    loading?: boolean;
+    onConfirm: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: async () => {},
+  });
+
+  const currentUser = getUser();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -37,6 +60,7 @@ export default function AdminUsersPage() {
 
       const res = await api.get(url);
       setUsers(res.data || []);
+      setCurrentPage(1);
     } catch (err) {
       console.error("Failed to load users:", err);
       setMsg({ text: "ไม่สามารถโหลดข้อมูลผู้ใช้ได้", isError: true });
@@ -48,13 +72,14 @@ export default function AdminUsersPage() {
   useEffect(() => {
     setMounted(true);
     if (!isAdmin()) {
-      router.push("/auth/login");
+      window.location.replace("/");
       return;
     }
+    setAuthorized(true);
     fetchUsers();
-  }, [router, fetchUsers]);
+  }, [fetchUsers]);
 
-  const handleRoleChange = async (userId: number, newRole: string) => {
+  const executeRoleChange = async (userId: number, newRole: string) => {
     setMsg(null);
     setActionLoading(userId);
     try {
@@ -68,7 +93,28 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleToggleSuperAdmin = async (userId: number, currentIsSuper: boolean) => {
+  const handleRoleChange = (user: UserItem, newRole: string) => {
+    if (user.role === newRole) return;
+    
+    // If promoting to admin or changing superadmin's role, show confirmation modal
+    if (newRole === "admin" || user.is_super_admin) {
+      setConfirmModal({
+        isOpen: true,
+        title: "ยืนยันการเปลี่ยนบทบาทผู้ใช้",
+        message: `คุณต้องการเปลี่ยนบทบาทของ "${user.name}" จาก ${user.role} เป็น ${newRole} หรือไม่?`,
+        type: newRole === "admin" ? "warning" : "info",
+        confirmText: "ยืนยันการเปลี่ยน Role",
+        onConfirm: async () => {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          await executeRoleChange(user.id, newRole);
+        },
+      });
+    } else {
+      executeRoleChange(user.id, newRole);
+    }
+  };
+
+  const executeToggleSuperAdmin = async (userId: number, currentIsSuper: boolean) => {
     setMsg(null);
     setActionLoading(userId);
     try {
@@ -84,27 +130,56 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleToggleBan = async (userId: number) => {
-    setMsg(null);
-    setActionLoading(userId);
-    try {
-      const res = await api.patch(`/admin/users/${userId}/ban`, {
-        reason: "แอดมินดำเนินการผ่านหน้าจัดการผู้ใช้",
-      });
-      setMsg({ text: res.data.message || "ปรับสถานะการใช้งานบัญชีสำเร็จ" });
-      fetchUsers();
-    } catch (err: any) {
-      setMsg({ text: err.response?.data?.detail || "เกิดข้อผิดพลาดในการปรับสถานะบัญชี", isError: true });
-    } finally {
-      setActionLoading(null);
-    }
+  const handleToggleSuperAdmin = (user: UserItem) => {
+    const willGrant = !user.is_super_admin;
+    setConfirmModal({
+      isOpen: true,
+      title: willGrant ? "แต่งตั้ง Super Admin" : "ถอดสิทธิ์ Super Admin",
+      message: willGrant
+        ? `คุณแน่ใจหรือไม่ว่าต้องการมอบสิทธิ์ "Super Admin" ให้กับ "${user.name}" (${user.email})? ผู้ใช้นี้จะมีสิทธิ์สูงสุดในการจัดการระบบทั้งหมด`
+        : `คุณแน่ใจหรือไม่ว่าต้องการถอดสิทธิ์ "Super Admin" ของ "${user.name}"?`,
+      type: willGrant ? "warning" : "danger",
+      confirmText: willGrant ? "ยืนยันมอบสิทธิ์ Super Admin" : "ยืนยันถอดสิทธิ์",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        await executeToggleSuperAdmin(user.id, user.is_super_admin);
+      },
+    });
   };
 
-  if (!mounted) return null;
+  const handleToggleBan = (user: UserItem) => {
+    const willBan = user.is_verified;
+    setConfirmModal({
+      isOpen: true,
+      title: willBan ? "ระงับการใช้งานบัญชี" : "คืนสิทธิ์การใช้งานบัญชี",
+      message: willBan
+        ? `คุณต้องการระงับการใช้งานบัญชีของ "${user.name}" (${user.email}) หรือไม่? ผู้ใช้จะไม่สามารถเข้าสู่ระบบได้`
+        : `คุณต้องการเปิดคืนสิทธิ์การใช้งานบัญชีให้ "${user.name}" หรือไม่?`,
+      type: willBan ? "danger" : "info",
+      confirmText: willBan ? "ยืนยันระงับบัญชี" : "คืนสิทธิ์ใช้งาน",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        setMsg(null);
+        setActionLoading(user.id);
+        try {
+          const res = await api.patch(`/admin/users/${user.id}/ban`, {
+            reason: "แอดมินดำเนินการผ่านหน้าจัดการผู้ใช้",
+          });
+          setMsg({ text: res.data.message || "ปรับสถานะการใช้งานบัญชีสำเร็จ" });
+          fetchUsers();
+        } catch (err: any) {
+          setMsg({ text: err.response?.data?.detail || "เกิดข้อผิดพลาดในการปรับสถานะบัญชี", isError: true });
+        } finally {
+          setActionLoading(null);
+        }
+      },
+    });
+  };
 
-  const totalStudents = users.filter((u) => u.role === "student").length;
-  const totalAdmins = users.filter((u) => u.role === "admin").length;
-  const totalExternal = users.filter((u) => u.role === "external").length;
+  if (!mounted || !authorized) return null;
+
+  const totalPages = Math.ceil(users.length / pageSize) || 1;
+  const paginatedUsers = users.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="min-h-screen bg-background text-on-surface pb-xl">
@@ -134,14 +209,12 @@ export default function AdminUsersPage() {
             </div>
             <button
               onClick={() => setMsg(null)}
-              className="p-1 hover:bg-black/5 rounded-lg transition-colors font-bold"
+              className="p-1 hover:bg-black/5 rounded-lg transition-colors font-bold cursor-pointer"
             >
               ✕
             </button>
           </div>
         )}
-
-
 
         {/* Filter and Search controls */}
         <div className="bg-surface-container-lowest border border-outline-variant/40 p-5 rounded-3xl shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
@@ -187,7 +260,7 @@ export default function AdminUsersPage() {
               รายชื่อผู้ใช้งานในระบบ ({users.length} รายการ)
             </h3>
             <span className="text-xs text-on-surface-variant">
-              เปลี่ยน Role หรือปรับสิทธิ์ Super Admin ได้ทันที
+              เปลี่ยน Role หรือปรับสิทธิ์ Super Admin ได้ทันที (มีหน้าต่างยืนยันความปลอดภัย)
             </span>
           </div>
 
@@ -217,87 +290,124 @@ export default function AdminUsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/20 font-body-sm">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-surface-container-low/40 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-primary whitespace-nowrap">
-                        {u.name}
-                      </td>
-                      <td className="py-3.5 px-4 text-on-surface-variant font-mono text-[11px] whitespace-nowrap">
-                        {u.email}
-                      </td>
-                      <td className="py-3.5 px-4 text-on-surface whitespace-nowrap">
-                        {u.department || "-"} {u.level ? `(${u.level})` : ""}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <select
-                          value={u.role}
-                          onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                          disabled={actionLoading === u.id}
-                          className={`px-3 py-1 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
-                            u.role === "admin"
-                              ? "bg-amber-50 text-amber-800 border-amber-300"
-                              : u.role === "student"
-                              ? "bg-primary/10 text-primary border-primary/20"
-                              : "bg-surface-container text-on-surface-variant border-outline-variant/50"
-                          }`}
-                        >
-                          <option value="student">Student</option>
-                          <option value="external">External</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleToggleSuperAdmin(u.id, u.is_super_admin)}
-                          disabled={!(mounted && isSuperAdmin()) || actionLoading === u.id}
-                          className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1 cursor-pointer ${
-                            u.is_super_admin
-                              ? "bg-purple-100 text-purple-900 border-purple-300 hover:bg-purple-200"
-                              : "bg-surface-container text-on-surface-variant border-outline-variant/40 hover:bg-surface-container-high"
-                          } ${!(mounted && isSuperAdmin()) ? "opacity-40 cursor-not-allowed" : ""}`}
-                        >
-                          {u.is_super_admin ? (
-                            <>
-                              <span className="material-symbols-outlined text-[14px]">shield_person</span>
-                              Super Admin
-                            </>
-                          ) : (
-                            "ปกติ"
+                  {paginatedUsers.map((u) => {
+                    const isSelf = currentUser && (u.id === currentUser.id || u.email === currentUser.email);
+                    return (
+                      <tr key={u.id} className="hover:bg-surface-container-low/40 transition-colors">
+                        <td className="py-3.5 px-4 font-bold text-primary whitespace-nowrap">
+                          {u.name}
+                          {isSelf && (
+                            <span className="ml-2 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                              บัญชีของคุณ
+                            </span>
                           )}
-                        </button>
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                            u.is_verified
-                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                              : "bg-rose-50 text-rose-800 border-rose-200"
-                          }`}
-                        >
-                          {u.is_verified ? "ปกติ (Active)" : "ระงับสิทธิ์ (Banned)"}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => handleToggleBan(u.id)}
-                          disabled={u.is_super_admin || actionLoading === u.id}
-                          className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
-                            u.is_verified
-                              ? "border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100"
-                              : "border-emerald-200 bg-emerald-50/70 text-emerald-700 hover:bg-emerald-100"
-                          } ${u.is_super_admin ? "opacity-30 cursor-not-allowed" : ""}`}
-                        >
-                          {u.is_verified ? "ระงับบัญชี" : "คืนสิทธิ์ใช้งาน"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-3.5 px-4 text-on-surface-variant font-mono text-[11px] whitespace-nowrap">
+                          {u.email}
+                        </td>
+                        <td className="py-3.5 px-4 text-on-surface whitespace-nowrap">
+                          {u.department || "-"} {u.level ? `(${u.level})` : ""}
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <select
+                            value={u.role}
+                            onChange={(e) => handleRoleChange(u, e.target.value)}
+                            disabled={actionLoading === u.id || (isSelf && u.is_super_admin)}
+                            className={`px-3 py-1 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
+                              u.role === "admin"
+                                ? "bg-amber-50 text-amber-800 border-amber-300"
+                                : u.role === "student"
+                                ? "bg-primary/10 text-primary border-primary/20"
+                                : "bg-surface-container text-on-surface-variant border-outline-variant/50"
+                            } ${isSelf && u.is_super_admin ? "opacity-50 cursor-not-allowed" : ""}`}
+                          >
+                            <option value="student">Student</option>
+                            <option value="external">External</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSuperAdmin(u)}
+                            disabled={!(mounted && isSuperAdmin()) || actionLoading === u.id || isSelf}
+                            title={isSelf ? "ไม่สามารถถอดสิทธิ์ Super Admin ของตนเองได้" : ""}
+                            className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1 cursor-pointer ${
+                              u.is_super_admin
+                                ? "bg-purple-100 text-purple-900 border-purple-300 hover:bg-purple-200"
+                                : "bg-surface-container text-on-surface-variant border-outline-variant/40 hover:bg-surface-container-high"
+                            } ${!(mounted && isSuperAdmin()) || isSelf ? "opacity-40 cursor-not-allowed" : ""}`}
+                          >
+                            {u.is_super_admin ? (
+                              <>
+                                <span className="material-symbols-outlined text-[14px]">shield_person</span>
+                                Super Admin
+                              </>
+                            ) : (
+                              "ปกติ"
+                            )}
+                          </button>
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                              u.is_verified
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                : "bg-rose-50 text-rose-800 border-rose-200"
+                            }`}
+                          >
+                            {u.is_verified ? "ปกติ (Active)" : "ระงับสิทธิ์ (Banned)"}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleBan(u)}
+                            disabled={u.is_super_admin || actionLoading === u.id || isSelf}
+                            className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                              u.is_verified
+                                ? "border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100"
+                                : "border-emerald-200 bg-emerald-50/70 text-emerald-700 hover:bg-emerald-100"
+                            } ${u.is_super_admin || isSelf ? "opacity-30 cursor-not-allowed" : ""}`}
+                          >
+                            {u.is_verified ? "ระงับบัญชี" : "คืนสิทธิ์ใช้งาน"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
+
+          {/* Pagination Controls */}
+          {users.length > pageSize && (
+            <div className="pt-4 border-t border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-xs text-on-surface-variant">
+                แสดง {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, users.length)} จาก {users.length} รายการ
+              </span>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => setCurrentPage(page)}
+              />
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+        loading={confirmModal.loading}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
