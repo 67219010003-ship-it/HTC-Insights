@@ -185,7 +185,7 @@ export default function AdminUsersPage() {
     <div className="min-h-screen bg-background text-on-surface pb-xl">
       {/* Top Admin Navigation Suite Header (NO SIDEBAR) */}
       <AdminHeader
-        title="จัดการบัญชีผู้ใช้และสิทธิ์ (Users & Roles)"
+        title="จัดการบัญชีผู้ใช้และสิทธิ์"
         subtitle="ตรวจสอบ กำหนดบทบาทสิทธิ์การใช้งาน และระงับบัญชีผู้ใช้ในระบบ HTC Insight"
         onRefresh={fetchUsers}
         refreshing={loading}
@@ -238,10 +238,10 @@ export default function AdminUsersPage() {
               onChange={(e) => setFilterRole(e.target.value)}
               className="px-4 py-2.5 bg-surface-container-low/50 border border-outline-variant/50 rounded-xl text-xs font-bold text-on-surface focus:outline-none focus:border-primary flex-1 md:flex-none"
             >
-              <option value="">ทั้งหมดทุกสิทธิ์ (All Roles)</option>
-              <option value="student">นักศึกษา (Student)</option>
-              <option value="external">บุคคลภายนอก (External)</option>
-              <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+              <option value="">ทั้งหมดทุกสิทธิ์</option>
+              <option value="student">นักศึกษา</option>
+              <option value="external">บุคคลภายนอก</option>
+              <option value="admin">ผู้ดูแลระบบ</option>
             </select>
 
             <button
@@ -259,9 +259,6 @@ export default function AdminUsersPage() {
             <h3 className="text-base font-bold font-headline-sm text-primary">
               รายชื่อผู้ใช้งานในระบบ ({users.length} รายการ)
             </h3>
-            <span className="text-xs text-on-surface-variant">
-              เปลี่ยน Role หรือปรับสิทธิ์ Super Admin ได้ทันที (มีหน้าต่างยืนยันความปลอดภัย)
-            </span>
           </div>
 
           {loading ? (
