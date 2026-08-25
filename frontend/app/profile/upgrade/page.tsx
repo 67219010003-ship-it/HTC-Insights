@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getToken, getUser } from "@/lib/auth";
+import { getToken, getUser, isStudent } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -22,7 +22,12 @@ export default function ProfileUpgradePage() {
 
   useEffect(() => {
     if (!getToken()) {
-      window.location.replace("/");
+      window.location.replace("/auth/login");
+      return;
+    }
+    if (isStudent()) {
+      window.location.replace("/profile");
+      return;
     }
   }, []);
 

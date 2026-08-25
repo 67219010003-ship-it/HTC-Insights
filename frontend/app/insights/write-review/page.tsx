@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { getToken } from "@/lib/auth";
+import { getToken, isStudent } from "@/lib/auth";
 import DepartmentDropdown, { ALL_DEPARTMENTS } from "@/components/DepartmentDropdown";
 import CompanySearchBar, { SelectedCompany } from "@/components/CompanySearchBar";
 
@@ -104,6 +104,10 @@ export default function WriteReviewPage() {
   useEffect(() => {
     if (!getToken()) {
       router.push("/auth/login");
+      return;
+    }
+    if (!isStudent()) {
+      router.replace("/insights");
       return;
     }
     

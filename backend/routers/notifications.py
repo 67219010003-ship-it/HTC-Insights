@@ -101,3 +101,33 @@ def mark_notification_as_read(
         "link": notif.link,
         "created_at": format_utc_iso(notif.created_at),
     }
+
+@router.delete("/clear-all")
+def clear_all_notifications(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """ ลบรายการแจ้งเตือนทั้งหมดของผู้ใช้ปัจจุบัน """
+    db.query(Notification).filter(Notification.user_id == current_user.id).delete()
+    db.commit()
+    return {"message": "ลบการแจ้งเตือนทั้งหมดเรียบร้อยแล้ว"}
+
+@router.delete("/{notification_id}")
+def delete_notification(
+    notification_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """ ลบรายการแจ้งเตือนที่ระบุทีละรายการของผู้ใช้งานปัจจุบัน """
+    notif = (
+        db.query(Notification)
+        .filter(Notification.id == notification_id, Notification.user_id == current_user.id)
+        .first()
+    )
+    if not notif:
+        raise HTTPException(status_code=404, detail="ไม่พบการแจ้งเตือนที่ต้องการลบ")
+    
+    db.delete(notif)
+    db.commit()
+    return {"message": "ลบการแจ้งเตือนเรียบร้อยแล้ว", "id": notification_id}
+

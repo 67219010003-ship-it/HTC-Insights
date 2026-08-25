@@ -536,11 +536,11 @@ export default function StudentProfilePage() {
               </p>
               <div className="pt-2">
                 <Link
-                  href="/employer/dashboard"
+                  href="/jobs"
                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary/90 transition-all"
                 >
-                  <span className="material-symbols-outlined text-[16px]">add</span>
-                  ไปที่หน้าแดชบอร์ดสถานประกอบการ
+                  <span className="material-symbols-outlined text-[16px]">work</span>
+                  ดูตำแหน่งงานในระบบ
                 </Link>
               </div>
             </div>
@@ -625,11 +625,11 @@ export default function StudentProfilePage() {
                       </span>
 
                       <Link
-                        href="/employer/dashboard"
+                        href="/jobs"
                         className="px-3 py-1.5 rounded-xl border border-secondary/30 text-secondary hover:bg-secondary/10 font-bold text-xs transition-colors flex items-center gap-1"
                       >
-                        <span className="material-symbols-outlined text-[14px]">edit_note</span>
-                        จัดการในแดชบอร์ด
+                        <span className="material-symbols-outlined text-[14px]">visibility</span>
+                        ดูในหน้ารับสมัคร
                       </Link>
                     </div>
                   </div>

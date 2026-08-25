@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { isStudent, isEmployer } from "@/lib/auth";
 import DepartmentDropdown, { ALL_DEPARTMENTS } from "@/components/DepartmentDropdown";
 import CompanySearchBar, { SelectedCompany } from "@/components/CompanySearchBar";
 import { JobData } from "@/components/jobs/JobCard";
@@ -11,12 +12,20 @@ const TOTAL_STEPS = 5;
 
 export default function EmployerRegisterPage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [mapOpen, setMapOpen] = useState(false);
   const [mapError, setMapError] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (isStudent()) {
+      router.replace("/jobs");
+    }
+  }, [router]);
 
   // Step 1: Company Profile & Location Picker
   const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
@@ -45,11 +54,18 @@ export default function EmployerRegisterPage() {
   const [notes, setNotes] = useState("");
 
   const toggleDepartment = (deptLabel: string) => {
-    setTargetDepartments((prev) =>
-      prev.includes(deptLabel)
-        ? prev.filter((d) => d !== deptLabel)
-        : [...prev, deptLabel]
-    );
+    setTargetDepartments((prev) => {
+      if (prev.includes(deptLabel)) {
+        setError("");
+        return prev.filter((d) => d !== deptLabel);
+      }
+      if (prev.length >= 3) {
+        setError("สามารถเลือกแผนกวิชาที่เปิดรับได้สูงสุด 3 แผนกเท่านั้น (หากต้องการเลือกแผนกอื่น กรุณาลบแผนกเดิมออกก่อน)");
+        return prev;
+      }
+      setError("");
+      return [...prev, deptLabel];
+    });
   };
 
   const handleSelectCompanyFromMap = (comp: SelectedCompany | null) => {
@@ -120,6 +136,10 @@ export default function EmployerRegisterPage() {
   const validateStep3 = (): boolean => {
     if (targetDepartments.length === 0) {
       setError("กรุณาเลือกสาขาวิชาช่างของ วท.หาดใหญ่ ที่ต้องการเปิดรับอย่างน้อย 1 แผนก");
+      return false;
+    }
+    if (targetDepartments.length > 3) {
+      setError("สามารถเลือกแผนกวิชาที่เปิดรับได้สูงสุด 3 แผนกเท่านั้น");
       return false;
     }
     return true;
@@ -268,6 +288,10 @@ export default function EmployerRegisterPage() {
       setSubmitting(false);
     }
   };
+
+  if (!mounted || isStudent()) {
+    return null;
+  }
 
   if (submitted) {
     return (
@@ -657,7 +681,7 @@ export default function EmployerRegisterPage() {
                   badge
                 </span>
                 <h2 className="text-sm font-bold text-primary uppercase tracking-wider">
-                  ขั้นตอนที่ 3: เลือกสาขาวิชาช่างของ วท.หาดใหญ่ ที่ต้องการเปิดรับ
+                  ขั้นตอนที่ 3: เลือกสาขาวิชาช่างของ วท.หาดใหญ่ ที่ต้องการเปิดรับ (สูงสุด 3 แผนก)
                 </h2>
               </div>
 
@@ -667,6 +691,10 @@ export default function EmployerRegisterPage() {
                     value={selectedDeptDropdown}
                     onChange={(val) => {
                       if (val && !targetDepartments.includes(val)) {
+                        if (targetDepartments.length >= 3) {
+                          setError("สามารถเลือกแผนกวิชาที่เปิดรับได้สูงสุด 3 แผนกเท่านั้น (หากต้องการเลือกแผนกอื่น กรุณาลบแผนกเดิมออกก่อน)");
+                          return;
+                        }
                         setTargetDepartments([...targetDepartments, val]);
                         setError("");
                       }
@@ -680,14 +708,17 @@ export default function EmployerRegisterPage() {
                   <span className="text-xs font-bold text-secondary flex items-center gap-1">
                     <span className="material-symbols-outlined text-[16px]">check_circle</span>
                     {targetDepartments.length > 0
-                      ? `เลือกไปแล้ว ${targetDepartments.length} แผนกวิชา`
-                      : "ยังไม่ได้เลือกแผนกวิชาช่าง (กรุณาเลือกอย่างน้อย 1 แผนก)"}
+                      ? `เลือกไปแล้ว ${targetDepartments.length} / 3 แผนกวิชา`
+                      : "ยังไม่ได้เลือกแผนกวิชาช่าง (เลือกได้ 1 - 3 แผนก)"}
                   </span>
 
                   {targetDepartments.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => setTargetDepartments([])}
+                      onClick={() => {
+                        setTargetDepartments([]);
+                        setError("");
+                      }}
                       className="text-xs text-rose-600 hover:text-rose-700 font-bold hover:underline cursor-pointer flex items-center gap-1"
                     >
                       <span className="material-symbols-outlined text-[14px]">delete</span>

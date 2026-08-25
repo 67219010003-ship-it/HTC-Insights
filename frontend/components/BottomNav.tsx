@@ -89,9 +89,9 @@ export default function BottomNav() {
       </Link>
 
       <Link
-        href={isEmp ? "/employer/dashboard" : "/profile"}
+        href="/profile"
         className={`flex flex-col items-center justify-center ${
-          pathname.startsWith("/profile") || pathname.startsWith("/employer")
+          pathname.startsWith("/profile")
             ? "text-secondary font-bold"
             : "text-on-surface-variant"
         }`}

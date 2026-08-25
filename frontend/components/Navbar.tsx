@@ -196,6 +196,16 @@ export default function Navbar() {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
   };
 
+  const handleDeleteNotification = (id: number) => {
+    api.delete(`/notifications/${id}`).catch(() => {});
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const handleClearAllNotifications = () => {
+    api.delete("/notifications/clear-all").catch(() => {});
+    setNotifications([]);
+  };
+
   const handleLogout = () => {
     clearToken();
     setTokenState(null);
@@ -286,19 +296,6 @@ export default function Navbar() {
                   Jobs
                 </Link>
 
-                {isEmp && (
-                  <Link
-                    href="/employer/dashboard"
-                    className={`font-body-md text-body-md ${
-                      pathname.startsWith("/employer")
-                        ? "text-secondary font-bold border-b-2 border-secondary pb-1"
-                        : "text-on-surface-variant hover:text-primary transition-colors duration-200"
-                    }`}
-                  >
-                    Portal
-                  </Link>
-                )}
-
                 {isAdmin && (
                   <Link
                     href="/admin"
@@ -340,53 +337,71 @@ export default function Navbar() {
                   {/* Notifications Popover Window */}
                   {isNotifOpen && (
                     <div className="absolute right-0 top-12 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-outline-variant p-4 z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
-                      <div className="flex items-center justify-between pb-2 border-b border-outline-variant/40">
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-secondary text-[20px]">
+                      <div className="flex items-center justify-between pb-2 border-b border-outline-variant/40 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="material-symbols-outlined text-secondary text-[20px] shrink-0">
                             notifications_active
                           </span>
-                          <h3 className="font-headline-sm text-sm font-bold text-primary">
+                          <h3 className="font-headline-sm text-sm font-bold text-primary truncate">
                             การแจ้งเตือน
                           </h3>
                           {unreadCount > 0 && (
-                            <span className="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            <span className="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0">
                               {unreadCount} ใหม่
                             </span>
                           )}
                         </div>
-                        {unreadCount > 0 && (
-                          <button
-                            type="button"
-                            onClick={markAllAsRead}
-                            className="text-[11px] text-secondary hover:underline font-medium cursor-pointer"
-                          >
-                            อ่านทั้งหมด
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0 text-[11px]">
+                          {unreadCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={markAllAsRead}
+                              className="text-secondary hover:underline font-bold cursor-pointer"
+                            >
+                              อ่านทั้งหมด
+                            </button>
+                          )}
+                          {notifications.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleClearAllNotifications}
+                              className="text-slate-400 hover:text-rose-600 hover:underline font-medium cursor-pointer"
+                              title="ล้างรายการแจ้งเตือนทั้งหมด"
+                            >
+                              ล้างทั้งหมด
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Notification Items List */}
                       <div className="space-y-2 max-h-80 overflow-y-auto hide-scrollbar">
-                        {notifications.filter((n) => !n.isRead).length === 0 ? (
-                          <div className="text-center py-6 text-xs text-on-surface-variant">
-                            ไม่มีการแจ้งเตือนในขณะนี้
+                        {notifications.length === 0 ? (
+                          <div className="text-center py-8 text-xs text-on-surface-variant flex flex-col items-center gap-2">
+                            <span className="material-symbols-outlined text-3xl text-outline opacity-40">
+                              notifications_off
+                            </span>
+                            <span>ไม่มีการแจ้งเตือนในขณะนี้</span>
                           </div>
                         ) : (
-                          notifications.filter((n) => !n.isRead).map((item) => (
-                            <Link
+                          notifications.map((item) => (
+                            <div
                               key={item.id}
-                              href={item.link || "#"}
-                              onClick={() => {
-                                markSingleAsRead(item.id);
-                                setIsNotifOpen(false);
-                              }}
-                              className={`block p-3 rounded-xl transition-all border ${
+                              className={`group relative flex items-start justify-between gap-2 p-3 rounded-xl transition-all border ${
                                 item.isRead
-                                  ? "bg-surface-container-lowest border-outline-variant/20 opacity-75"
-                                  : "bg-secondary-container/10 border-secondary/20 shadow-sm"
+                                  ? "bg-surface-container-lowest border-outline-variant/30 text-on-surface-variant opacity-80 hover:opacity-100"
+                                  : "bg-secondary-container/15 border-secondary/30 shadow-xs"
                               } hover:bg-surface-container-low`}
                             >
-                              <div className="flex items-start gap-2.5">
+                              {/* Clickable Notification Content Area */}
+                              <Link
+                                href={item.link || "#"}
+                                onClick={() => {
+                                  if (!item.isRead) markSingleAsRead(item.id);
+                                  setIsNotifOpen(false);
+                                }}
+                                className="flex items-start gap-2.5 min-w-0 flex-1 cursor-pointer"
+                              >
                                 <span
                                   className={`material-symbols-outlined text-[18px] mt-0.5 shrink-0 ${
                                     item.type === "success"
@@ -398,21 +413,39 @@ export default function Navbar() {
                                     ? "check_circle"
                                     : "info"}
                                 </span>
-                                <div className="space-y-0.5 flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <h4 className="text-xs font-bold text-primary line-clamp-1">
+                                <div className="space-y-0.5 min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <h4 className={`text-xs truncate ${item.isRead ? "font-semibold text-on-surface" : "font-bold text-primary"}`}>
                                       {item.title}
                                     </h4>
-                                    <span className="text-[10px] text-on-surface-variant/80 shrink-0 ml-1">
-                                      {item.time}
-                                    </span>
+                                    {!item.isRead && (
+                                      <span className="w-2 h-2 rounded-full bg-secondary shrink-0" title="ยังไม่ได้อ่าน" />
+                                    )}
                                   </div>
                                   <p className="text-xs text-on-surface-variant leading-tight line-clamp-2">
                                     {item.message}
                                   </p>
+                                  <span className="text-[10px] text-on-surface-variant/70 block pt-0.5">
+                                    {item.time}
+                                  </span>
                                 </div>
-                              </div>
-                            </Link>
+                              </Link>
+
+                              {/* Delete Individual Notification Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDeleteNotification(item.id);
+                                }}
+                                className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shrink-0 opacity-70 group-hover:opacity-100"
+                                title="ลบการแจ้งเตือนนี้"
+                                aria-label="ลบการแจ้งเตือน"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">close</span>
+                              </button>
+                            </div>
                           ))
                         )}
                       </div>
@@ -508,19 +541,6 @@ export default function Navbar() {
                           </span>
                           จัดการบัญชี
                         </Link>
-
-                        {isEmp && (
-                          <Link
-                            href="/employer/dashboard"
-                            onClick={() => setIsDropdownOpen(false)}
-                            className="flex items-center gap-sm p-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors font-medium"
-                          >
-                            <span className="material-symbols-outlined text-[20px] text-secondary">
-                              dashboard
-                            </span>
-                            Employer Dashboard
-                          </Link>
-                        )}
 
                         {isAdmin && (
                           <Link
