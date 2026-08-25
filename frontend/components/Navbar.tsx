@@ -201,11 +201,6 @@ export default function Navbar() {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
-  const handleClearAllNotifications = () => {
-    api.delete("/notifications/clear-all").catch(() => {});
-    setNotifications([]);
-  };
-
   const handleLogout = () => {
     clearToken();
     setTokenState(null);
@@ -337,41 +332,29 @@ export default function Navbar() {
                   {/* Notifications Popover Window */}
                   {isNotifOpen && (
                     <div className="absolute right-0 top-12 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-outline-variant p-4 z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
-                      <div className="flex items-center justify-between pb-2 border-b border-outline-variant/40 gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="material-symbols-outlined text-secondary text-[20px] shrink-0">
+                      <div className="flex items-center justify-between pb-2 border-b border-outline-variant/40">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-secondary text-[20px]">
                             notifications_active
                           </span>
-                          <h3 className="font-headline-sm text-sm font-bold text-primary truncate">
+                          <h3 className="font-headline-sm text-sm font-bold text-primary">
                             การแจ้งเตือน
                           </h3>
                           {unreadCount > 0 && (
-                            <span className="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0">
+                            <span className="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full text-[10px] font-bold">
                               {unreadCount} ใหม่
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0 text-[11px]">
-                          {unreadCount > 0 && (
-                            <button
-                              type="button"
-                              onClick={markAllAsRead}
-                              className="text-secondary hover:underline font-bold cursor-pointer"
-                            >
-                              อ่านทั้งหมด
-                            </button>
-                          )}
-                          {notifications.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={handleClearAllNotifications}
-                              className="text-slate-400 hover:text-rose-600 hover:underline font-medium cursor-pointer"
-                              title="ล้างรายการแจ้งเตือนทั้งหมด"
-                            >
-                              ล้างทั้งหมด
-                            </button>
-                          )}
-                        </div>
+                        {unreadCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={markAllAsRead}
+                            className="text-[11px] text-secondary hover:underline font-bold cursor-pointer"
+                          >
+                            อ่านทั้งหมด
+                          </button>
+                        )}
                       </div>
 
                       {/* Notification Items List */}
@@ -390,7 +373,7 @@ export default function Navbar() {
                               className={`group relative flex items-start justify-between gap-2 p-3 rounded-xl transition-all border ${
                                 item.isRead
                                   ? "bg-surface-container-lowest border-outline-variant/30 text-on-surface-variant opacity-80 hover:opacity-100"
-                                  : "bg-secondary-container/15 border-secondary/30 shadow-xs"
+                                  : "bg-sky-50 border-sky-200 text-primary shadow-xs"
                               } hover:bg-surface-container-low`}
                             >
                               {/* Clickable Notification Content Area */}
@@ -414,14 +397,9 @@ export default function Navbar() {
                                     : "info"}
                                 </span>
                                 <div className="space-y-0.5 min-w-0 flex-1">
-                                  <div className="flex items-center justify-between gap-1">
-                                    <h4 className={`text-xs truncate ${item.isRead ? "font-semibold text-on-surface" : "font-bold text-primary"}`}>
-                                      {item.title}
-                                    </h4>
-                                    {!item.isRead && (
-                                      <span className="w-2 h-2 rounded-full bg-secondary shrink-0" title="ยังไม่ได้อ่าน" />
-                                    )}
-                                  </div>
+                                  <h4 className={`text-xs truncate ${item.isRead ? "font-semibold text-on-surface" : "font-bold text-primary"}`}>
+                                    {item.title}
+                                  </h4>
                                   <p className="text-xs text-on-surface-variant leading-tight line-clamp-2">
                                     {item.message}
                                   </p>
@@ -431,7 +409,7 @@ export default function Navbar() {
                                 </div>
                               </Link>
 
-                              {/* Delete Individual Notification Button */}
+                              {/* Delete Individual Notification Button (กากบาท ปิดทีละอัน) */}
                               <button
                                 type="button"
                                 onClick={(e) => {
