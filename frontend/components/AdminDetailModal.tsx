@@ -10,12 +10,14 @@ export interface AdminDetailModalProps {
     title?: string;
     data: any;
   } | null;
+  onRevealAnonymous?: (reviewId: number) => void;
 }
 
 export default function AdminDetailModal({
   isOpen,
   onClose,
   item,
+  onRevealAnonymous,
 }: AdminDetailModalProps) {
   if (!isOpen || !item || !item.data) return null;
 
@@ -88,8 +90,28 @@ export default function AdminDetailModal({
               <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                 <div className="font-bold text-primary text-xs">ข้อมูลผู้เขียนและช่วงเวลาฝึกงาน:</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-on-surface-variant">
-                  <div>ผู้เขียน: <strong className="text-primary">{data.real_author || (data.is_anonymous ? "ไม่ระบุตัวตน" : "นักศึกษา")}</strong></div>
-                  <div>อีเมล: {data.real_email || "-"}</div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span>ผู้เขียน:</span>
+                    {data.is_anonymous ? (
+                      <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-[11px]">
+                        <span className="material-symbols-outlined text-[13px]">lock</span>
+                        ไม่ระบุตัวตน
+                      </span>
+                    ) : (
+                      <strong className="text-primary">{data.real_author || "นักศึกษา"}</strong>
+                    )}
+                    {data.is_anonymous && onRevealAnonymous && (
+                      <button
+                        type="button"
+                        onClick={() => onRevealAnonymous(data.id)}
+                        className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold rounded-lg text-[10px] transition-colors cursor-pointer inline-flex items-center gap-0.5"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">lock_open</span>
+                        ถอดรหัสตัวตนจริง
+                      </button>
+                    )}
+                  </div>
+                  <div>อีเมล: {data.is_anonymous ? "(ถูกปิดบังโดยระบบ)" : (data.real_email || "-")}</div>
                   <div>แผนกวิชา: {data.department || "-"}</div>
                   <div>ช่วงเวลาฝึกงาน: {data.period_start || "-"} ถึง {data.period_end || "-"}</div>
                   <div>เบี้ยเลี้ยง: {data.daily_allowance ? `${data.daily_allowance} บาท/วัน` : "ไม่มีเบี้ยเลี้ยง"}</div>
@@ -237,12 +259,37 @@ export default function AdminDetailModal({
             <div className="space-y-4">
               <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant/30 space-y-2 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div>ประเภทเนื้อหาที่รายงาน: <strong className="text-rose-700 uppercase">{data.target_type || "กระทู้/รีวิว"}</strong></div>
-                  <div>ID เนื้อหาเป้าหมาย: #{data.target_id}</div>
-                  <div>ผู้รายงาน: {data.reporter_name || data.reporter_email || "ผู้ใช้งาน"}</div>
+                  <div>ประเภทเนื้อหา: <strong className="text-rose-700 font-bold">{data.target_type_th || data.target_type || "กระทู้/รีวิว"}</strong></div>
+                  <div>
+                    ID เนื้อหาเป้าหมาย: <strong className="text-primary font-mono font-bold">#{data.target_id || data.review_id || data.post_id || "-"}</strong>
+                  </div>
+                  {data.target_title && (
+                    <div className="sm:col-span-2">
+                      หัวข้อเป้าหมาย: <strong className="text-primary">{data.target_title}</strong>
+                    </div>
+                  )}
+                  <div>ผู้รายงาน: {data.reporter_name || "ผู้ใช้งาน"}</div>
+                  <div>อีเมลผู้รายงาน: <span className="font-mono">{data.reporter_email || "-"}</span></div>
                   <div>วันที่รายงาน: <span className="font-mono">{data.created_at || "-"}</span></div>
                 </div>
               </div>
+
+              {data.is_anonymous && data.review_id && onRevealAnonymous && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-2">
+                  <span className="text-xs text-amber-900 font-semibold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[16px] text-amber-700">lock</span>
+                    เนื้อหานี้โพสต์แบบไม่ระบุตัวตน (Anonymous)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onRevealAnonymous(data.review_id)}
+                    className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">lock_open</span>
+                    ถอดรหัสตัวตนจริง
+                  </button>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <h4 className="font-bold text-rose-800 text-xs">เหตุผลในการรายงานความไม่เหมาะสม:</h4>
@@ -253,7 +300,7 @@ export default function AdminDetailModal({
 
               {data.target_content && (
                 <div className="space-y-1.5">
-                  <h4 className="font-bold text-primary text-xs">ตัวอย่างเนื้อหาที่ถูกรายงาน:</h4>
+                  <h4 className="font-bold text-primary text-xs">ข้อความในเนื้อหาที่ถูกรายงาน:</h4>
                   <p className="p-3.5 bg-white rounded-xl border border-outline-variant/30 leading-relaxed whitespace-pre-wrap italic">
                     "{data.target_content}"
                   </p>

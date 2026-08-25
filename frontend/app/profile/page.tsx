@@ -588,11 +588,22 @@ export default function StudentProfilePage() {
                               : "bg-amber-50 text-amber-800 border-amber-200"
                           }`}
                         >
-                          {job.status === "approved"
-                            ? "✓ อนุมัติแล้ว"
-                            : job.status === "rejected"
-                            ? "✕ ถูกปฏิเสธ"
-                            : "⏳ รอการอนุมัติ"}
+                          {job.status === "approved" ? (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                              อนุมัติแล้ว
+                            </span>
+                          ) : job.status === "rejected" ? (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[13px]">cancel</span>
+                              ถูกปฏิเสธ
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[13px]">hourglass_top</span>
+                              รอการอนุมัติ
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -789,7 +800,22 @@ export default function StudentProfilePage() {
                           : "bg-rose-50 text-rose-800 border-rose-200"
                       }`}
                     >
-                      {r.status === "approved" ? "✓ อนุมัติแล้ว" : r.status === "pending" ? "⏳ รอตรวจสอบ" : "✕ ถูกปฏิเสธ"}
+                      {r.status === "approved" ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                          อนุมัติแล้ว
+                        </span>
+                      ) : r.status === "pending" ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">hourglass_top</span>
+                          รอตรวจสอบ
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">cancel</span>
+                          ถูกปฏิเสธ
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -963,11 +989,22 @@ export default function StudentProfilePage() {
                           : "bg-amber-50 text-amber-800 border-amber-200"
                       }`}
                     >
-                      {post.status === "approved"
-                        ? "✓ เผยแพร่แล้ว"
-                        : post.status === "rejected"
-                        ? "✕ ถูกปฏิเสธ"
-                        : "⏳ รอการตรวจสอบ"}
+                      {post.status === "approved" ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                          เผยแพร่แล้ว
+                        </span>
+                      ) : post.status === "rejected" ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">cancel</span>
+                          ถูกปฏิเสธ
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">hourglass_top</span>
+                          รอการตรวจสอบ
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>

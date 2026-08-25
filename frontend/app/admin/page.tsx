@@ -70,9 +70,22 @@ interface PendingUpgrade {
 interface PendingReport {
   id: number;
   reporter_name: string;
+  reporter_email?: string;
   reason: string;
-  post_id: number | null;
+  target_type?: string;
+  target_type_th?: string;
+  target_id?: number;
+  target_title?: string;
+  target_content?: string;
+  is_anonymous?: boolean;
+  post_id?: number | null;
   post_title?: string;
+  review_id?: number | null;
+  comment_id?: number | null;
+  job_id?: number | null;
+  company_id?: number | null;
+  company_name?: string;
+  status?: string;
   created_at: string;
 }
 
@@ -1074,13 +1087,24 @@ export default function AdminDashboardPage() {
                             </td>
                             <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant">
                               {rev.is_anonymous ? (
-                                <span className="inline-flex items-center gap-1 font-bold text-amber-700 text-[11px]">
-                                  <span className="material-symbols-outlined text-[14px]">lock</span>
-                                  ไม่ระบุตัวตน
-                                </span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-[11px]">
+                                    <span className="material-symbols-outlined text-[13px]">lock</span>
+                                    ไม่ระบุตัวตน
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setRevealTargetId(rev.id)}
+                                    className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold rounded-md text-[10px] transition-colors cursor-pointer inline-flex items-center gap-0.5"
+                                    title="ถอดรหัสตัวตนจริง (Audit Log)"
+                                  >
+                                    <span className="material-symbols-outlined text-[12px]">lock_open</span>
+                                    ถอดรหัส
+                                  </button>
+                                </div>
                               ) : (
                                 <>
-                                  <div>{rev.real_author}</div>
+                                  <div className="font-semibold text-primary">{rev.real_author}</div>
                                   <div className="text-[10px] font-mono text-on-surface-variant/70">
                                     {rev.real_email}
                                   </div>
@@ -1454,11 +1478,20 @@ export default function AdminDashboardPage() {
                         key={rep.id}
                         className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                       >
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
                               รายงานความผิด #{rep.id}
                             </span>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
+                              {rep.target_type_th || rep.target_type || "เนื้อหา"} #{rep.target_id || rep.review_id || rep.post_id || "-"}
+                            </span>
+                            {rep.is_anonymous && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-0.5">
+                                <span className="material-symbols-outlined text-[12px]">lock</span>
+                                ไม่ระบุตัวตน
+                              </span>
+                            )}
                             <span className="text-[11px] text-on-surface-variant font-mono">
                               {rep.created_at || "-"}
                             </span>
@@ -1467,12 +1500,17 @@ export default function AdminDashboardPage() {
                             เหตุผล: "{rep.reason}"
                           </p>
                           <p className="text-xs text-on-surface-variant font-medium">
-                            ผู้ส่งรายงาน: <strong className="text-on-surface">{rep.reporter_name}</strong> |
-                            สำหรับเนื้อหา: <strong className="text-primary">{rep.post_title || "กระทู้/รีวิว"}</strong>
+                            ผู้ส่งรายงาน: <strong className="text-on-surface">{rep.reporter_name}</strong> {rep.reporter_email ? `(${rep.reporter_email})` : ""} |
+                            เป้าหมาย: <strong className="text-primary">{rep.target_title || rep.post_title || rep.company_name || "กระทู้/รีวิว"}</strong>
                           </p>
+                          {rep.target_content && (
+                            <p className="text-xs text-slate-600 italic bg-surface-container-low/60 p-2 rounded-lg border border-outline-variant/30 line-clamp-2 max-w-xl">
+                              "{rep.target_content}"
+                            </p>
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
                           <button
                             type="button"
                             onClick={() =>
@@ -1653,6 +1691,7 @@ export default function AdminDashboardPage() {
         <AdminDetailModal
           isOpen={!!detailModalItem}
           item={detailModalItem}
+          onRevealAnonymous={(reviewId) => setRevealTargetId(reviewId)}
           onClose={() => setDetailModalItem(null)}
         />
       )}

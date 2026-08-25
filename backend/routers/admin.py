@@ -553,23 +553,56 @@ def process_upgrade_request(request_id: int, payload: dict = Body(...),
 # --- 7. การตรวจสอบและจัดการรายงานความไม่เหมาะสม (Reports Handling) ---
 @router.get("/reports")
 def list_reports(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
-    """ ดึงรายการแจ้งรายงานเนื้อหาไม่เหมาะสมทั้งหมด """
+    """ ดึงรายการแจ้งรายงานเนื้อหาไม่เหมาะสมทั้งหมด พร้อมรายละเอียดเป้าหมาย """
     reports = db.query(Report).order_by(Report.created_at.desc()).all()
-    return [
-        {
+    results = []
+    for rep in reports:
+        target_type = "review" if rep.review_id else "post" if rep.post_id else "comment" if rep.comment_id else "job" if rep.job_id else "company" if rep.company_id else "unknown"
+        target_type_th = "รีวิวสถานประกอบการ" if rep.review_id else "กระทู้ชุมชน" if rep.post_id else "ความคิดเห็น" if rep.comment_id else "ประกาศงาน" if rep.job_id else "สถานประกอบการ" if rep.company_id else "เนื้อหาทั่วไป"
+        target_id = rep.review_id or rep.post_id or rep.comment_id or rep.job_id or rep.company_id or rep.id
+        
+        target_title = None
+        target_content = None
+        is_anonymous = False
+        if rep.review:
+            company_name = rep.review.company.name if rep.review.company else "สถานประกอบการ"
+            target_title = f"รีวิว: {company_name}"
+            target_content = rep.review.text_work
+            is_anonymous = rep.review.is_anonymous
+        elif rep.post:
+            target_title = f"กระทู้: {rep.post.title}"
+            target_content = rep.post.content
+            is_anonymous = rep.post.is_anonymous
+        elif rep.comment:
+            target_title = f"ความคิดเห็นในกระทู้ #{rep.comment.post_id}"
+            target_content = rep.comment.content
+        elif rep.job:
+            target_title = f"งาน: {rep.job.title}"
+            target_content = rep.job.description
+
+        results.append({
             "id": rep.id,
             "reporter_id": rep.reporter_id,
             "reporter_name": rep.reporter.name if rep.reporter else "ผู้ใช้",
+            "reporter_email": rep.reporter.email if rep.reporter else None,
+            "target_type": target_type,
+            "target_type_th": target_type_th,
+            "target_id": target_id,
+            "target_title": target_title,
+            "target_content": target_content,
+            "is_anonymous": is_anonymous,
             "post_id": rep.post_id,
             "post_title": rep.post.title if rep.post else None,
             "review_id": rep.review_id,
+            "comment_id": rep.comment_id,
+            "job_id": rep.job_id,
+            "company_id": rep.company_id,
             "company_name": rep.review.company.name if rep.review and rep.review.company else None,
             "reason": rep.reason,
             "status": rep.status,
             "created_at": to_thai_str(rep.created_at),
-        }
-        for rep in reports
-    ]
+        })
+    return results
 
 @router.patch("/reports/{report_id}")
 def update_report_status(report_id: int, payload: dict = Body(...),
@@ -584,13 +617,30 @@ def update_report_status(report_id: int, payload: dict = Body(...),
     action = payload.get("action")
     
     report.status = new_status
-    if action == "delete_post" and report.post_id:
-        from models import CommunityPost, CommunityComment, CommunityLike
-        post = db.query(CommunityPost).filter(CommunityPost.id == report.post_id).first()
-        if post:
-            db.query(CommunityComment).filter(CommunityComment.post_id == post.id).delete()
-            db.query(CommunityLike).filter(CommunityLike.post_id == post.id).delete()
-            db.delete(post)
+    if action in ["delete_post", "deleted"]:
+        if report.post_id:
+            from models import CommunityPost, CommunityComment, CommunityLike
+            post = db.query(CommunityPost).filter(CommunityPost.id == report.post_id).first()
+            if post:
+                db.query(CommunityComment).filter(CommunityComment.post_id == post.id).delete()
+                db.query(CommunityLike).filter(CommunityLike.post_id == post.id).delete()
+                db.delete(post)
+        elif report.review_id:
+            from models import Review, ReviewPhoto
+            rev = db.query(Review).filter(Review.id == report.review_id).first()
+            if rev:
+                db.query(ReviewPhoto).filter(ReviewPhoto.review_id == rev.id).delete()
+                db.delete(rev)
+        elif report.comment_id:
+            from models import CommunityComment
+            comment = db.query(CommunityComment).filter(CommunityComment.id == report.comment_id).first()
+            if comment:
+                db.delete(comment)
+        elif report.job_id:
+            from models import JobPosting
+            job = db.query(JobPosting).filter(JobPosting.id == report.job_id).first()
+            if job:
+                db.delete(job)
             
     db.add(AuditLog(admin_id=admin.id, action="handle_report",
                     target_type="report", target_id=report_id,

@@ -548,8 +548,9 @@ export default function WriteReviewPage() {
                     </span>
                   )}
                   {selectedCompany.source === "db" && selectedCompany.review_count !== undefined && (
-                    <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
-                      ✓ ในระบบ · {selectedCompany.review_count} รีวิว
+                    <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[13px]">verified</span>
+                      ในระบบ · {selectedCompany.review_count} รีวิว
                     </span>
                   )}
                 </div>

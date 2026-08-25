@@ -492,7 +492,7 @@ export default function Navbar() {
 
                       {/* Menu Items */}
                       <div className="space-y-xs font-body-sm text-body-sm">
-                        {/* 🎓 Request Student Verification Button for non-HTC emails */}
+                        {/* Request Student Verification Button for non-HTC emails */}
                         {isNonHtcUser && (
                           <button
                             type="button"

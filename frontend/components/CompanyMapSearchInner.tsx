@@ -427,11 +427,25 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
                     <div className="text-on-surface-variant text-[10px] truncate mt-0.5">{item.address}</div>
                     <div className="flex gap-1.5 mt-1 flex-wrap">
                       {item.source === "db" && (
-                        <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">{item.review_count} รีวิว{item.avg_score ? ` · ★ ${item.avg_score}` : ""}</span>
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                          {item.review_count} รีวิว
+                          {item.avg_score && (
+                            <span className="inline-flex items-center gap-0.5 text-amber-700">
+                              <span className="material-symbols-outlined text-[11px]">star</span>
+                              {item.avg_score}
+                            </span>
+                          )}
+                        </span>
                       )}
                       {item.source === "google" && (
-                        <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">
-                          Google Maps{item.googleRating ? ` · ★ ${item.googleRating}` : ""}
+                        <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                          Google Maps
+                          {item.googleRating && (
+                            <span className="inline-flex items-center gap-0.5 text-amber-700">
+                              <span className="material-symbols-outlined text-[11px]">star</span>
+                              {item.googleRating}
+                            </span>
+                          )}
                         </span>
                       )}
                       {item.source === "osm" && (
@@ -501,7 +515,10 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
             {/* Source badge */}
             <div className="flex items-center gap-2">
               {selSource === "db" && selReviewCount !== undefined && (
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">✓ ในระบบ · {selReviewCount} รีวิว</span>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[13px]">verified</span>
+                  ในระบบ · {selReviewCount} รีวิว
+                </span>
               )}
               {selSource === "google" && <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">จาก Google Maps</span>}
               {selSource === "osm" && <span className="text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-bold">จากแผนที่</span>}
@@ -531,7 +548,10 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
             )}
 
             {!hasPin && (
-              <p className="text-[10px] text-on-surface-variant text-center">⚠️ คลิกบนแผนที่เพื่อปักหมุดก่อน</p>
+              <p className="text-[10px] text-on-surface-variant text-center flex items-center justify-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-amber-600">warning</span>
+                คลิกบนแผนที่เพื่อปักหมุดก่อน
+              </p>
             )}
           </div>
         )}
@@ -559,8 +579,9 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
         {/* No pin hint */}
         {!hasPin && (
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none animate-bounce">
-            <div className="bg-primary/90 text-on-primary text-xs font-bold px-5 py-2.5 rounded-full shadow-xl backdrop-blur-sm">
-              👆 คลิกบนแผนที่เพื่อเลือกตำแหน่งสถานประกอบการ
+            <div className="bg-primary/90 text-on-primary text-xs font-bold px-5 py-2.5 rounded-full shadow-xl backdrop-blur-sm flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px]">touch_app</span>
+              คลิกบนแผนที่เพื่อเลือกตำแหน่งสถานประกอบการ
             </div>
           </div>
         )}

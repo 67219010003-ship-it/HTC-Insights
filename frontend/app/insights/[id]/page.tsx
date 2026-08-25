@@ -453,75 +453,78 @@ export default function CompanyDetailPage() {
                 .map((r) => (
                   <div key={r.id} className="bg-white border border-outline-variant/60 rounded-2xl p-4 sm:p-6 shadow-xs space-y-3.5 overflow-hidden break-words">
                     {/* Header: Author + Rating + Action Controls */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-start justify-between gap-2.5">
-                        <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
-                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs sm:text-sm shrink-0 shadow-inner">
-                            {r.is_anonymous ? "น" : r.author_name?.[0] || "นัก"}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="font-bold text-xs sm:text-sm text-primary flex items-center gap-1 flex-wrap">
-                              <span className="truncate max-w-[180px] sm:max-w-none">
-                                {r.is_anonymous ? "นักศึกษา HTC (ไม่ระบุตัวตน)" : r.author_name}
-                              </span>
-                              {r.is_anonymous && (
-                                <span className="material-symbols-outlined text-[14px] text-on-surface-variant shrink-0" title="ข้อมูลถูกปิดบังชื่อเพื่อความเป็นส่วนตัว">
-                                  visibility_off
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-on-surface-variant font-medium flex items-center gap-1.5 flex-wrap mt-0.5">
-                              <span className="truncate max-w-[160px] sm:max-w-none">{r.department}</span>
-                              <span className="text-outline-variant shrink-0">•</span>
-                              <span className="inline-flex items-center gap-0.5 bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded-md text-[10px] shrink-0">
-                                เพศ: {r.gender === "male" || r.gender === "ชาย" ? "ชาย" : r.gender === "female" || r.gender === "หญิง" ? "หญิง" : "อื่นๆ"}
-                              </span>
-                            </div>
-                          </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-outline-variant/30">
+                      {/* Left: Avatar & Author metadata */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shrink-0 shadow-inner">
+                          {r.is_anonymous ? "น" : r.author_name?.[0] || "นัก"}
                         </div>
-
-                        {/* Overall Score Badge */}
-                        <div className="flex items-center gap-1 bg-secondary-container text-on-secondary-container px-2.5 py-1 rounded-xl font-bold text-xs shadow-xs shrink-0">
-                          <span className="material-symbols-outlined text-[15px] text-secondary">star</span>
-                          <span>{r.score_overall} / 5.0</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-xs sm:text-sm text-primary">
+                              {r.is_anonymous ? "นักศึกษา HTC" : r.author_name}
+                            </span>
+                            {r.is_anonymous && (
+                              <span className="inline-flex items-center gap-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0">
+                                <span className="material-symbols-outlined text-[13px]">visibility_off</span>
+                                ไม่ระบุตัวตน
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-on-surface-variant font-medium flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <span className="text-secondary font-semibold">{r.department}</span>
+                            <span className="text-outline-variant">•</span>
+                            <span className="inline-flex items-center gap-0.5 bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded-md text-[10px]">
+                              เพศ: {r.gender === "male" || r.gender === "ชาย" ? "ชาย" : r.gender === "female" || r.gender === "หญิง" ? "หญิง" : "อื่นๆ"}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Action Buttons Row (Mobile-safe flex wrap) */}
-                      <div className="flex items-center justify-end gap-1.5 flex-wrap pt-0.5">
-                        {(myReviewIds.has(r.id) || (currentUser && (currentUser.id === r.user_id || currentUser.id === r.user?.id))) && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => promptEditReview(r)}
-                              className="text-[11px] sm:text-xs text-secondary hover:bg-secondary/10 font-bold border border-secondary/30 px-2.5 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-0.5"
-                              title="แก้ไขรีวิว (จะต้องได้รับการอนุมัติใหม่)"
-                            >
-                              <span className="material-symbols-outlined text-[13px] sm:text-[14px]">edit</span>
-                              แก้ไข
-                            </button>
-                            <button
-                              type="button"
-                              disabled={deletingId === r.id}
-                              onClick={() => promptDeleteReview(r.id)}
-                              className="text-[11px] sm:text-xs text-rose-600 hover:bg-rose-100 font-bold border border-rose-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-0.5 disabled:opacity-50"
-                              title="ลบรีวิวนี้ออกจากระบบ"
-                            >
-                              <span className="material-symbols-outlined text-[13px] sm:text-[14px]">delete</span>
-                              ลบ
-                            </button>
-                          </>
-                        )}
+                      {/* Right: Score Badge & Actions aligned nicely */}
+                      <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-outline-variant/20">
+                        {/* Overall Score Badge */}
+                        <div className="flex items-center gap-1 bg-secondary text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-xs shrink-0">
+                          <span className="material-symbols-outlined text-[15px]">star</span>
+                          <span>{r.score_overall} / 5.0</span>
+                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setReportModal({ isOpen: true, targetId: r.id })}
-                          className="text-[11px] sm:text-xs text-slate-500 hover:text-amber-600 hover:bg-amber-50 font-bold border border-slate-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-0.5"
-                          title="รายงานรีวิวนี้"
-                        >
-                          <span className="material-symbols-outlined text-[13px] sm:text-[14px]">flag</span>
-                          รายงานรีวิว
-                        </button>
+                        {/* Action Buttons Row */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {(myReviewIds.has(r.id) || (currentUser && (currentUser.id === r.user_id || currentUser.id === r.user?.id))) && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => promptEditReview(r)}
+                                className="text-xs text-secondary hover:bg-secondary/10 font-bold border border-secondary/30 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                                title="แก้ไขรีวิว (จะต้องได้รับการอนุมัติใหม่)"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">edit</span>
+                                แก้ไข
+                              </button>
+                              <button
+                                type="button"
+                                disabled={deletingId === r.id}
+                                onClick={() => promptDeleteReview(r.id)}
+                                className="text-xs text-rose-600 hover:bg-rose-100 font-bold border border-rose-200 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                title="ลบรีวิวนี้ออกจากระบบ"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">delete</span>
+                                ลบ
+                              </button>
+                            </>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => setReportModal({ isOpen: true, targetId: r.id })}
+                            className="text-xs text-slate-500 hover:text-amber-600 hover:bg-amber-50 font-bold border border-slate-200 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                            title="รายงานรีวิวนี้"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">flag</span>
+                            รายงานรีวิว
+                          </button>
+                        </div>
                       </div>
                     </div>
 

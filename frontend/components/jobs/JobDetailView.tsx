@@ -154,7 +154,7 @@ export default function JobDetailView({ job, onBack }: JobDetailViewProps) {
           </div>
         </div>
 
-        {/* 🗺️ Google Maps Location Section */}
+        {/* Google Maps Location Section */}
         <div className="space-y-3 bg-surface-container-low/50 p-4 rounded-2xl border border-outline-variant/30">
           <div className="flex items-center justify-between">
             <h3 className="font-headline-sm text-sm font-bold text-primary flex items-center gap-2">
