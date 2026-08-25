@@ -447,131 +447,140 @@ export default function CompanyDetailPage() {
           </div>
         ) : (
           <>
-            <div className="space-y-base">
+            <div className="space-y-4">
               {reviews
                 .slice((reviewPage - 1) * reviewsPerPage, reviewPage * reviewsPerPage)
                 .map((r) => (
-                  <div key={r.id} className="bg-white border border-outline-variant rounded-2xl p-6 shadow-sm space-y-sm">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shadow-inner">
-                          {r.is_anonymous ? "น" : r.author_name?.[0] || "นัก"}
-                        </div>
-                        <div>
-                          <div className="font-bold text-sm text-primary flex items-center gap-xs">
-                            {r.is_anonymous ? "นักศึกษา HTC (ไม่ระบุตัวตน)" : r.author_name}
-                            {r.is_anonymous && (
-                              <span className="material-symbols-outlined text-[14px] text-on-surface-variant" title="ข้อมูลถูกปิดบังชื่อเพื่อความเป็นส่วนตัว">
-                                visibility_off
+                  <div key={r.id} className="bg-white border border-outline-variant/60 rounded-2xl p-4 sm:p-6 shadow-xs space-y-3.5 overflow-hidden break-words">
+                    {/* Header: Author + Rating + Action Controls */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
+                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs sm:text-sm shrink-0 shadow-inner">
+                            {r.is_anonymous ? "น" : r.author_name?.[0] || "นัก"}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-xs sm:text-sm text-primary flex items-center gap-1 flex-wrap">
+                              <span className="truncate max-w-[180px] sm:max-w-none">
+                                {r.is_anonymous ? "นักศึกษา HTC (ไม่ระบุตัวตน)" : r.author_name}
                               </span>
-                            )}
+                              {r.is_anonymous && (
+                                <span className="material-symbols-outlined text-[14px] text-on-surface-variant shrink-0" title="ข้อมูลถูกปิดบังชื่อเพื่อความเป็นส่วนตัว">
+                                  visibility_off
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-on-surface-variant font-medium flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <span className="truncate max-w-[160px] sm:max-w-none">{r.department}</span>
+                              <span className="text-outline-variant shrink-0">•</span>
+                              <span className="inline-flex items-center gap-0.5 bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded-md text-[10px] shrink-0">
+                                เพศ: {r.gender === "male" || r.gender === "ชาย" ? "ชาย" : r.gender === "female" || r.gender === "หญิง" ? "หญิง" : "อื่นๆ"}
+                              </span>
+                            </div>
                           </div>
-                          <div className="text-[11px] text-on-surface-variant font-medium flex items-center gap-1.5 flex-wrap mt-0.5">
-                            <span>{r.department}</span>
-                            <span className="text-outline-variant">•</span>
-                            <span className="inline-flex items-center gap-0.5 bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-md text-[10px]">
-                              เพศ: {r.gender === "male" || r.gender === "ชาย" ? "ชาย" : r.gender === "female" || r.gender === "หญิง" ? "หญิง" : "อื่นๆ"}
-                            </span>
-                          </div>
+                        </div>
+
+                        {/* Overall Score Badge */}
+                        <div className="flex items-center gap-1 bg-secondary-container text-on-secondary-container px-2.5 py-1 rounded-xl font-bold text-xs shadow-xs shrink-0">
+                          <span className="material-symbols-outlined text-[15px] text-secondary">star</span>
+                          <span>{r.score_overall} / 5.0</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-sm">
-                        <div className="flex items-center gap-xs bg-secondary-container text-on-secondary-container px-2.5 py-1 rounded-lg font-bold text-xs shadow-sm">
-                          <span className="material-symbols-outlined text-[14px] text-secondary active-tab">star</span>
-                          {r.score_overall} / 5.0
-                        </div>
-
-                        {/* Edit / Delete Buttons for Own Review */}
+                      {/* Action Buttons Row (Mobile-safe flex wrap) */}
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap pt-0.5">
                         {(myReviewIds.has(r.id) || (currentUser && (currentUser.id === r.user_id || currentUser.id === r.user?.id))) && (
-                          <div className="flex items-center gap-xs">
+                          <>
                             <button
                               type="button"
                               onClick={() => promptEditReview(r)}
-                              className="text-xs text-secondary hover:bg-secondary/10 font-bold border border-secondary/30 px-2.5 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-0.5"
+                              className="text-[11px] sm:text-xs text-secondary hover:bg-secondary/10 font-bold border border-secondary/30 px-2.5 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-0.5"
                               title="แก้ไขรีวิว (จะต้องได้รับการอนุมัติใหม่)"
                             >
-                              <span className="material-symbols-outlined text-[14px]">edit</span>
+                              <span className="material-symbols-outlined text-[13px] sm:text-[14px]">edit</span>
                               แก้ไข
                             </button>
                             <button
                               type="button"
                               disabled={deletingId === r.id}
                               onClick={() => promptDeleteReview(r.id)}
-                              className="text-xs text-rose-600 hover:bg-rose-100 font-bold border border-rose-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-0.5 disabled:opacity-50"
+                              className="text-[11px] sm:text-xs text-rose-600 hover:bg-rose-100 font-bold border border-rose-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-0.5 disabled:opacity-50"
                               title="ลบรีวิวนี้ออกจากระบบ"
                             >
-                              <span className="material-symbols-outlined text-[14px]">delete</span>
+                              <span className="material-symbols-outlined text-[13px] sm:text-[14px]">delete</span>
                               ลบ
                             </button>
-                          </div>
+                          </>
                         )}
 
-                        {/* Report Review Button */}
                         <button
                           type="button"
                           onClick={() => setReportModal({ isOpen: true, targetId: r.id })}
-                          className="text-xs text-slate-500 hover:text-amber-600 hover:bg-amber-50 font-bold border border-slate-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-0.5"
+                          className="text-[11px] sm:text-xs text-slate-500 hover:text-amber-600 hover:bg-amber-50 font-bold border border-slate-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-0.5"
                           title="รายงานรีวิวนี้"
                         >
-                          <span className="material-symbols-outlined text-[14px]">flag</span>
+                          <span className="material-symbols-outlined text-[13px] sm:text-[14px]">flag</span>
                           รายงานรีวิว
                         </button>
                       </div>
                     </div>
 
-                    <div className="pt-xs space-y-sm text-xs">
-                      {/* Work Hours & Allowance Bar for this specific review */}
-                      <div className="flex gap-sm flex-wrap items-center text-[11px] text-on-surface-variant bg-surface-container-low p-2.5 rounded-xl border border-outline-variant/50">
+                    <div className="space-y-3 text-xs">
+                      {/* Work Hours & Allowance Bar */}
+                      <div className="flex gap-2 sm:gap-3 flex-wrap items-center text-[11px] text-on-surface-variant bg-surface-container-low p-2.5 sm:p-3 rounded-xl border border-outline-variant/40">
                         <span className="flex items-center gap-1 font-semibold">
-                          <span className="material-symbols-outlined text-[16px] text-secondary">payments</span>
+                          <span className="material-symbols-outlined text-[15px] sm:text-[16px] text-secondary">payments</span>
                           <strong>เบี้ยเลี้ยง:</strong> {r.daily_allowance ? `฿${r.daily_allowance} / วัน` : "ไม่มี"}
                         </span>
                         {(r.work_start_time || r.work_end_time) && (
                           <>
-                            <span className="text-outline-variant">•</span>
+                            <span className="text-outline-variant hidden sm:inline">•</span>
                             <span className="flex items-center gap-1 font-semibold">
-                              <span className="material-symbols-outlined text-[16px] text-secondary">schedule</span>
+                              <span className="material-symbols-outlined text-[15px] sm:text-[16px] text-secondary">schedule</span>
                               <strong>เวลาทำงาน:</strong> {r.work_start_time || "-"} - {r.work_end_time || "-"} น.
                             </span>
                           </>
                         )}
                       </div>
 
-                      <div className="space-y-xs">
+                      {/* Main Job Description */}
+                      <div className="space-y-1">
                         <h4 className="font-bold text-primary text-xs flex items-center gap-1">
                           <span className="material-symbols-outlined text-[16px] text-secondary">build</span>
                           ลักษณะงานที่ได้รับมอบหมาย:
                         </h4>
-                        <p className="text-on-surface-variant leading-relaxed pl-base border-l-2 border-outline-variant">{r.text_work}</p>
+                        <p className="text-on-surface-variant text-xs leading-relaxed pl-3 border-l-2 border-secondary/40 break-words whitespace-pre-line">
+                          {r.text_work}
+                        </p>
                       </div>
 
+                      {/* Pros, Cons, Advice Grid (Responsive 1-col on mobile, 3-cols on desktop) */}
                       {(r.text_pros || r.text_cons || r.text_advice) && (
-                        <div className="grid sm:grid-cols-3 gap-sm pt-base border-t border-outline-variant/60">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-3 border-t border-outline-variant/40">
                           {r.text_pros && (
-                            <div className="bg-emerald-50/50 border border-emerald-200/60 p-sm rounded-xl space-y-2">
-                              <span className="font-bold text-emerald-800 flex items-center gap-xs">
+                            <div className="bg-emerald-50/60 border border-emerald-200/60 p-3 rounded-xl space-y-1.5 break-words">
+                              <span className="font-bold text-emerald-800 text-xs flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[16px] text-emerald-700">thumb_up</span> ข้อดี
                               </span>
-                              <p className="text-on-surface-variant text-[11px] leading-relaxed">{r.text_pros}</p>
+                              <p className="text-on-surface-variant text-[11px] leading-relaxed break-words whitespace-pre-line">{r.text_pros}</p>
                             </div>
                           )}
 
                           {r.text_cons && (
-                            <div className="bg-rose-50/50 border border-rose-200/60 p-sm rounded-xl space-y-2">
-                              <span className="font-bold text-rose-800 flex items-center gap-xs">
+                            <div className="bg-rose-50/60 border border-rose-200/60 p-3 rounded-xl space-y-1.5 break-words">
+                              <span className="font-bold text-rose-800 text-xs flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[16px] text-rose-700">thumb_down</span> ข้อเสีย / ข้อเสนอแนะ
                               </span>
-                              <p className="text-on-surface-variant text-[11px] leading-relaxed">{r.text_cons}</p>
+                              <p className="text-on-surface-variant text-[11px] leading-relaxed break-words whitespace-pre-line">{r.text_cons}</p>
                             </div>
                           )}
 
                           {r.text_advice && (
-                            <div className="bg-amber-50/50 border border-amber-200/60 p-sm rounded-xl space-y-2">
-                              <span className="font-bold text-amber-800 flex items-center gap-xs">
+                            <div className="bg-amber-50/60 border border-amber-200/60 p-3 rounded-xl space-y-1.5 break-words">
+                              <span className="font-bold text-amber-800 text-xs flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[16px] text-amber-700">lightbulb</span> คำแนะนำรุ่นน้อง
                               </span>
-                              <p className="text-on-surface-variant text-[11px] leading-relaxed">{r.text_advice}</p>
+                              <p className="text-on-surface-variant text-[11px] leading-relaxed break-words whitespace-pre-line">{r.text_advice}</p>
                             </div>
                           )}
                         </div>
@@ -580,7 +589,7 @@ export default function CompanyDetailPage() {
 
                     {/* Photos Gallery - Responsive & Overflow Safe */}
                     {r.photo_urls && r.photo_urls.length > 0 && (
-                      <div className="mt-md space-y-1.5">
+                      <div className="mt-3 space-y-1.5">
                         <div className="text-[11px] font-bold text-on-surface-variant flex items-center gap-1">
                           <span className="material-symbols-outlined text-[16px] text-secondary">photo_camera</span>
                           รูปภาพบรรยากาศจริง ({r.photo_urls.length} รูป)
@@ -591,7 +600,7 @@ export default function CompanyDetailPage() {
                               type="button"
                               key={idx}
                               onClick={() => setLightbox({ isOpen: true, images: r.photo_urls, index: idx })}
-                              className="w-full h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border border-outline-variant/60 shadow-xs hover:opacity-95 hover:scale-[1.02] hover:border-secondary transition-all cursor-pointer bg-surface-container-low group relative"
+                              className="w-full h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-outline-variant/60 shadow-xs hover:opacity-95 hover:scale-[1.02] hover:border-secondary transition-all cursor-pointer bg-surface-container-low group relative"
                             >
                               <img src={url} alt={`Review photo ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
@@ -605,8 +614,9 @@ export default function CompanyDetailPage() {
                       </div>
                     )}
 
-                    <div className="mt-md pt-3 border-t border-outline-variant/60 flex justify-end text-[11px] text-on-surface-variant font-semibold">
-                      <span className="text-on-surface-variant/80 font-normal">เขียนเมื่อ: {r.created_at || "N/A"}</span>
+                    <div className="pt-2.5 border-t border-outline-variant/40 flex justify-between items-center text-[10px] sm:text-[11px] text-on-surface-variant font-medium">
+                      <span className="text-slate-400">รีวิวผ่านการตรวจสอบแล้ว</span>
+                      <span>เขียนเมื่อ: {r.created_at || "N/A"}</span>
                     </div>
                   </div>
                 ))}
