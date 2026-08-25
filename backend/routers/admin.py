@@ -552,9 +552,14 @@ def process_upgrade_request(request_id: int, payload: dict = Body(...),
 
 # --- 7. การตรวจสอบและจัดการรายงานความไม่เหมาะสม (Reports Handling) ---
 @router.get("/reports")
-def list_reports(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+def list_reports(status: str = Query(None),
+                 db: Session = Depends(get_db),
+                 admin: User = Depends(require_admin)):
     """ ดึงรายการแจ้งรายงานเนื้อหาไม่เหมาะสมทั้งหมด พร้อมรายละเอียดเป้าหมาย """
-    reports = db.query(Report).order_by(Report.created_at.desc()).all()
+    query = db.query(Report)
+    if status and status != "all":
+        query = query.filter(Report.status == status)
+    reports = query.order_by(Report.created_at.desc()).all()
     results = []
     for rep in reports:
         target_type = "review" if rep.review_id else "post" if rep.post_id else "comment" if rep.comment_id else "job" if rep.job_id else "company" if rep.company_id else "unknown"

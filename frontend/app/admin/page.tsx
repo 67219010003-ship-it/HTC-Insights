@@ -164,7 +164,7 @@ export default function AdminDashboardPage() {
         api.get("/admin/posts"),
         api.get("/admin/jobs"),
         api.get("/admin/upgrades?status=pending"),
-        api.get("/admin/reports"),
+        api.get("/admin/reports?status=pending"),
         api.get("/admin/audit-logs"),
       ]);
 
@@ -173,7 +173,7 @@ export default function AdminDashboardPage() {
       setPosts(postsRes.data || []);
       setJobs(jobsRes.data || []);
       setPendingUpgrades(upgradesRes.data || []);
-      setPendingReports(reportsRes.data || []);
+      setPendingReports((reportsRes.data || []).filter((r: any) => r.status === "pending" || !r.status));
       setAuditLogs(logsRes.data || []);
     } catch (err) {
       console.error("Failed to load admin data:", err);
@@ -259,7 +259,10 @@ export default function AdminDashboardPage() {
   const handleResolveReport = async (reportId: number, status: string, action?: string) => {
     try {
       const res = await api.patch(`/admin/reports/${reportId}`, { status, action });
-      setMsg({ text: res.data.message || "จัดการรายงานความผิดสำเร็จ" });
+      setMsg({
+        text: res.data.message || (status === "dismissed" ? "ปัดตกข้อกล่าวหาเรียบร้อยแล้ว" : "จัดการรายงานความผิดสำเร็จ"),
+      });
+      setPendingReports((prev) => prev.filter((r) => r.id !== reportId));
       fetchDashboardData();
     } catch (err: any) {
       setMsg({ text: err.response?.data?.detail || "เกิดข้อผิดพลาดในการจัดการรายงาน", isError: true });

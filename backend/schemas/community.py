@@ -4,8 +4,8 @@ from typing import Optional
 class PostCreate(BaseModel):
     type: str = Field(..., pattern=r"^(experience|qa|tips|team)$", description="ประเภทกระทู้")
     department: Optional[str] = Field(None, max_length=100)
-    title: str = Field(..., min_length=5, max_length=120, description="หัวข้อกระทู้ 5-120 ตัวอักษร")
-    content: str = Field(..., min_length=10, max_length=2500, description="เนื้อหากระทู้ 10-2500 ตัวอักษร")
+    title: str = Field(..., min_length=5, max_length=60, description="หัวข้อกระทู้ 5-60 ตัวอักษร")
+    content: str = Field(..., min_length=10, max_length=600, description="เนื้อหากระทู้ 10-600 ตัวอักษร")
     is_anonymous: bool = False
 
 class CommentCreate(BaseModel):

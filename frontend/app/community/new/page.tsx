@@ -47,18 +47,18 @@ export default function NewPostPage() {
       return;
     }
 
-    if (title.trim().length < 5 || title.trim().length > 120) {
+    if (title.trim().length < 5 || title.trim().length > 60) {
       setToast({
         isOpen: true,
-        message: "หัวข้อกระทู้ต้องมีความยาวระหว่าง 5 - 120 ตัวอักษร",
+        message: "หัวข้อกระทู้ต้องมีความยาวระหว่าง 5 - 60 ตัวอักษร",
         type: "error",
       });
       return;
     }
-    if (content.trim().length < 10 || content.trim().length > 2500) {
+    if (content.trim().length < 10 || content.trim().length > 600) {
       setToast({
         isOpen: true,
-        message: "เนื้อหากระทู้ต้องมีความยาวระหว่าง 10 - 2,500 ตัวอักษร",
+        message: "เนื้อหากระทู้ต้องมีความยาวระหว่าง 10 - 600 ตัวอักษร",
         type: "error",
       });
       return;
@@ -198,17 +198,17 @@ export default function NewPostPage() {
           <div>
             <div className="flex justify-between items-center mb-1.5">
               <label className="block text-xs font-bold text-primary uppercase tracking-wider">
-                หัวข้อกระทู้* (5 - 120 ตัวอักษร)
+                หัวข้อกระทู้* (5 - 60 ตัวอักษร)
               </label>
-              <span className={`text-[11px] font-bold ${title.trim().length >= 5 && title.length <= 120 ? 'text-emerald-600' : 'text-on-surface-variant'}`}>
-                {title.length}/120
+              <span className={`text-[11px] font-bold ${title.trim().length >= 5 && title.length <= 60 ? 'text-emerald-600' : 'text-on-surface-variant'}`}>
+                {title.length}/60
               </span>
             </div>
             <input
               type="text"
               minLength={5}
-              maxLength={120}
-              placeholder="เช่น ขอสอบถามพี่ๆ ช่างอิเล็กทรอนิกส์ เรื่องสอบสัมภาษณ์บริษัท..."
+              maxLength={60}
+              placeholder="เช่น ขอสอบถามพี่ๆ ช่างอิเล็กทรอนิกส์ เรื่องสอบสัมภาษณ์..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm font-body-sm focus:outline-none focus:border-primary focus:bg-surface-container-lowest transition-all"
@@ -219,16 +219,16 @@ export default function NewPostPage() {
           <div>
             <div className="flex justify-between items-center mb-1.5">
               <label className="block text-xs font-bold text-primary uppercase tracking-wider">
-                เนื้อหากระทู้* (10 - 2,500 ตัวอักษร)
+                เนื้อหากระทู้* (10 - 600 ตัวอักษร)
               </label>
-              <span className={`text-[11px] font-bold ${content.trim().length >= 10 && content.length <= 2500 ? 'text-emerald-600' : 'text-on-surface-variant'}`}>
-                {content.length}/2500
+              <span className={`text-[11px] font-bold ${content.trim().length >= 10 && content.length <= 600 ? 'text-emerald-600' : 'text-on-surface-variant'}`}>
+                {content.length}/600
               </span>
             </div>
             <textarea
               rows={6}
               minLength={10}
-              maxLength={2500}
+              maxLength={600}
               placeholder="เขียนรายละเอียด สิ่งที่ต้องการสอบถาม หรือประสบการณ์ที่อยากแชร์ให้เพื่อนๆ ฟัง..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
