@@ -135,24 +135,28 @@ def get_my_job_postings(auth: dict = Depends(get_current_user_or_employer),
     else:
         # ค้นหาผ่าน Employer ที่ใช้อีเมลเดียวกันกับ User (แบบ Case-Insensitive) หรือที่ตรงกับใน JobPosting
         from sqlalchemy import func, or_
+        user = auth.get("obj")
+        user_name = (user.name if user else "").strip()
         user_email = (auth.get("email") or "").lower().strip()
-        if not user_email:
+        if not user_email and not user_name:
             return []
+
         employers = db.query(Employer).filter(func.lower(Employer.email) == user_email).all()
         emp_ids = [e.id for e in employers]
         
         query = db.query(JobPosting)
+        filters = []
         if emp_ids:
-            query = query.filter(
-                or_(
-                    JobPosting.employer_id.in_(emp_ids),
-                    JobPosting.description.ilike(f"%{user_email}%")
-                )
-            )
-        else:
-            query = query.filter(JobPosting.description.ilike(f"%{user_email}%"))
+            filters.append(JobPosting.employer_id.in_(emp_ids))
+        if user_email:
+            filters.append(JobPosting.description.ilike(f"%{user_email}%"))
+        if user_name and len(user_name) >= 3:
+            filters.append(JobPosting.description.ilike(f"%{user_name}%"))
             
-        postings = query.order_by(JobPosting.created_at.desc()).all()
+        if filters:
+            postings = query.filter(or_(*filters)).order_by(JobPosting.created_at.desc()).all()
+        else:
+            postings = []
 
     return [_extract_job_details(p, db) for p in postings]
 

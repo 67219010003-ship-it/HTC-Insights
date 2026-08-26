@@ -115,7 +115,7 @@ def get_post(post_id: int, db: Session = Depends(get_db),
     else:
         filtered_comments = [
             c for c in post.comments
-            if (c.status == "approved") or (c.user_id == current_user.id)
+            if c.status == "approved"
         ]
         
     return {**_format_post(post), "comments": [_format_comment(c) for c in filtered_comments]}

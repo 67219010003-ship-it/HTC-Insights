@@ -130,13 +130,20 @@ def test_comment_edit_and_delete():
         "is_anonymous": False
     }, headers=headers)
     assert comm_res.status_code == 201
+    comment_id = comm_res.json()["comment_id"]
+
+    # Approve comment in DB
+    from models import CommunityComment
+    with SessionLocal() as db:
+        c = db.query(CommunityComment).filter(CommunityComment.id == comment_id).first()
+        c.status = "approved"
+        db.commit()
 
     # Get thread
     thread_res = client.get(f"/community/posts/{post_id}", headers=headers)
     assert thread_res.status_code == 200
     comments = thread_res.json()["comments"]
     assert len(comments) == 1
-    comment_id = comments[0]["id"]
     assert comments[0]["user_id"] is not None
 
     # Update comment
@@ -209,6 +216,48 @@ def test_one_posting_limit_for_external_employer():
     res2 = client.post("/auth/register/employer", json=payload)
     assert res2.status_code == 400
     assert "1 บัญชีสามารถลงประกาศ" in res2.json()["detail"]
+
+def test_logged_in_user_post_job_and_get_my_postings():
+    # Login as external user
+    from models import User, UserRole, Employer, JobPosting
+    with SessionLocal() as db:
+        user = User(
+            email="poster_user@gmail.com",
+            password_hash="hash",
+            name="Poster User",
+            role=UserRole.external,
+            is_verified=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        uid = user.id
+
+    token = create_access_token({"sub": uid, "role": "external", "email": "poster_user@gmail.com"})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Register employer job while logged in
+    payload = {
+        "company_name": "บจก. โพสต์เก็ตมายจ็อบส์",
+        "email": "poster_user@gmail.com",
+        "contact_email": "hr_contact@company.ac",
+        "phone": "089-111-2222",
+        "address": "456 หาดใหญ่ สงขลา",
+        "contact_person": "คุณวิชัย",
+        "daily_allowance": "500",
+    }
+    reg_res = client.post("/auth/register/employer", json=payload, headers=headers)
+    assert reg_res.status_code == 201
+
+    # Fetch /jobs/my-postings
+    my_jobs_res = client.get("/jobs/my-postings", headers=headers)
+    assert my_jobs_res.status_code == 200
+    job_list = my_jobs_res.json()
+    assert len(job_list) == 1
+    assert job_list[0]["company_name"] == "บจก. โพสต์เก็ตมายจ็อบส์"
+    assert job_list[0]["poster_email"] == "poster_user@gmail.com"
+    assert job_list[0]["contact_email"] == "hr_contact@company.ac"
+    assert job_list[0]["status"] == "pending"
 
 def test_six_posts_limit_per_student():
     res_google = client.post("/auth/google", json={"id_token": "dummy_token"})

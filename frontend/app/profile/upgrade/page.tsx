@@ -279,7 +279,12 @@ export default function ProfileUpgradePage() {
       )}
 
       {/* ================= SECTION 1: EXISTING REQUEST STATUS CARD ================= */}
-      {existingRequest && !isEditing ? (
+      {loadingInitial ? (
+        <div className="bg-white border border-outline-variant/60 rounded-3xl p-12 text-center space-y-3 shadow-xs">
+          <div className="w-10 h-10 border-3 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-bold text-on-surface-variant">กำลังโหลดข้อมูลและตรวจสอบประวัติคำขอยื่นสิทธิ์...</p>
+        </div>
+      ) : existingRequest && !isEditing ? (
         <div className="bg-white border border-outline-variant/60 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
           {/* Visual Progress Stepper Tracker */}
           <div className="bg-surface-container-low/70 p-4 sm:p-5 rounded-2xl border border-outline-variant/40">

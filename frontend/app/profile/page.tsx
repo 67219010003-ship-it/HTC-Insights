@@ -124,9 +124,9 @@ export default function StudentProfilePage() {
   const [comments, setComments] = useState<MyComment[]>([]);
   const [employerJobs, setEmployerJobs] = useState<EmployerJob[]>([]);
   const [loading, setLoading] = useState(true);
-  const [postsLoading, setPostsLoading] = useState(false);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [jobsLoading, setJobsLoading] = useState(false);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [jobsLoading, setJobsLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [postsPage, setPostsPage] = useState(1);
   const [commentsPage, setCommentsPage] = useState(1);
@@ -135,7 +135,7 @@ export default function StudentProfilePage() {
 
   // Upgrade Request State
   const [upgradeRequest, setUpgradeRequest] = useState<UpgradeRequestData | null>(null);
-  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [upgradeLoading, setUpgradeLoading] = useState(true);
   const [upgradeEditing, setUpgradeEditing] = useState(false);
   const [upgradeSubmitting, setUpgradeSubmitting] = useState(false);
   const [upgradeStatusMsg, setUpgradeStatusMsg] = useState<{ text: string; isError?: boolean } | null>(null);
@@ -198,8 +198,8 @@ export default function StudentProfilePage() {
     isOpen: false,
     title: "",
     message: "",
-    type: "warning",
-    confirmText: "ยืนยัน",
+    type: "info",
+    confirmText: "ตกลง",
     onConfirm: () => {},
   });
 
@@ -210,7 +210,7 @@ export default function StudentProfilePage() {
   }>({
     isOpen: false,
     message: "",
-    type: "success",
+    type: "info",
   });
 
   const [lightbox, setLightbox] = useState<{
@@ -224,105 +224,68 @@ export default function StudentProfilePage() {
   });
 
   const fetchUserData = async () => {
-    const token = getToken();
-    if (!token) {
-      setLoading(false);
+    if (!getToken()) {
+      window.location.replace("/auth/login");
       return;
     }
     setLoading(true);
-    let currentRole = getRole();
-    try {
-      const res = await api.get("/auth/me");
-      setUserProfile(res.data);
-      if (res.data?.role) {
-        currentRole = res.data.role;
-      }
-    } catch {
-      // Ignored
-    } finally {
-      setLoading(false);
-    }
+    setJobsLoading(true);
+    setPostsLoading(true);
+    setCommentsLoading(true);
+    setUpgradeLoading(true);
 
-    if (currentRole === "employer") {
-      setActiveTab("employer_jobs");
-      setJobsLoading(true);
-      try {
-        const jobsRes = await api.get("/jobs/my-postings");
-        setEmployerJobs(jobsRes.data || []);
-      } catch {
-        setEmployerJobs([]);
-      } finally {
-        setJobsLoading(false);
+    try {
+      const [meRes, jobsRes, revRes, postRes, commRes, upgRes] = await Promise.allSettled([
+        api.get("/auth/me"),
+        api.get("/jobs/my-postings"),
+        api.get("/reviews/my"),
+        api.get("/community/my-posts"),
+        api.get("/community/my-comments"),
+        api.get("/auth/my-upgrade-request"),
+      ]);
+
+      if (meRes.status === "fulfilled" && meRes.value.data) {
+        setUserProfile(meRes.value.data);
       }
-    } else {
-      // Load user reviews
-      try {
-        const revRes = await api.get("/reviews/my");
-        setReviews(revRes.data || []);
-      } catch {
+      if (jobsRes.status === "fulfilled" && Array.isArray(jobsRes.value.data)) {
+        setEmployerJobs(jobsRes.value.data);
+      } else {
+        setEmployerJobs([]);
+      }
+      if (revRes.status === "fulfilled" && Array.isArray(revRes.value.data)) {
+        setReviews(revRes.value.data);
+      } else {
         setReviews([]);
       }
-
-      // Load user community posts
-      setPostsLoading(true);
-      try {
-        const postRes = await api.get("/community/my-posts");
-        setPosts(postRes.data || []);
-      } catch {
+      if (postRes.status === "fulfilled" && Array.isArray(postRes.value.data)) {
+        setPosts(postRes.value.data);
+      } else {
         setPosts([]);
-      } finally {
-        setPostsLoading(false);
       }
-
-      // Load user community comments
-      setCommentsLoading(true);
-      try {
-        const commRes = await api.get("/community/my-comments");
-        setComments(commRes.data || []);
-      } catch {
+      if (commRes.status === "fulfilled" && Array.isArray(commRes.value.data)) {
+        setComments(commRes.value.data);
+      } else {
         setComments([]);
-      } finally {
-        setCommentsLoading(false);
       }
-
-      // Load employer jobs (for external users or students who posted jobs)
-      setJobsLoading(true);
-      try {
-        const jobsRes = await api.get("/jobs/my-postings");
-        const list = jobsRes.data || [];
-        setEmployerJobs(list);
-        if (currentRole === "external") {
-          const tabParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
-          if (tabParam === "upgrade") {
-            setActiveTab("upgrade");
-          }
-        }
-      } catch {
-        setEmployerJobs([]);
-      } finally {
-        setJobsLoading(false);
-      }
-
-      // Load student upgrade request history
-      try {
-        setUpgradeLoading(true);
-        const upgRes = await api.get("/auth/my-upgrade-request");
-        if (upgRes.data?.has_request && upgRes.data?.request) {
-          const req = upgRes.data.request as UpgradeRequestData;
-          setUpgradeRequest(req);
-          setUpgradeStudentId(req.student_id || "");
-          setUpgradeDepartment(req.department || "แผนกวิชาเทคโนโลยีสารสนเทศ");
-          setUpgradePhone(req.phone || "");
-          setUpgradeReason(req.reason || "");
-          setUpgradeCardPreviewUrl(req.card_image_url || "");
-        } else {
-          setUpgradeRequest(null);
-        }
-      } catch {
+      if (upgRes.status === "fulfilled" && upgRes.value.data?.has_request && upgRes.value.data?.request) {
+        const req = upgRes.value.data.request as UpgradeRequestData;
+        setUpgradeRequest(req);
+        setUpgradeStudentId(req.student_id || "");
+        setUpgradeDepartment(req.department || "แผนกวิชาเทคโนโลยีสารสนเทศ");
+        setUpgradePhone(req.phone || "");
+        setUpgradeReason(req.reason || "");
+        setUpgradeCardPreviewUrl(req.card_image_url || "");
+      } else {
         setUpgradeRequest(null);
-      } finally {
-        setUpgradeLoading(false);
       }
+    } catch (err) {
+      console.error("fetchUserData error:", err);
+    } finally {
+      setLoading(false);
+      setJobsLoading(false);
+      setPostsLoading(false);
+      setCommentsLoading(false);
+      setUpgradeLoading(false);
     }
   };
 
@@ -843,7 +806,7 @@ export default function StudentProfilePage() {
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">work</span>
-              ประกาศงานฝึกงานของฉัน ({employerJobs.length})
+              ประกาศงานฝึกงานของฉัน ({jobsLoading ? "..." : employerJobs.length})
             </button>
 
             <button
@@ -869,7 +832,7 @@ export default function StudentProfilePage() {
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">work</span>
-              ประกาศรับสมัครงานของฉัน ({employerJobs.length})
+              ประกาศรับสมัครงานของฉัน ({jobsLoading ? "..." : employerJobs.length})
             </button>
 
             <Link
@@ -879,7 +842,7 @@ export default function StudentProfilePage() {
               <span className="material-symbols-outlined text-[18px] text-purple-600">
                 {upgradeRequest ? "assignment" : "verified"}
               </span>
-              {upgradeRequest ? "ประวัติคำขอยื่นสิทธิ์นักศึกษา" : "ยื่นขอสิทธิ์นักศึกษา"}
+              {upgradeLoading ? "ตรวจสอบสิทธิ์..." : upgradeRequest ? "ประวัติคำขอยื่นสิทธิ์นักศึกษา" : "ยื่นขอสิทธิ์นักศึกษา"}
             </Link>
           </>
         ) : (
@@ -893,7 +856,7 @@ export default function StudentProfilePage() {
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">rate_review</span>
-              รีวิวของฉัน ({reviews.length})
+              รีวิวของฉัน ({loading ? "..." : reviews.length})
             </button>
 
             <button
@@ -905,7 +868,7 @@ export default function StudentProfilePage() {
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">forum</span>
-              กระทู้ชุมชนของฉัน ({posts.length})
+              กระทู้ชุมชนของฉัน ({postsLoading ? "..." : posts.length})
             </button>
 
             <button
@@ -917,10 +880,10 @@ export default function StudentProfilePage() {
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">chat</span>
-              ความคิดเห็นของฉัน ({comments.length})
+              ความคิดเห็นของฉัน ({commentsLoading ? "..." : comments.length})
             </button>
 
-            {employerJobs.length > 0 && (
+            {(jobsLoading || employerJobs.length > 0) && (
               <button
                 onClick={() => setActiveTab("employer_jobs")}
                 className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
@@ -930,7 +893,7 @@ export default function StudentProfilePage() {
                 }`}
               >
                 <span className="material-symbols-outlined text-[18px]">work</span>
-                ประกาศรับสมัครงาน ({employerJobs.length})
+                ประกาศรับสมัครงาน ({jobsLoading ? "..." : employerJobs.length})
               </button>
             )}
           </>
@@ -943,14 +906,14 @@ export default function StudentProfilePage() {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h2 className="text-base sm:text-lg font-bold text-primary font-headline">
-                {isExternal ? "ประกาศรับสมัครงานของฉัน" : "ประกาศรับสมัครฝึกงานของสถานประกอบการ"} ({employerJobs.length})
+                {isExternal ? "ประกาศรับสมัครงานของฉัน" : "ประกาศรับสมัครฝึกงานของสถานประกอบการ"} ({jobsLoading ? "..." : employerJobs.length})
               </h2>
               <p className="text-xs text-on-surface-variant">
                 จัดการประกาศงาน ตรวจสอบสถานะการอนุมัติจากผู้ดูแลระบบ หรือแก้ไข/ลบประกาศ
               </p>
             </div>
 
-            {employerJobs.length === 0 && (
+            {!jobsLoading && employerJobs.length === 0 && (
               <Link
                 href="/employer/register"
                 className="text-xs bg-secondary text-white px-4 py-2 rounded-xl font-bold hover:bg-opacity-90 transition-opacity shadow-sm flex items-center gap-1 cursor-pointer"
@@ -962,7 +925,10 @@ export default function StudentProfilePage() {
           </div>
 
           {jobsLoading ? (
-            <div className="p-8 text-center text-xs text-on-surface-variant">กำลังโหลดรายการประกาศงาน...</div>
+            <div className="bg-white border border-outline-variant/60 rounded-3xl p-12 text-center space-y-3 shadow-xs">
+              <div className="w-8 h-8 border-3 border-secondary border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs font-bold text-on-surface-variant">กำลังโหลดรายการประกาศงาน...</p>
+            </div>
           ) : employerJobs.length === 0 ? (
             <div className="bg-white border border-outline-variant/60 rounded-3xl p-8 text-center space-y-2 shadow-xs">
               <span className="material-symbols-outlined text-[40px] text-outline">work_off</span>
