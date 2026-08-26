@@ -44,6 +44,12 @@ export default function WriteReviewPage() {
 
   const [existingReview, setExistingReview] = useState<any | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(true);
+  const [authorized, setAuthorized] = useState(() => {
+    if (typeof window !== "undefined") {
+      return Boolean(getToken() && isStudent());
+    }
+    return false;
+  });
 
   // Photos state (Max 2 photos)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -110,6 +116,7 @@ export default function WriteReviewPage() {
       router.replace("/insights");
       return;
     }
+    setAuthorized(true);
     
     // Fetch user profile to prefill department
     api.get("/auth/me")
@@ -405,6 +412,15 @@ export default function WriteReviewPage() {
       setLoading(false);
     }
   };
+
+  if (!authorized) {
+    return (
+      <div className="max-w-3xl mx-auto px-margin-mobile pt-16 pb-24 text-center">
+        <div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-xs font-bold text-on-surface-variant">กำลังตรวจสอบสิทธิ์การเข้าถึง...</p>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (

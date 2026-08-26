@@ -15,6 +15,12 @@ export default function NewPostPage() {
   const [content, setContent] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [authorized, setAuthorized] = useState(() => {
+    if (typeof window !== "undefined") {
+      return Boolean(getToken() && isStudent());
+    }
+    return false;
+  });
 
   const [toast, setToast] = useState<{
     isOpen: boolean;
@@ -28,9 +34,15 @@ export default function NewPostPage() {
 
   useEffect(() => {
     // Redirect external/employer away from student community posting
+    if (!getToken()) {
+      router.push("/auth/login");
+      return;
+    }
     if (!isStudent()) {
       router.push("/");
+      return;
     }
+    setAuthorized(true);
   }, [router]);
 
   const handleSubmit = async () => {
@@ -106,6 +118,15 @@ export default function NewPostPage() {
       setLoading(false);
     }
   };
+
+  if (!authorized) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 pt-16 pb-24 text-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-xs font-bold text-on-surface-variant">กำลังตรวจสอบสิทธิ์การเข้าถึง...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 pt-8 pb-24 md:pb-12 min-h-screen">

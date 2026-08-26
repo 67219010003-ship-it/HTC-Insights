@@ -19,13 +19,22 @@ interface NotificationItem {
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [token, setTokenState] = useState<string | null>(null);
-  const [role, setRoleState] = useState<string | null>(null);
+  const [token, setTokenState] = useState<string | null>(() => {
+    if (typeof window !== "undefined") return getToken();
+    return null;
+  });
+  const [role, setRoleState] = useState<string | null>(() => {
+    if (typeof window !== "undefined") return getRole();
+    return null;
+  });
   const [userProfile, setUserProfile] = useState<{
     email: string;
     name: string;
     avatar_url: string;
-  } | null>(null);
+  } | null>(() => {
+    if (typeof window !== "undefined") return getUser();
+    return null;
+  });
 
   const [mounted, setMounted] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

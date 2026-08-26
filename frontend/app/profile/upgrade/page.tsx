@@ -103,7 +103,14 @@ export default function ProfileUpgradePage() {
     }
   };
 
-  if (!getToken()) return null;
+  if (!getToken() || isStudent()) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-xs font-bold text-gray-500">กำลังตรวจสอบสิทธิ์การเข้าถึง...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">

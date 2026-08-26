@@ -8,7 +8,10 @@ import { getRole } from "@/lib/auth";
 export default function BottomNav() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
-  const [role, setRole] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(() => {
+    if (typeof window !== "undefined") return getRole();
+    return null;
+  });
 
   useEffect(() => {
     setMounted(true);

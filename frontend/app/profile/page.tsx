@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { isStudent, getToken, clearToken, getRole } from "@/lib/auth";
+import { isStudent, getToken, clearToken, getRole, getUser } from "@/lib/auth";
 import Link from "next/link";
 import ConfirmModal from "@/components/ConfirmModal";
 import Toast from "@/components/Toast";
@@ -70,8 +70,23 @@ interface EmployerJob {
 type ProfileTab = "reviews" | "posts" | "status" | "employer_jobs" | "employer_status";
 
 export default function StudentProfilePage() {
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<ProfileTab>("reviews");
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    if (typeof window !== "undefined") {
+      return getUser();
+    }
+    return null;
+  });
+
+  const [activeTab, setActiveTab] = useState<ProfileTab>(() => {
+    if (typeof window !== "undefined") {
+      const r = getRole();
+      if (r === "employer") return "employer_jobs";
+      if (r === "student") return "reviews";
+      return "status";
+    }
+    return "status";
+  });
+
   const [reviews, setReviews] = useState<MyReview[]>([]);
   const [posts, setPosts] = useState<MyPost[]>([]);
   const [employerJobs, setEmployerJobs] = useState<EmployerJob[]>([]);
@@ -121,7 +136,11 @@ export default function StudentProfilePage() {
   });
 
   const fetchUserData = async () => {
-    if (!getToken()) return;
+    const token = getToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     let currentRole = getRole();
     try {
@@ -147,9 +166,7 @@ export default function StudentProfilePage() {
       } finally {
         setJobsLoading(false);
       }
-    } else if (!isStudent()) {
-      setActiveTab("status");
-    } else {
+    } else if (currentRole === "student" || (currentRole !== "employer" && isStudent())) {
       setActiveTab("reviews");
       // Load user reviews
       try {
@@ -169,6 +186,8 @@ export default function StudentProfilePage() {
       } finally {
         setPostsLoading(false);
       }
+    } else {
+      setActiveTab("status");
     }
   };
 
@@ -259,8 +278,26 @@ export default function StudentProfilePage() {
     }
   };
 
-  const isEmployer = userProfile?.role === "employer";
+  const currentRole = userProfile?.role || (typeof window !== "undefined" ? getRole() : null);
+  const isEmployer = currentRole === "employer";
+  const isStudentUser = currentRole === "student" || (currentRole !== "employer" && isStudent());
+  const isExternal = !isEmployer && !isStudentUser;
   const defaultAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80";
+
+  if (loading && !userProfile) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+        <div className="bg-white border border-outline-variant/60 rounded-3xl p-6 sm:p-8 shadow-sm animate-pulse flex flex-col sm:flex-row items-center sm:items-start gap-5">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-surface-container-high shrink-0" />
+          <div className="space-y-3 flex-1 w-full text-center sm:text-left">
+            <div className="h-6 bg-slate-200 rounded-lg w-48 mx-auto sm:mx-0" />
+            <div className="h-4 bg-slate-100 rounded-lg w-64 mx-auto sm:mx-0" />
+          </div>
+        </div>
+        <div className="h-64 bg-white border border-outline-variant/60 rounded-3xl p-6 shadow-sm animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -395,7 +432,7 @@ export default function StudentProfilePage() {
               <div className="text-[11px] font-bold text-on-surface-variant">สถานะสถานประกอบการ</div>
             </div>
           </div>
-        ) : !isStudent() ? (
+        ) : isExternal ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-surface-container-low/60 p-4 rounded-2xl text-center border border-outline-variant/40 mt-6">
             <div>
               <div className="text-lg sm:text-xl font-bold text-amber-600">External Account</div>
@@ -466,7 +503,7 @@ export default function StudentProfilePage() {
               สถานะสถานประกอบการ & สิทธิ์
             </button>
           </>
-        ) : !isStudent() ? (
+        ) : isExternal ? (
           <button
             onClick={() => setActiveTab("status")}
             className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-primary text-on-primary shadow-xs flex items-center gap-1.5 whitespace-nowrap"
