@@ -91,7 +91,7 @@ export default function ThreadDetailPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-4 pt-6 pb-24 md:pb-12 space-y-6">
       <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-6 md:p-8 mb-6 shadow-sm">
         <div className="flex items-center gap-2.5 mb-4 flex-wrap">
           <span className="bg-primary-container/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-xs font-semibold">

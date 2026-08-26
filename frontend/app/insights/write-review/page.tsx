@@ -465,7 +465,7 @@ export default function WriteReviewPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-margin-mobile py-8">
+    <div className="max-w-3xl mx-auto px-margin-mobile pt-8 pb-24 md:pb-12">
       <div className="bg-surface border border-outline-variant rounded-3xl p-6 md:p-8 shadow-xl">
         <div className="flex items-center gap-sm mb-xs">
           <span className="material-symbols-outlined text-secondary text-[28px]">

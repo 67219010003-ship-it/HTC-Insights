@@ -108,7 +108,7 @@ export default function NewPostPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 min-h-screen">
+    <div className="max-w-2xl mx-auto px-4 pt-8 pb-24 md:pb-12 min-h-screen">
       <Toast
         isOpen={toast.isOpen}
         message={toast.message}

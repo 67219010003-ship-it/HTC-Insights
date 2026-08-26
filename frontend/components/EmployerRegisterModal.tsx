@@ -61,7 +61,7 @@ export default function EmployerRegisterModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-outline-variant">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-outline-variant max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
           <div className="flex items-center gap-2 text-primary font-bold">
             <span className="material-symbols-outlined text-secondary text-[24px]">
