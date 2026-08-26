@@ -121,12 +121,17 @@ def get_my_job_postings(auth: dict = Depends(get_current_user_or_employer),
             JobPosting.employer_id == auth["id"]
         ).order_by(JobPosting.created_at.desc()).all()
     else:
-        # ค้นหาผ่าน Employer ที่ใช้อีเมลเดียวกันกับ User
-        emp = db.query(Employer).filter(Employer.email == auth["email"]).first()
-        if not emp:
+        # ค้นหาผ่าน Employer ที่ใช้อีเมลเดียวกันกับ User (แบบ Case-Insensitive)
+        from sqlalchemy import func
+        user_email = (auth.get("email") or "").lower().strip()
+        if not user_email:
+            return []
+        employers = db.query(Employer).filter(func.lower(Employer.email) == user_email).all()
+        emp_ids = [e.id for e in employers]
+        if not emp_ids:
             return []
         postings = db.query(JobPosting).filter(
-            JobPosting.employer_id == emp.id
+            JobPosting.employer_id.in_(emp_ids)
         ).order_by(JobPosting.created_at.desc()).all()
 
     return [_extract_job_details(p, db) for p in postings]

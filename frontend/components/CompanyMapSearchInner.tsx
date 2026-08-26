@@ -113,6 +113,18 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
   const inputRef = useRef<HTMLInputElement>(null);
   const preventSearch = useRef(false);
 
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+    if (digits.length <= 2) return digits;
+    if (digits.startsWith("02")) {
+      if (digits.length <= 5) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+      return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+    }
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
   // Auto-focus search on open
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -358,6 +370,7 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
             <input
               ref={inputRef}
               type="text"
+              maxLength={150}
               placeholder="ค้นหาชื่อสถานที่ หรือบริเวณใกล้เคียง..."
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -487,9 +500,10 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide block mb-1">ชื่อสถานประกอบการ *</label>
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide block mb-1">ชื่อสถานประกอบการ * (สูงสุด 150 ตัวอักษร)</label>
                 <input
                   type="text"
+                  maxLength={150}
                   placeholder="เช่น บริษัท เอมิโปร จำกัด..."
                   value={editName}
                   onChange={e => { setEditName(e.target.value); setSelSource("manual"); setSelId(undefined); }}
@@ -498,9 +512,10 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide block mb-1">ที่อยู่</label>
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide block mb-1">ที่อยู่ (สูงสุด 300 ตัวอักษร)</label>
                 <input
                   type="text"
+                  maxLength={300}
                   value={editAddress}
                   onChange={e => setEditAddress(e.target.value)}
                   placeholder="จะดึงจากแผนที่อัตโนมัติ..."
@@ -510,14 +525,26 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-bold text-on-surface-variant block mb-1">เบอร์โทร</label>
-                  <input type="text" placeholder="074-xxxxxx" value={editPhone} onChange={e => setEditPhone(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-surface-container-low border border-outline-variant rounded-xl text-[11px] focus:ring-1 focus:ring-secondary outline-none" />
+                  <label className="text-[10px] font-bold text-on-surface-variant block mb-1">เบอร์โทร (ตัวเลข 9-10 หลัก)</label>
+                  <input
+                    type="tel"
+                    maxLength={12}
+                    placeholder="000-000-0000"
+                    value={editPhone}
+                    onChange={e => setEditPhone(formatPhoneNumber(e.target.value))}
+                    className="w-full px-2.5 py-1.5 bg-surface-container-low border border-outline-variant rounded-xl text-[11px] focus:ring-1 focus:ring-secondary outline-none font-mono"
+                  />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-on-surface-variant block mb-1">เว็บไซต์</label>
-                  <input type="text" placeholder="www..." value={editWebsite} onChange={e => setEditWebsite(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-surface-container-low border border-outline-variant rounded-xl text-[11px] focus:ring-1 focus:ring-secondary outline-none" />
+                  <label className="text-[10px] font-bold text-on-surface-variant block mb-1">เว็บไซต์ (ถ้ามี)</label>
+                  <input
+                    type="text"
+                    maxLength={200}
+                    placeholder="www..."
+                    value={editWebsite}
+                    onChange={e => setEditWebsite(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-surface-container-low border border-outline-variant rounded-xl text-[11px] focus:ring-1 focus:ring-secondary outline-none"
+                  />
                 </div>
               </div>
 
