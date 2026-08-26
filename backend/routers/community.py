@@ -246,6 +246,7 @@ def delete_comment(comment_id: int,
 
 def _format_post(post: CommunityPost) -> dict:
     """ ฟังก์ชันแปลงข้อมูลกระทู้ให้อยู่ในรูปแบบ JSON พร้อมซ่อนชื่อเมื่อเลือก Anonymous """
+    approved_comments_count = len([c for c in (post.comments or []) if c.status == "approved"])
     return {
         "id": post.id, "type": post.type.value if post.type else None,
         "department": post.department, "title": post.title,
@@ -254,7 +255,7 @@ def _format_post(post: CommunityPost) -> dict:
         "author_name": None if post.is_anonymous else post.user.name,
         "author_department": None if post.is_anonymous else post.user.department,
         "like_count": len(post.likes),
-        "comment_count": len(post.comments),
+        "comment_count": approved_comments_count,
         "is_pinned": post.is_pinned,
         "status": post.status or "pending",
         "rejection_reason": post.rejection_reason,
