@@ -184,10 +184,13 @@ class CommunityComment(Base):
     is_anonymous = Column(Boolean, default=False)
     anon_identity_enc = Column(String(500), nullable=True)
     is_best_answer = Column(Boolean, default=False)
+    status = Column(String(20), default="pending")
+    rejection_reason = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     post = relationship("CommunityPost", back_populates="comments")
     likes = relationship("CommunityLike", back_populates="comment")
+    user = relationship("User")
 
 class CommunityLike(Base):
     """ ตารางการกดถูกใจ (Like) กระทู้หรือความคิดเห็น """
@@ -232,6 +235,9 @@ class Report(Base):
     reporter = relationship("User", foreign_keys=[reporter_id])
     post = relationship("CommunityPost", foreign_keys=[post_id])
     review = relationship("Review", foreign_keys=[review_id])
+    comment = relationship("CommunityComment", foreign_keys=[comment_id])
+    job = relationship("JobPosting", foreign_keys=[job_id])
+    company = relationship("Company", foreign_keys=[company_id])
 
 class AuditLog(Base):
     """ ตารางบันทึกประวัติการตัดสินใจและการทำงานของผู้ดูแลระบบ (Admin Audit Logs) """

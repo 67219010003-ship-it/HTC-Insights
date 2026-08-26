@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { getToken, getRole, getUser, clearToken, isSuperAdmin } from "@/lib/auth";
 import { api } from "@/lib/api";
-import StudentVerificationModal from "./StudentVerificationModal";
 
 interface NotificationItem {
   id: number;
@@ -39,7 +38,6 @@ export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -501,21 +499,18 @@ export default function Navbar() {
 
                       {/* Menu Items */}
                       <div className="space-y-xs font-body-sm text-body-sm">
-                        {/* Request Student Verification Button for non-HTC emails */}
+                        {/* Request Student Verification Link for non-HTC emails */}
                         {isNonHtcUser && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsDropdownOpen(false);
-                              setIsVerifyModalOpen(true);
-                            }}
-                            className="w-full flex items-center gap-sm p-2.5 rounded-xl bg-secondary-container/30 text-secondary border border-secondary/30 hover:bg-secondary-container/50 transition-colors font-bold text-left cursor-pointer"
+                          <Link
+                            href="/profile/upgrade"
+                            onClick={() => setIsDropdownOpen(false)}
+                            className="w-full flex items-center gap-sm p-2.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors font-bold text-left cursor-pointer"
                           >
-                            <span className="material-symbols-outlined text-[20px]">
-                              school
+                            <span className="material-symbols-outlined text-[20px] text-purple-600">
+                              verified
                             </span>
-                            ยื่นคำขอเป็นนักศึกษา
-                          </button>
+                            ยื่นคำขอสิทธิ์นักศึกษา
+                          </Link>
                         )}
 
                         <Link
@@ -563,13 +558,6 @@ export default function Navbar() {
           </div>
         </div>
       </header>
-
-      {/* Student Verification Request Modal */}
-      <StudentVerificationModal
-        isOpen={isVerifyModalOpen}
-        onClose={() => setIsVerifyModalOpen(false)}
-        userEmail={userProfile?.email}
-      />
     </>
   );
 }

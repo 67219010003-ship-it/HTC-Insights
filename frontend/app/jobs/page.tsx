@@ -183,7 +183,7 @@ export default function JobsPage() {
       {/* Main Split-View Layout (Master - Detail) */}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Left Column: Job Cards List (42% Width on Desktop) */}
-        <div className="w-full lg:w-[42%] space-y-3 max-h-[calc(100vh-220px)] overflow-y-auto hide-scrollbar pr-1">
+        <div id="job-list-section" className="w-full lg:w-[42%] space-y-3 max-h-[calc(100vh-220px)] overflow-y-auto hide-scrollbar pr-1 scroll-mt-20">
           <div className="flex justify-between items-center px-1 pb-1">
             <span className="text-xs font-bold text-on-surface-variant">
               พบ {filteredJobs.length} ตำแหน่งงานฝึกงานในระบบ
@@ -239,6 +239,7 @@ export default function JobsPage() {
                     currentPage={page}
                     totalPages={Math.ceil(filteredJobs.length / pageSize) || 1}
                     onPageChange={setPage}
+                    scrollTargetId="job-list-section"
                   />
                 </div>
               )}

@@ -88,7 +88,7 @@ export default function CommunityPage() {
       />
 
       {/* Main Content Area */}
-      <div className="flex flex-col gap-md w-full">
+      <div id="community-feed-section" className="flex flex-col gap-md w-full scroll-mt-20">
         {/* Mobile Department Selector / Search */}
         <div className="flex flex-col md:flex-row gap-3 items-center justify-between lg:hidden mb-2">
           <div className="relative w-full">
@@ -164,6 +164,7 @@ export default function CommunityPage() {
           currentPage={page}
           totalPages={totalPages}
           onPageChange={setPage}
+          scrollTargetId="community-feed-section"
         />
       </div>
 

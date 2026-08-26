@@ -10,6 +10,18 @@ class JobPostingCreate(BaseModel):
     location: str = Field(..., min_length=3, max_length=250, description="สถานที่ปฏิบัติงาน 3-250 ตัวอักษร")
     deadline: date
 
+class JobPostingUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=3, max_length=120)
+    department: Optional[str] = Field(None, min_length=2, max_length=100)
+    description: Optional[str] = Field(None, min_length=5, max_length=2000)
+    daily_allowance: Optional[int] = Field(None, ge=0, le=5000)
+    location: Optional[str] = Field(None, min_length=3, max_length=250)
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    line_id: Optional[str] = None
+    is_active: Optional[bool] = None
+
 class JobPostingPublic(BaseModel):
     id: int
     title: str
@@ -18,6 +30,11 @@ class JobPostingPublic(BaseModel):
     description: Optional[str] = None
     daily_allowance: Optional[int] = None
     location: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    line_id: Optional[str] = None
+    logo_url: Optional[str] = None
     deadline: Optional[date] = None
     is_active: bool = True
     status: Optional[str] = "pending"

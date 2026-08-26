@@ -13,6 +13,9 @@ class CommentCreate(BaseModel):
     parent_id: Optional[int] = None
     is_anonymous: bool = False
 
+class CommentUpdate(BaseModel):
+    content: str = Field(..., min_length=2, max_length=600, description="ความคิดเห็น 2-600 ตัวอักษร")
+
 class ReportCreate(BaseModel):
     post_id: Optional[int] = None
     review_id: Optional[int] = None

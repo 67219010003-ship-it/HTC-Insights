@@ -102,6 +102,11 @@ def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
             raise HTTPException(400, "เบอร์โทรศัพท์ติดต่อต้องเป็นตัวเลข 9-10 หลัก (เช่น 000-000-0000 หรือ 000-000-000)")
 
     employer = db.query(Employer).filter(Employer.email == data.email).first()
+    if employer:
+        existing_job = db.query(JobPosting).filter(JobPosting.employer_id == employer.id).first()
+        if existing_job:
+            raise HTTPException(400, "1 บัญชีสามารถลงประกาศรับสมัครฝึกงานได้สูงสุด 1 แห่งเท่านั้น (คุณสามารถดู แก้ไข หรือลบประกาศเดิมได้จากหน้าโปรไฟล์ของคุณ)")
+
     if not employer:
         employer = Employer(
             email=data.email,
@@ -229,7 +234,12 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
 
-    if is_college and user.role == UserRole.external:
+    ADMIN_EMAILS = {"noreply@htc.ac.th", "67219010003@htc.ac.th"}
+    if email in ADMIN_EMAILS:
+        user.role = UserRole.admin
+        user.is_super_admin = True
+        db.commit()
+    elif is_college and user.role == UserRole.external:
         user.role = UserRole.student
         db.commit()
     elif not is_college and not user.is_super_admin and user.role != UserRole.admin:
@@ -262,13 +272,18 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
 @router.post("/upload-proof")
 def upload_proof_file(file: UploadFile = File(...), current_user: User = Depends(get_any_current_user)):
     """ อัปโหลดรูปภาพหลักฐาน เช่น บัตรประจำตัวนักศึกษา ขึ้นสู่ Cloudinary """
-    if not file.content_type.startswith("image/"):
+    if file.content_type and not file.content_type.startswith("image/"):
         raise HTTPException(400, "ไฟล์ต้องเป็นรูปภาพเท่านั้น")
-    content = file.file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(400, "ขนาดไฟล์ห้ามเกิน 5MB")
-    url = upload_review_photo(content, file.filename)
-    return {"url": url}
+    try:
+        content = file.file.read()
+        if len(content) > 5 * 1024 * 1024:
+            raise HTTPException(400, "ขนาดไฟล์ห้ามเกิน 5MB")
+        url = upload_review_photo(content, file.filename or "proof.jpg")
+        return {"url": url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: {str(e)}")
 
 @router.post("/request-student-verification")
 def request_student_verification(payload: dict = Body(...),
@@ -318,6 +333,117 @@ def request_student_verification(payload: dict = Body(...),
         "student_id": student_id,
         "department": department
     }
+
+@router.get("/my-upgrade-request")
+def get_my_upgrade_request(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_any_current_user)
+):
+    """ ดึงประวัติคำขอยืนยันสิทธิ์นักศึกษาล่าสุดของผู้ใช้งานปัจจุบัน """
+    req = db.query(UpgradeRequest).filter(
+        UpgradeRequest.user_id == current_user.id
+    ).order_by(UpgradeRequest.created_at.desc()).first()
+
+    if not req:
+        return {"has_request": False, "request": None}
+
+    return {
+        "has_request": True,
+        "request": {
+            "id": req.id,
+            "student_id": req.student_id,
+            "department": req.department,
+            "phone": req.phone,
+            "reason": req.reason,
+            "card_image_url": req.card_image_url,
+            "status": req.status.value,
+            "rejection_reason": req.rejection_reason,
+            "created_at": req.created_at.isoformat() if req.created_at else None,
+        }
+    }
+
+@router.put("/my-upgrade-request")
+def update_my_upgrade_request(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_any_current_user)
+):
+    """ แก้ไขคำขอยืนยันสิทธิ์นักศึกษา (เฉพาะสถานะ pending หรือ rejected) """
+    req = db.query(UpgradeRequest).filter(
+        UpgradeRequest.user_id == current_user.id
+    ).order_by(UpgradeRequest.created_at.desc()).first()
+
+    if not req:
+        raise HTTPException(404, "ไม่พบประวัติคำขอยืนยันสิทธิ์")
+
+    if req.status == UpgradeRequestStatus.approved:
+        raise HTTPException(400, "คำขอนี้ได้รับการอนุมัติแล้ว ไม่สามารถแก้ไขได้")
+
+    student_id = payload.get("student_id")
+    if student_id:
+        clean_student_id = re.sub(r"\D", "", str(student_id))
+        if len(clean_student_id) != 11:
+            raise HTTPException(400, "รหัสนักศึกษาต้องเป็นตัวเลข 11 หลักเท่านั้น (เช่น 67219010003)")
+        req.student_id = clean_student_id
+
+    if "department" in payload and payload["department"]:
+        req.department = payload["department"]
+
+    if "phone" in payload:
+        phone = payload["phone"] or ""
+        if phone:
+            digits_only = re.sub(r"\D", "", phone)
+            if len(digits_only) < 9 or len(digits_only) > 10:
+                raise HTTPException(400, "เบอร์โทรศัพท์ติดต่อต้องเป็นตัวเลข 9-10 หลัก (เช่น 000-000-0000)")
+        req.phone = phone
+
+    if "reason" in payload:
+        req.reason = payload["reason"]
+
+    if "card_image_url" in payload and payload["card_image_url"]:
+        req.card_image_url = payload["card_image_url"]
+
+    # Reset status to pending so admin can re-review
+    req.status = UpgradeRequestStatus.pending
+    req.rejection_reason = None
+    db.commit()
+    db.refresh(req)
+
+    return {
+        "message": "แก้ไขและส่งคำขอยืนยันสิทธิ์ใหม่เรียบร้อยแล้ว",
+        "request": {
+            "id": req.id,
+            "student_id": req.student_id,
+            "department": req.department,
+            "phone": req.phone,
+            "reason": req.reason,
+            "card_image_url": req.card_image_url,
+            "status": req.status.value,
+            "rejection_reason": req.rejection_reason,
+            "created_at": req.created_at.isoformat() if req.created_at else None,
+        }
+    }
+
+@router.delete("/my-upgrade-request")
+def delete_my_upgrade_request(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_any_current_user)
+):
+    """ ลบ/ยกเลิกคำขอยืนยันสิทธิ์นักศึกษา (เฉพาะที่ยังไม่อนุมัติ) """
+    req = db.query(UpgradeRequest).filter(
+        UpgradeRequest.user_id == current_user.id
+    ).order_by(UpgradeRequest.created_at.desc()).first()
+
+    if not req:
+        raise HTTPException(404, "ไม่พบประวัติคำขอยืนยันสิทธิ์")
+
+    if req.status == UpgradeRequestStatus.approved:
+        raise HTTPException(400, "คำขอนี้ได้รับการอนุมัติแล้ว ไม่สามารถลบได้")
+
+    db.delete(req)
+    db.commit()
+
+    return {"message": "ลบคำขอยืนยันสิทธิ์เรียบร้อยแล้ว"}
 
 @router.get("/me")
 def get_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):

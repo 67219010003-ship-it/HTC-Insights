@@ -24,6 +24,8 @@ def run_migrations():
             'ALTER TABLE reports ADD COLUMN job_id INT NULL',
             'ALTER TABLE reports ADD COLUMN company_id INT NULL',
             'ALTER TABLE reports ADD COLUMN comment_id INT NULL',
+            'ALTER TABLE community_comments ADD COLUMN status VARCHAR(20) DEFAULT \'pending\'',
+            'ALTER TABLE community_comments ADD COLUMN rejection_reason TEXT NULL',
         ]
         for stmt in statements:
             try:

@@ -418,7 +418,7 @@ export default function CompanyDetailPage() {
       )}
 
       {/* Reviews List */}
-      <div className="space-y-md">
+      <div id="company-reviews-section" className="space-y-md scroll-mt-20">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-xl font-bold text-primary font-headline flex items-center gap-xs">
             <span className="material-symbols-outlined text-secondary">forum</span>
@@ -632,6 +632,7 @@ export default function CompanyDetailPage() {
                   currentPage={reviewPage}
                   totalPages={Math.ceil(reviews.length / reviewsPerPage) || 1}
                   onPageChange={setReviewPage}
+                  scrollTargetId="company-reviews-section"
                 />
               </div>
             )}

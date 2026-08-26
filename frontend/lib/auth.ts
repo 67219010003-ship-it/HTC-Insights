@@ -31,6 +31,13 @@ export const clearToken = () => {
   localStorage.removeItem("htc_role");
   localStorage.removeItem("htc_is_super");
   localStorage.removeItem("htc_user");
+  try {
+    sessionStorage.clear();
+    // Disable Google auto-select for shared computers
+    if ((window as any).google?.accounts?.id?.disableAutoSelect) {
+      (window as any).google.accounts.id.disableAutoSelect();
+    }
+  } catch {}
   window.dispatchEvent(new Event("htc-auth-change"));
 };
 

@@ -4,7 +4,7 @@ from datetime import timedelta
 from database import get_db
 from models import (CommunityPost, CommunityComment, CommunityLike,
                     Report, PostType, User, UserRole)
-from schemas.community import PostCreate, CommentCreate, ReportCreate
+from schemas.community import PostCreate, CommentCreate, CommentUpdate, ReportCreate
 from dependencies import require_student
 from auth import encrypt_identity
 from routers.notifications import create_notification
@@ -49,7 +49,15 @@ def get_my_posts(db: Session = Depends(get_db), current_user: User = Depends(req
 def create_post(data: PostCreate,
                 current_user: User = Depends(require_student),
                 db: Session = Depends(get_db)):
-    """ สร้างกระทู้ถาม-ตอบ หรือแชร์ประสบการณ์ใหม่ (ส่งรอ Admin อนุมัติ) """
+    """ สร้างกระทู้ถาม-ตอบ หรือแชร์ประสบการณ์ใหม่ (จำกัด 6 กระทู้ต่อคน, ส่งรอ Admin อนุมัติ) """
+    # จำกัด 1 บัญชีผู้ใช้โพสต์กระทู้ได้ไม่เกิน 6 กระทู้
+    post_count = db.query(CommunityPost).filter(CommunityPost.user_id == current_user.id).count()
+    if post_count >= 6:
+        raise HTTPException(
+            status_code=400,
+            detail="คุณได้สร้างกระทู้ครบโควตาแล้ว (จำกัดสูงสุด 6 กระทู้ต่อ 1 บัญชีผู้ใช้) หากต้องการตั้งกระทู้ใหม่ กรุณาลบกระทู้เดิมที่ไม่จำเป็นออกก่อนในหน้าโปรไฟล์"
+        )
+
     post_type_enum = PostType(data.type) if data.type in PostType.__members__ else PostType.experience
     anon_enc = encrypt_identity(current_user.id) if data.is_anonymous else None
     post = CommunityPost(
@@ -79,32 +87,86 @@ def create_post(data: PostCreate,
 
     return {"message": "โพสต์สำเร็จ (อยู่ระหว่างรอผู้ดูแลระบบอนุมัติ)", "post_id": post.id}
 
+@router.get("/comments/my")
+@router.get("/my-comments")
+def get_my_comments(db: Session = Depends(get_db), current_user: User = Depends(require_student)):
+    """ ดึงประวัติความคิดเห็นทั้งหมดที่ตนเองเคยเขียนในทุกกระทู้ """
+    comments = db.query(CommunityComment).filter(
+        CommunityComment.user_id == current_user.id
+    ).order_by(CommunityComment.created_at.desc()).all()
+    
+    results = []
+    for c in comments:
+        res = _format_comment(c)
+        res["post_title"] = c.post.title if c.post else "กระทู้ที่ถูกลบ"
+        results.append(res)
+    return results
+
 @router.get("/posts/{post_id}")
 def get_post(post_id: int, db: Session = Depends(get_db),
              current_user: User = Depends(require_student)):
-    """ ดึงรายละเอียดกระทู้ พร้อมรายการความคิดเห็น (Comments) ทั้งหมด """
+    """ ดึงรายละเอียดกระทู้ พร้อมรายการความคิดเห็น (เฉพาะที่ผ่านการอนุมัติ หรือความคิดเห็นของตนเอง) """
     post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
     if not post:
         raise HTTPException(404, "ไม่พบโพสต์")
-    return {**_format_post(post), "comments": [_format_comment(c) for c in post.comments]}
+    
+    if current_user.role == UserRole.admin:
+        filtered_comments = post.comments
+    else:
+        filtered_comments = [
+            c for c in post.comments
+            if (c.status == "approved") or (c.user_id == current_user.id)
+        ]
+        
+    return {**_format_post(post), "comments": [_format_comment(c) for c in filtered_comments]}
 
 @router.post("/posts/{post_id}/comments", status_code=201)
 def add_comment(post_id: int, data: CommentCreate,
                 current_user: User = Depends(require_student),
                 db: Session = Depends(get_db)):
-    """ เพิ่มความคิดเห็นในกระทู้ หรือตอบกลับความคิดเห็นย่อย """
+    """ เพิ่มความคิดเห็นในกระทู้ (จำกัด 1 บัญชี ต่อ 1 ความคิดเห็นต่อกระทู้ และส่งรอ Admin อนุมัติ) """
     post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
     if not post:
         raise HTTPException(404, "ไม่พบโพสต์")
+    
+    # ตรวจสอบว่าเคยแสดงความคิดเห็นในกระทู้นี้แล้วหรือไม่
+    existing_comment = db.query(CommunityComment).filter(
+        CommunityComment.post_id == post_id,
+        CommunityComment.user_id == current_user.id
+    ).first()
+    if existing_comment:
+        raise HTTPException(
+            status_code=400,
+            detail="คุณได้แสดงความคิดเห็นในกระทู้นี้แล้ว (จำกัด 1 บัญชีผู้ใช้ ต่อ 1 ความคิดเห็นต่อกระทู้ ท่านสามารถแก้ไขความคิดเห็นเดิมได้)"
+        )
+    
     anon_enc = encrypt_identity(current_user.id) if data.is_anonymous else None
     comment = CommunityComment(
-        post_id=post_id, user_id=current_user.id,
-        parent_id=data.parent_id, content=data.content,
-        is_anonymous=data.is_anonymous, anon_identity_enc=anon_enc,
+        post_id=post_id,
+        user_id=current_user.id,
+        parent_id=data.parent_id,
+        content=data.content,
+        is_anonymous=data.is_anonymous,
+        anon_identity_enc=anon_enc,
+        status="pending",
     )
     db.add(comment)
     db.commit()
-    return {"message": "คอมเมนต์สำเร็จ"}
+    db.refresh(comment)
+
+    # แจ้งเตือน Admin เมื่อมีความคิดเห็นใหม่รออนุมัติ
+    admins = db.query(User).filter(User.role == UserRole.admin).all()
+    for adm in admins:
+        create_notification(
+            db=db,
+            user_id=adm.id,
+            title="มีความคิดเห็นใหม่ใน Community รอการอนุมัติ",
+            message=f"มีความคิดเห็นใหม่ในกระทู้ '{post.title[:30]}' รอการตรวจสอบจาก Admin",
+            type="info",
+            link="/admin",
+        )
+
+    return {"message": "ส่งความคิดเห็นเรียบร้อยแล้ว (อยู่ระหว่างรอผู้ดูแลระบบตรวจสอบอนุมัติ)", "comment_id": comment.id}
 
 @router.post("/posts/{post_id}/like")
 def toggle_like(post_id: int, current_user: User = Depends(require_student),
@@ -140,11 +202,43 @@ def delete_my_post(post_id: int, current_user: User = Depends(require_student),
     post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="ไม่พบกระทู้ที่ต้องการลบ")
-    if post.user_id != current_user.id and current_user.role not in [UserRole.ADMIN, UserRole.SUPERADMIN]:
+    if post.user_id != current_user.id and current_user.role != UserRole.admin and not current_user.is_super_admin:
         raise HTTPException(status_code=403, detail="คุณไม่มีสิทธิ์ลบกระทู้นี้")
     db.delete(post)
     db.commit()
     return {"message": "ลบกระทู้เรียบร้อยแล้ว"}
+
+@router.put("/comments/{comment_id}")
+def update_comment(comment_id: int, data: CommentUpdate,
+                   current_user: User = Depends(require_student),
+                   db: Session = Depends(get_db)):
+    """ แก้ไขความคิดเห็นของตนเอง (อนุญาตเฉพาะเจ้าของความคิดเห็นเท่านั้น) """
+    comment = db.query(CommunityComment).filter(CommunityComment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="ไม่พบความคิดเห็น")
+    if comment.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="คุณไม่มีสิทธิ์แก้ไขความคิดเห็นของผู้อื่น")
+    comment.content = data.content
+    db.commit()
+    return {"message": "แก้ไขความคิดเห็นเรียบร้อยแล้ว"}
+
+@router.delete("/comments/{comment_id}")
+def delete_comment(comment_id: int,
+                   current_user: User = Depends(require_student),
+                   db: Session = Depends(get_db)):
+    """ ลบความคิดเห็นของตนเอง หรือ Admin ลบความคิดเห็นเพื่อการดูแลระบบ """
+    comment = db.query(CommunityComment).filter(CommunityComment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="ไม่พบความคิดเห็น")
+    if comment.user_id != current_user.id and current_user.role != UserRole.admin and not current_user.is_super_admin:
+        raise HTTPException(status_code=403, detail="คุณไม่มีสิทธิ์ลบความคิดเห็นนี้")
+    
+    # ลบไลก์และรายงานที่เกี่ยวข้องกับคอมเมนต์นี้
+    db.query(CommunityLike).filter(CommunityLike.comment_id == comment_id).delete()
+    db.query(Report).filter(Report.comment_id == comment_id).delete()
+    db.delete(comment)
+    db.commit()
+    return {"message": "ลบความคิดเห็นเรียบร้อยแล้ว"}
 
 def _format_post(post: CommunityPost) -> dict:
     """ ฟังก์ชันแปลงข้อมูลกระทู้ให้อยู่ในรูปแบบ JSON พร้อมซ่อนชื่อเมื่อเลือก Anonymous """
@@ -152,6 +246,7 @@ def _format_post(post: CommunityPost) -> dict:
         "id": post.id, "type": post.type.value if post.type else None,
         "department": post.department, "title": post.title,
         "content": post.content, "is_anonymous": post.is_anonymous,
+        "user_id": post.user_id,
         "author_name": None if post.is_anonymous else post.user.name,
         "author_department": None if post.is_anonymous else post.user.department,
         "like_count": len(post.likes),
@@ -165,11 +260,17 @@ def _format_post(post: CommunityPost) -> dict:
 def _format_comment(comment: CommunityComment) -> dict:
     """ ฟังก์ชันแปลงข้อมูลความคิดเห็นให้อยู่ในรูปแบบ JSON """
     return {
-        "id": comment.id, "content": comment.content,
+        "id": comment.id,
+        "post_id": comment.post_id,
+        "user_id": comment.user_id,
+        "content": comment.content,
         "is_anonymous": comment.is_anonymous,
-        "author_name": None if comment.is_anonymous else comment.user.name,
+        "author_name": None if comment.is_anonymous else (comment.user.name if comment.user else "นักศึกษา"),
         "parent_id": comment.parent_id,
         "is_best_answer": comment.is_best_answer,
-        "like_count": len(comment.likes),
+        "status": comment.status or "pending",
+        "rejection_reason": comment.rejection_reason,
+        "like_count": len(comment.likes) if comment.likes else 0,
         "created_at": to_thai_str(comment.created_at),
     }
+

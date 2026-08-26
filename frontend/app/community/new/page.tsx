@@ -155,15 +155,16 @@ export default function NewPostPage() {
           </div>
         </div>
 
-        {/* Approval Notice Banner */}
+        {/* Approval Notice & Quota Banner */}
         <div className="bg-sky-50 border border-sky-200 text-sky-950 rounded-xl p-3.5 text-xs leading-relaxed flex items-start gap-2.5 shadow-xs">
           <span className="material-symbols-outlined text-secondary text-[20px] shrink-0 mt-0.5">
-            verified_user
+            info
           </span>
           <div className="space-y-0.5">
-            <p className="font-bold text-primary">การตรวจสอบและอนุมัติเนื้อหา</p>
+            <p className="font-bold text-primary">การตรวจสอบและโควตาการตั้งกระทู้</p>
             <p className="text-on-surface-variant text-[11px]">
-              กระทู้ที่ตั้งจะถูกส่งไปยังระบบตรวจสอบของเจ้าหน้าที่ Admin ก่อน เพื่อความปลอดภัยและมารยาทในชุมชน และจะแสดงผลสู่สาธารณะทันทีเมื่อได้รับการอนุมัติ
+              • จำกัดการสร้างกระทู้สูงสุด <strong>6 กระทู้ต่อ 1 บัญชีผู้ใช้</strong> (สามารถลบหรือจัดการกระทู้เดิมได้ในหน้าโปรไฟล์)<br />
+              • กระทู้ใหม่จะส่งไปยังระบบตรวจสอบของเจ้าหน้าที่ Admin ก่อน และจะเผยแพร่อัตโนมัติเมื่อได้รับการอนุมัติ
             </p>
           </div>
         </div>

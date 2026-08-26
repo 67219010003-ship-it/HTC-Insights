@@ -8,6 +8,7 @@ export interface JobData {
   company_name: string;
   company_id?: number;
   department?: string;
+  description?: string;
   location: string;
   work_type?: string;
   allowance_range?: string;
@@ -115,29 +116,14 @@ export default function JobCard({
       {/* Footer info */}
       <div className="mt-3 pt-3 border-t border-outline-variant/20 flex justify-between items-center text-xs text-on-surface-variant">
         <span className="text-[11px] text-on-surface-variant/70 flex items-center gap-1 font-medium">
-          <span className="material-symbols-outlined text-[14px] text-emerald-600">
-            call
+          <span className="material-symbols-outlined text-[13px] text-secondary">
+            work_outline
           </span>
-          กดเพื่อดูช่องทางติดต่อ
+          <span>ตำแหน่งงานฝึกงาน</span>
         </span>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onBookmarkToggle) onBookmarkToggle(job.id);
-          }}
-          className="text-on-surface-variant hover:text-primary transition-colors p-1 rounded-full cursor-pointer"
-          title="บันทึกตำแหน่งงาน"
-        >
-          <span
-            className="material-symbols-outlined text-[20px]"
-            style={{
-              fontVariationSettings: job.is_bookmarked ? "'FILL' 1" : "'FILL' 0",
-            }}
-          >
-            bookmark
-          </span>
-        </button>
+        <span className="text-[11px] text-secondary font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+          ดูรายละเอียด <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+        </span>
       </div>
     </div>
   );

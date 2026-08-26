@@ -53,6 +53,19 @@ export default function PostCard({ post }: PostCardProps) {
     }
   };
 
+  const [copiedShare, setCopiedShare] = useState(false);
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = typeof window !== "undefined" ? `${window.location.origin}/community/${post.id}` : "";
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(url);
+      setCopiedShare(true);
+      setTimeout(() => setCopiedShare(false), 2000);
+    }
+  };
+
   const getTypeBadge = (type: string | null) => {
     switch (type) {
       case "experience":
@@ -99,7 +112,8 @@ export default function PostCard({ post }: PostCardProps) {
             <div className="flex items-center gap-2">
               {post.status === "pending" && (
                 <span className="px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
-                  ⏳ รออนุมัติ
+                  <span className="material-symbols-outlined text-[14px]">schedule</span>
+                  รออนุมัติ
                 </span>
               )}
               <span className={`px-3 py-1 rounded-full font-label-sm text-label-sm font-semibold border ${badge.style}`}>
@@ -141,6 +155,18 @@ export default function PostCard({ post }: PostCardProps) {
                 <span className="material-symbols-outlined text-[20px]">forum</span>
                 <span className="font-label-md text-label-md font-medium">{post.comment_count}</span>
               </div>
+
+              <button
+                type="button"
+                onClick={handleShare}
+                className="flex items-center gap-1 text-xs text-slate-500 hover:text-secondary hover:bg-secondary/5 font-medium px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                title="แชร์กระทู้นี้"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {copiedShare ? "check" : "share"}
+                </span>
+                <span>{copiedShare ? "คัดลอกลิงก์แล้ว!" : "แชร์"}</span>
+              </button>
 
               <button
                 type="button"

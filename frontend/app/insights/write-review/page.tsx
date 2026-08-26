@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { getToken, isStudent } from "@/lib/auth";
+import { getToken, isStudent, getUser, clearToken } from "@/lib/auth";
 import DepartmentDropdown, { ALL_DEPARTMENTS } from "@/components/DepartmentDropdown";
 import CompanySearchBar, { SelectedCompany } from "@/components/CompanySearchBar";
 
@@ -370,9 +370,7 @@ export default function WriteReviewPage() {
           selectedFiles.forEach((file) => {
             formData.append("files", file);
           });
-          await api.post(`/reviews/${editingReviewId}/photos`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
+          await api.post(`/reviews/${editingReviewId}/photos`, formData);
         } else if (existingPhotos.length === 0) {
           // User cleared all existing photos
           await api.delete(`/reviews/${editingReviewId}/photos`).catch(() => {});
@@ -385,9 +383,7 @@ export default function WriteReviewPage() {
           selectedFiles.forEach((file) => {
             formData.append("files", file);
           });
-          await api.post(`/reviews/${reviewId}/photos`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
+          await api.post(`/reviews/${reviewId}/photos`, formData);
         }
       }
 

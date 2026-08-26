@@ -7,6 +7,7 @@ interface CommunityPaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  scrollTargetId?: string;
 }
 
 export default function CommunityPagination(props: CommunityPaginationProps) {

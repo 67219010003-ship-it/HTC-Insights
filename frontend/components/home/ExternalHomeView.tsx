@@ -274,7 +274,7 @@ export default function ExternalHomeView() {
                     มาตรฐาน สอศ.
                   </div>
                 </div>
-                <div className="text-[11px] text-on-surface-variant">ครอบคลุม 21 แผนกวิชาช่างและเทคโนโลยี/บริหารธุรกิจ</div>
+                <div className="text-[11px] text-on-surface-variant">ครอบคลุม 18 แผนกวิชาช่างและเทคโนโลยี วิทยาลัยเทคนิคหาดใหญ่</div>
               </div>
 
               <div className="bg-gradient-to-br from-[#00677c] via-secondary to-[#003c49] text-white p-md rounded-2xl shadow-lg relative overflow-hidden space-y-2">
@@ -340,7 +340,7 @@ export default function ExternalHomeView() {
       </section>
 
       {/* SECTION 1: สาขาวิชาที่มีในวิทยาลัยเทคนิคหาดใหญ่ (6 departments per page with pagination) */}
-      <section className="max-w-container-max mx-auto px-margin-mobile pt-4">
+      <section id="htc-departments-section" className="max-w-container-max mx-auto px-margin-mobile pt-4 scroll-mt-20">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-2">
           <div className="space-y-1">
             <span className="text-label-md text-secondary font-bold uppercase tracking-wider">
@@ -433,6 +433,7 @@ export default function ExternalHomeView() {
             setDeptPage(p);
           }}
           className="mt-6"
+          scrollTargetId="htc-departments-section"
         />
       </section>
 

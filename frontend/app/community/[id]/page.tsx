@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { isEmployer } from "@/lib/auth";
+import { getToken, getUser, isStudent, isAdmin } from "@/lib/auth";
 import ReportModal from "@/components/ReportModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import Toast from "@/components/Toast";
 import Pagination from "@/components/Pagination";
 
@@ -17,6 +18,23 @@ export default function ThreadDetailPage() {
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6;
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    if (typeof window !== "undefined") return getUser();
+    return null;
+  });
+
+  // Edit / Delete Comment state
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editCommentText, setEditCommentText] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [deleteCommentModal, setDeleteCommentModal] = useState<{
+    isOpen: boolean;
+    commentId: number;
+  }>({
+    isOpen: false,
+    commentId: 0,
+  });
+
   const [toast, setToast] = useState<{ isOpen: boolean; message: string; type: "success" | "error" | "info" }>({
     isOpen: false,
     message: "",
@@ -37,20 +55,15 @@ export default function ThreadDetailPage() {
   });
 
   useEffect(() => {
-    // Check if external user
-    const token = typeof window !== "undefined" ? localStorage.getItem("htc_token") : null;
-    const role = typeof window !== "undefined" ? localStorage.getItem("htc_role") : null;
-    const userStr = typeof window !== "undefined" ? localStorage.getItem("htc_user") : null;
-    let userEmail = "";
-    try {
-      if (userStr) userEmail = JSON.parse(userStr)?.email || "";
-    } catch {}
-
-    const isInternal = role === "admin" || (role === "student" && (!userEmail || userEmail.endsWith("@htc.ac.th")));
-    if (!token || (!isInternal && role === "external")) {
+    const token = getToken();
+    const isStudentUser = isStudent();
+    if (!token || !isStudentUser) {
       router.replace("/");
       return;
     }
+
+    const u = getUser();
+    if (u) setCurrentUser(u);
 
     if (!postId) return;
     api.get(`/community/posts/${postId}`).then((res) => setPost(res.data)).catch(() => {});
@@ -75,6 +88,66 @@ export default function ThreadDetailPage() {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === "string" ? detail : "เกิดข้อผิดพลาดในการส่งความคิดเห็น";
       setToast({ isOpen: true, message: msg, type: "error" });
+    }
+  };
+
+  const handleStartEditComment = (c: any) => {
+    setEditingCommentId(c.id);
+    setEditCommentText(c.content);
+  };
+
+  const handleSaveEditComment = async (commentId: number) => {
+    if (!editCommentText.trim()) return;
+    if (editCommentText.trim().length < 2 || editCommentText.trim().length > 600) {
+      setToast({ isOpen: true, message: "ความคิดเห็นต้องมีความยาวระหว่าง 2 - 600 ตัวอักษร", type: "error" });
+      return;
+    }
+    try {
+      setEditLoading(true);
+      await api.put(`/community/comments/${commentId}`, {
+        content: editCommentText.trim(),
+      });
+      setEditingCommentId(null);
+      setEditCommentText("");
+      const updated = await api.get(`/community/posts/${postId}`);
+      setPost(updated.data);
+      setToast({ isOpen: true, message: "แก้ไขความคิดเห็นเรียบร้อยแล้ว", type: "success" });
+    } catch (err: any) {
+      setToast({ isOpen: true, message: err.response?.data?.detail || "เกิดข้อผิดพลาดในการแก้ไขความคิดเห็น", type: "error" });
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const promptDeleteComment = (commentId: number) => {
+    setDeleteCommentModal({
+      isOpen: true,
+      commentId,
+    });
+  };
+
+  const executeDeleteComment = async () => {
+    const commentId = deleteCommentModal.commentId;
+    setDeleteCommentModal({ isOpen: false, commentId: 0 });
+    try {
+      await api.delete(`/community/comments/${commentId}`);
+      const updated = await api.get(`/community/posts/${postId}`);
+      setPost(updated.data);
+      setToast({ isOpen: true, message: "ลบความคิดเห็นเรียบร้อยแล้ว", type: "success" });
+    } catch (err: any) {
+      setToast({ isOpen: true, message: err.response?.data?.detail || "เกิดข้อผิดพลาดในการลบความคิดเห็น", type: "error" });
+    }
+  };
+
+  const [copiedShare, setCopiedShare] = useState(false);
+
+  const handleShare = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(url);
+      setCopiedShare(true);
+      setToast({ isOpen: true, message: "คัดลอกลิงก์กระทู้เรียบร้อยแล้ว!", type: "success" });
+      setTimeout(() => setCopiedShare(false), 2500);
     }
   };
 
@@ -115,11 +188,22 @@ export default function ThreadDetailPage() {
         <h1 className="text-2xl font-bold text-primary font-headline mb-4 leading-snug">{post.title}</h1>
         <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-line mb-6">{post.content}</p>
 
-        <div className="flex justify-between items-center pt-4 border-t border-outline-variant/20 text-xs">
+        <div className="flex justify-between items-center pt-4 border-t border-outline-variant/20 text-xs flex-wrap gap-2">
           <span className="font-bold text-primary">
             โดย: {post.is_anonymous ? "นักศึกษา HTC (ไม่ระบุชื่อ)" : post.author_name}
           </span>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleShare}
+              className="flex items-center gap-1 text-slate-600 hover:text-secondary font-bold border border-slate-200 hover:bg-secondary/5 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+              title="แชร์กระทู้นี้"
+            >
+              <span className="material-symbols-outlined text-sm">
+                {copiedShare ? "check" : "share"}
+              </span>
+              {copiedShare ? "คัดลอกลิงก์แล้ว" : "แชร์"}
+            </button>
             <button
               type="button"
               onClick={() =>
@@ -148,43 +232,64 @@ export default function ThreadDetailPage() {
       </div>
 
       {/* Add Comment Section */}
-      <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 mb-6 shadow-sm">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-sm font-bold text-primary">เขียนความคิดเห็น (2 - 600 ตัวอักษร)</h3>
-          <span className={`text-[11px] font-bold ${comment.trim().length >= 2 && comment.length <= 600 ? 'text-emerald-600' : 'text-on-surface-variant'}`}>
-            {comment.length}/600
-          </span>
-        </div>
-        <textarea
-          rows={3}
-          minLength={2}
-          maxLength={600}
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="พิมพ์ข้อความตอบกลับ..."
-          className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm mb-3 focus:outline-none focus:border-secondary"
-        />
-        <div className="flex justify-between items-center">
-          <label className="flex items-center gap-2 text-xs text-on-surface-variant cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isAnonymous}
-              onChange={(e) => setIsAnonymous(e.target.checked)}
-              className="rounded text-secondary focus:ring-secondary"
+      <div id="comments-section" className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 mb-6 shadow-sm">
+        {post.comments?.some((c: any) => currentUser?.id && c.user_id === currentUser.id) ? (
+          <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+              <span className="material-symbols-outlined text-secondary text-[20px]">info</span>
+              <span>คุณได้แสดงความคิดเห็นในกระทู้นี้แล้ว (จำกัด 1 ความคิดเห็นต่อกระทู้ เพื่อให้ทุกคนมีส่วนร่วมอย่างเท่าเทียม)</span>
+            </div>
+            {post.comments.find((c: any) => currentUser?.id && c.user_id === currentUser.id) && (
+              <button
+                type="button"
+                onClick={() => handleStartEditComment(post.comments.find((c: any) => currentUser?.id && c.user_id === currentUser.id))}
+                className="px-3 py-1.5 bg-secondary text-on-secondary rounded-lg text-xs font-bold hover:bg-secondary/90 shrink-0 transition-all cursor-pointer flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[14px]">edit</span>
+                แก้ไขความคิดเห็นของคุณ
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-sm font-bold text-primary">เขียนความคิดเห็น (2 - 600 ตัวอักษร)</h3>
+              <span className={`text-[11px] font-bold ${comment.trim().length >= 2 && comment.length <= 600 ? 'text-emerald-600' : 'text-on-surface-variant'}`}>
+                {comment.length}/600
+              </span>
+            </div>
+            <textarea
+              rows={3}
+              minLength={2}
+              maxLength={600}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="พิมพ์ข้อความตอบกลับ (ส่งให้ผู้ดูแลระบบตรวจสอบอนุมัติก่อนเผยแพร่)..."
+              className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm mb-3 focus:outline-none focus:border-secondary"
             />
-            ตอบแบบไม่ระบุชื่อ
-          </label>
-          <button
-            onClick={handleAddComment}
-            className="px-5 py-2 bg-secondary text-on-secondary rounded-xl text-xs font-bold hover:bg-secondary/90 shadow-sm transition-all cursor-pointer"
-          >
-            ส่งความคิดเห็น
-          </button>
-        </div>
+            <div className="flex justify-between items-center">
+              <label className="flex items-center gap-2 text-xs text-on-surface-variant cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAnonymous}
+                  onChange={(e) => setIsAnonymous(e.target.checked)}
+                  className="rounded text-secondary focus:ring-secondary"
+                />
+                ตอบแบบไม่ระบุชื่อ
+              </label>
+              <button
+                onClick={handleAddComment}
+                className="px-5 py-2 bg-secondary text-on-secondary rounded-xl text-xs font-bold hover:bg-secondary/90 shadow-sm transition-all cursor-pointer"
+              >
+                ส่งความคิดเห็น
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Comments List */}
-      <div className="space-y-3">
+      <div id="comments-section" className="space-y-3 scroll-mt-20">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-sm font-bold text-primary">
             ความคิดเห็น ({post.comments?.length || 0})
@@ -203,35 +308,126 @@ export default function ThreadDetailPage() {
           <>
             {post.comments
               .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-              .map((c: any) => (
-                <div key={c.id} className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/20 text-sm space-y-1">
-                  <div className="flex justify-between items-center text-xs text-on-surface-variant mb-1">
-                    <span className="font-bold text-primary">
-                      {c.is_anonymous ? "นักศึกษาไม่ระบุชื่อ" : c.author_name || "นักศึกษา"}
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <span>{c.created_at}</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setReportModal({
-                            isOpen: true,
-                            targetType: "comment",
-                            targetId: c.id,
-                            title: "รายงานความคิดเห็น",
-                          })
-                        }
-                        className="text-slate-400 hover:text-amber-600 flex items-center gap-0.5 text-[11px] font-medium transition-colors cursor-pointer"
-                        title="รายงานความคิดเห็นนี้"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">flag</span>
-                        รายงานความคิดเห็น
-                      </button>
+              .map((c: any) => {
+                const isOwner = Boolean(currentUser?.id && c.user_id === currentUser.id);
+                const isAdm = isAdmin();
+                const canDelete = Boolean(isOwner || isAdm);
+                const isEditingThis = editingCommentId === c.id;
+
+                return (
+                  <div key={c.id} className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/20 text-sm space-y-2">
+                    <div className="flex justify-between items-center text-xs text-on-surface-variant mb-1 flex-wrap gap-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-primary">
+                          {c.is_anonymous ? "นักศึกษาไม่ระบุชื่อ" : c.author_name || "นักศึกษา"}
+                        </span>
+                        {isOwner && (
+                          <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] rounded-md font-bold">
+                            คุณ
+                          </span>
+                        )}
+                        {c.status === "pending" && (
+                          <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-300 text-[10px] rounded-md font-bold inline-flex items-center gap-0.5">
+                            <span className="material-symbols-outlined text-[12px] text-amber-700">schedule</span>
+                            รอการอนุมัติ
+                          </span>
+                        )}
+                        {c.status === "rejected" && (
+                          <span className="px-2 py-0.5 bg-rose-50 text-rose-800 border border-rose-300 text-[10px] rounded-md font-bold inline-flex items-center gap-0.5">
+                            <span className="material-symbols-outlined text-[12px] text-rose-700">cancel</span>
+                            ถูกปฏิเสธ{c.rejection_reason ? `: ${c.rejection_reason}` : ""}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span>{c.created_at}</span>
+                        {(isOwner || canDelete) && (
+                          <div className="flex items-center gap-1.5 border-l border-outline-variant/30 pl-2">
+                            {isOwner && (
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditComment(c)}
+                                className="text-secondary hover:underline flex items-center gap-0.5 text-[11px] font-bold cursor-pointer"
+                                title="แก้ไขความคิดเห็นของคุณ"
+                              >
+                                <span className="material-symbols-outlined text-[13px]">edit</span>
+                                แก้ไข
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                type="button"
+                                onClick={() => promptDeleteComment(c.id)}
+                                className="text-rose-600 hover:underline flex items-center gap-0.5 text-[11px] font-bold cursor-pointer"
+                                title={isAdm && !isOwner ? "ลบความคิดเห็นในฐานะผู้ดูแลระบบ" : "ลบความคิดเห็นของคุณ"}
+                              >
+                                <span className="material-symbols-outlined text-[13px]">delete</span>
+                                ลบ
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReportModal({
+                              isOpen: true,
+                              targetType: "comment",
+                              targetId: c.id,
+                              title: "รายงานความคิดเห็น",
+                            })
+                          }
+                          className="text-slate-400 hover:text-amber-600 flex items-center gap-0.5 text-[11px] font-medium transition-colors cursor-pointer"
+                          title="รายงานความคิดเห็นนี้"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">flag</span>
+                          รายงาน
+                        </button>
+                      </div>
                     </div>
+
+                    {isEditingThis ? (
+                      <div className="space-y-2 pt-1">
+                        <textarea
+                          rows={2}
+                          minLength={2}
+                          maxLength={600}
+                          value={editCommentText}
+                          onChange={(e) => setEditCommentText(e.target.value)}
+                          className="w-full p-2.5 bg-surface-container-low border border-secondary/50 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-secondary"
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-on-surface-variant">
+                            {editCommentText.length}/600 ตัวอักษร
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingCommentId(null);
+                                setEditCommentText("");
+                              }}
+                              className="px-3 py-1.5 bg-surface-container text-on-surface-variant hover:bg-surface-container-high rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              ยกเลิก
+                            </button>
+                            <button
+                              type="button"
+                              disabled={editLoading}
+                              onClick={() => handleSaveEditComment(c.id)}
+                              className="px-3 py-1.5 bg-secondary text-white hover:bg-secondary/90 rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                            >
+                              {editLoading ? "กำลังบันทึก..." : "บันทึก"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-on-surface leading-relaxed whitespace-pre-line">{c.content}</p>
+                    )}
                   </div>
-                  <p className="text-on-surface leading-relaxed">{c.content}</p>
-                </div>
-              ))}
+                );
+              })}
 
             {/* Comments Pagination */}
             {post.comments.length > pageSize && (
@@ -240,12 +436,24 @@ export default function ThreadDetailPage() {
                   currentPage={currentPage}
                   totalPages={Math.ceil(post.comments.length / pageSize) || 1}
                   onPageChange={setCurrentPage}
+                  scrollTargetId="comments-section"
                 />
               </div>
             )}
           </>
         )}
       </div>
+
+      {/* Delete Comment Confirm Modal */}
+      <ConfirmModal
+        isOpen={deleteCommentModal.isOpen}
+        title="ยืนยันการลบความคิดเห็น"
+        message="คุณแน่ใจหรือไม่ว่าต้องการลบความคิดเห็นนี้? การกระทำนี้ไม่สามารถย้อนกลับได้"
+        type="danger"
+        confirmText="ยืนยันลบความคิดเห็น"
+        onConfirm={executeDeleteComment}
+        onClose={() => setDeleteCommentModal({ isOpen: false, commentId: 0 })}
+      />
 
       {/* Report Modal */}
       <ReportModal
@@ -266,3 +474,4 @@ export default function ThreadDetailPage() {
     </div>
   );
 }
+

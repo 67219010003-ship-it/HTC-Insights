@@ -6,7 +6,7 @@ export interface AdminDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   item: {
-    type: "review" | "post" | "job" | "upgrade" | "report" | "employer";
+    type: "review" | "post" | "job" | "upgrade" | "report" | "employer" | "comment";
     title?: string;
     data: any;
   } | null;
@@ -33,6 +33,7 @@ export default function AdminDetailModal({
               <span className="material-symbols-outlined text-secondary text-[24px]">
                 {type === "review" && "rate_review"}
                 {type === "post" && "forum"}
+                {type === "comment" && "chat"}
                 {type === "job" && "work"}
                 {type === "upgrade" && "school"}
                 {type === "report" && "flag"}
@@ -41,6 +42,7 @@ export default function AdminDetailModal({
               <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">
                 {type === "review" && "รายละเอียดรีวิวฉบับเต็ม"}
                 {type === "post" && "เนื้อหากระทู้ฉบับเต็ม"}
+                {type === "comment" && "รายละเอียดความคิดเห็น"}
                 {type === "job" && "รายละเอียดประกาศงานฉบับเต็ม"}
                 {type === "upgrade" && "คำขอยืนยันสิทธิ์นักศึกษา"}
                 {type === "report" && "รายละเอียดรายงานความไม่เหมาะสม"}
@@ -48,7 +50,7 @@ export default function AdminDetailModal({
               </span>
             </div>
             <h3 className="text-lg sm:text-xl font-bold text-primary font-headline">
-              {item.title || data.title || data.company_name || "รายละเอียดข้อมูล"}
+              {item.title || data.title || data.company_name || data.post_title || "รายละเอียดข้อมูล"}
             </h3>
           </div>
           <button
@@ -186,15 +188,37 @@ export default function AdminDetailModal({
             </div>
           )}
 
+          {/* 2.1 COMMENT DETAIL */}
+          {type === "comment" && (
+            <div className="space-y-4">
+              <div className="bg-surface-container-low p-3.5 rounded-2xl border border-outline-variant/30 flex items-center justify-between flex-wrap gap-2 text-xs">
+                <div>ผู้แสดงความคิดเห็น: <strong className="text-primary">{data.author_name || "นักศึกษา"}</strong> ({data.author_email || "-"})</div>
+                <div>กระทู้ที่ตอบกลับ: <strong className="text-secondary">{data.post_title || "กระทู้"}</strong></div>
+                <div>วันที่: <span className="font-mono">{data.created_at || "-"}</span></div>
+              </div>
+
+              <div className="space-y-1.5">
+                <h4 className="font-bold text-primary text-xs">ข้อความความคิดเห็น:</h4>
+                <p className="p-4 bg-white rounded-2xl border border-outline-variant/40 leading-relaxed whitespace-pre-wrap text-on-surface">
+                  {data.content}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* 3. JOB DETAIL */}
           {type === "job" && (
             <div className="space-y-4">
               <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant/30 space-y-2 text-xs">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div>สถานประกอบการ: <strong className="text-primary">{data.employer_name || data.company_name}</strong></div>
-                  <div>สถานที่ตั้ง: {data.location || "-"}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>สถานประกอบการ: <strong className="text-primary font-bold">{data.employer_name || data.company_name}</strong></div>
+                  <div>อีเมลผู้ลงประกาศ: <span className="font-mono text-primary font-bold">{data.employer_email || data.email || "-"}</span></div>
+                  <div>เบอร์โทรศัพท์ติดต่อ: <strong className="text-on-surface">{data.phone || data.employer_phone || "-"}</strong></div>
+                  <div>LINE ID: <strong className="text-on-surface font-mono">{data.line_id || "-"}</strong></div>
+                  <div>ผู้ประสานงาน / HR: <strong className="text-on-surface">{data.contact_person || "-"}</strong></div>
                   <div>แผนกวิชาที่เปิดรับ: <strong className="text-secondary">{data.department || "ทุกแผนกวิชา"}</strong></div>
                   <div>เบี้ยเลี้ยง: {data.daily_allowance ? `${data.daily_allowance} บาท/วัน` : "ไม่มีเบี้ยเลี้ยง"}</div>
+                  <div>สถานที่ตั้ง: {data.location || "-"}</div>
                 </div>
               </div>
 

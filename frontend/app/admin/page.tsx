@@ -38,9 +38,28 @@ interface AdminReview {
 interface AdminPost {
   id: number;
   author_name: string;
+  author_email?: string;
+  author_department?: string;
+  is_anonymous?: boolean;
   type: string;
+  department?: string;
   title: string;
   content: string;
+  status: string;
+  rejection_reason?: string;
+  created_at: string;
+}
+
+interface AdminComment {
+  id: number;
+  post_id: number;
+  post_title?: string;
+  user_id: number;
+  author_name: string;
+  author_email?: string;
+  author_department?: string;
+  content: string;
+  is_anonymous?: boolean;
   status: string;
   rejection_reason?: string;
   created_at: string;
@@ -50,6 +69,15 @@ interface AdminJob {
   id: number;
   title: string;
   employer_name: string;
+  employer_email?: string;
+  employer_phone?: string;
+  company_name?: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+  line_id?: string;
+  department?: string;
+  daily_allowance?: number;
   description: string;
   location: string | null;
   status: string;
@@ -99,9 +127,9 @@ interface AuditLogItem {
   created_at: string;
 }
 
-type ItemType = "review" | "post" | "job" | "upgrade";
+type ItemType = "review" | "post" | "job" | "upgrade" | "comment";
 type TabType = "moderation" | "all_reviews" | "all_posts" | "all_jobs" | "reports" | "audit";
-type ModerationCategory = "all" | "review" | "post" | "job" | "upgrade";
+type ModerationCategory = "all" | "review" | "post" | "job" | "upgrade" | "comment";
 
 interface RejectTarget {
   type: ItemType;
@@ -131,6 +159,7 @@ export default function AdminDashboardPage() {
   // Lists for moderation and management
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [posts, setPosts] = useState<AdminPost[]>([]);
+  const [comments, setComments] = useState<AdminComment[]>([]);
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [pendingUpgrades, setPendingUpgrades] = useState<PendingUpgrade[]>([]);
   const [pendingReports, setPendingReports] = useState<PendingReport[]>([]);
@@ -146,7 +175,7 @@ export default function AdminDashboardPage() {
   const pageSize = 6;
 
   // Modals & Action status
-  const [detailModalItem, setDetailModalItem] = useState<{ type: "review" | "post" | "job" | "upgrade" | "report" | "employer"; title?: string; data: any } | null>(null);
+  const [detailModalItem, setDetailModalItem] = useState<{ type: "review" | "post" | "job" | "upgrade" | "report" | "employer" | "comment"; title?: string; data: any } | null>(null);
   const [rejectTarget, setRejectTarget] = useState<RejectTarget | null>(null);
   const [revealTargetId, setRevealTargetId] = useState<number | null>(null);
   const [rejecting, setRejecting] = useState(false);
@@ -158,7 +187,7 @@ export default function AdminDashboardPage() {
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, reviewsRes, postsRes, jobsRes, upgradesRes, reportsRes, logsRes] = await Promise.all([
+      const [statsRes, reviewsRes, postsRes, jobsRes, upgradesRes, reportsRes, logsRes, commentsRes] = await Promise.all([
         api.get("/admin/stats"),
         api.get("/admin/reviews?status=all"),
         api.get("/admin/posts"),
@@ -166,6 +195,7 @@ export default function AdminDashboardPage() {
         api.get("/admin/upgrades?status=pending"),
         api.get("/admin/reports?status=pending"),
         api.get("/admin/audit-logs"),
+        api.get("/admin/comments"),
       ]);
 
       setStats(statsRes.data);
@@ -175,6 +205,7 @@ export default function AdminDashboardPage() {
       setPendingUpgrades(upgradesRes.data || []);
       setPendingReports((reportsRes.data || []).filter((r: any) => r.status === "pending" || !r.status));
       setAuditLogs(logsRes.data || []);
+      setComments(commentsRes.data || []);
     } catch (err) {
       console.error("Failed to load admin data:", err);
       setMsg({ text: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์หรือโหลดข้อมูลได้", isError: true });
@@ -199,6 +230,7 @@ export default function AdminDashboardPage() {
     let url = "";
     if (type === "review") url = `/admin/reviews/${id}/approve`;
     else if (type === "post") url = `/admin/posts/${id}`;
+    else if (type === "comment") url = `/admin/comments/${id}`;
     else if (type === "job") url = `/admin/jobs/${id}`;
     else if (type === "upgrade") url = `/admin/upgrades/${id}`;
 
@@ -222,6 +254,7 @@ export default function AdminDashboardPage() {
     let url = "";
     if (type === "review") url = `/admin/reviews/${id}`;
     else if (type === "post") url = `/admin/posts/${id}`;
+    else if (type === "comment") url = `/admin/comments/${id}`;
     else if (type === "job") url = `/admin/jobs/${id}`;
     else if (type === "upgrade") url = `/admin/upgrades/${id}`;
 
@@ -238,14 +271,19 @@ export default function AdminDashboardPage() {
   };
 
   // Admin Deletion Function
-  const handleDelete = async (type: "review" | "post" | "job", id: number) => {
-    const typeNames = { review: "รีวิว", post: "กระทู้", job: "ประกาศงาน" };
+  const handleDelete = async (type: "review" | "post" | "job" | "comment", id: number) => {
+    const typeNames = { review: "รีวิว", post: "กระทู้", job: "ประกาศงาน", comment: "ความคิดเห็น" };
     if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${typeNames[type]} นี้อย่างถาวรจากฐานข้อมูล?`)) {
       return;
     }
     setDeleting({ type, id });
     try {
-      const res = await api.delete(`/admin/${type}s/${id}`);
+      let res;
+      if (type === "comment") {
+        res = await api.delete(`/community/comments/${id}`);
+      } else {
+        res = await api.delete(`/admin/${type}s/${id}`);
+      }
       setMsg({ text: res.data.message || "ลบข้อมูลออกจากระบบสำเร็จ" });
       fetchDashboardData();
     } catch (err: any) {
@@ -281,6 +319,12 @@ export default function AdminDashboardPage() {
         return { label: "ลบกระทู้โดยแอดมิน", color: "bg-red-50 text-red-800 border-red-200" };
       case "delete_job":
         return { label: "ลบงานโดยแอดมิน", color: "bg-red-50 text-red-800 border-red-200" };
+      case "approve_comment":
+        return { label: "อนุมัติความคิดเห็น", color: "bg-emerald-50 text-emerald-800 border-emerald-200" };
+      case "reject_comment":
+        return { label: "ปฏิเสธความคิดเห็น", color: "bg-rose-50 text-rose-800 border-rose-200" };
+      case "delete_comment":
+        return { label: "ลบความคิดเห็นโดยแอดมิน", color: "bg-red-50 text-red-800 border-red-200" };
       case "reveal_anonymous":
         return { label: "ถอดรหัสตัวตนจริง", color: "bg-amber-50 text-amber-800 border-amber-200" };
       case "approve_post":
@@ -308,8 +352,9 @@ export default function AdminDashboardPage() {
 
   const pendingReviews = reviews.filter((r) => r.status === "pending");
   const pendingPosts = posts.filter((p) => p.status === "pending");
+  const pendingComments = comments.filter((c) => c.status === "pending");
   const pendingJobs = jobs.filter((j) => j.status === "pending");
-  const totalPending = pendingReviews.length + pendingPosts.length + pendingJobs.length + pendingUpgrades.length;
+  const totalPending = pendingReviews.length + pendingPosts.length + pendingComments.length + pendingJobs.length + pendingUpgrades.length;
 
   // Filtered Reviews
   const filteredReviews = reviews.filter((r) => {
@@ -363,6 +408,7 @@ export default function AdminDashboardPage() {
   const filteredModList = [
     ...pendingReviews.map((r) => ({ type: "review" as const, data: r, id: `rev-${r.id}` })),
     ...pendingPosts.map((p) => ({ type: "post" as const, data: p, id: `post-${p.id}` })),
+    ...pendingComments.map((c) => ({ type: "comment" as const, data: c, id: `comm-${c.id}` })),
     ...pendingJobs.map((j) => ({ type: "job" as const, data: j, id: `job-${j.id}` })),
     ...pendingUpgrades.map((u) => ({ type: "upgrade" as const, data: u, id: `upg-${u.id}` })),
   ].filter((item) => modCategory === "all" || item.type === modCategory);
@@ -561,6 +607,16 @@ export default function AdminDashboardPage() {
                       }`}
                     >
                       กระทู้ ({pendingPosts.length})
+                    </button>
+                    <button
+                      onClick={() => { setModCategory("comment"); setPageMod(1); }}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-label-md transition-all cursor-pointer ${
+                        modCategory === "comment"
+                          ? "bg-primary text-on-primary"
+                          : "bg-surface-container-lowest border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low"
+                      }`}
+                    >
+                      ความคิดเห็น ({pendingComments.length})
                     </button>
                     <button
                       onClick={() => { setModCategory("job"); setPageMod(1); }}
@@ -787,8 +843,16 @@ export default function AdminDashboardPage() {
                                 <p className="text-xs text-on-surface-variant bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 leading-relaxed line-clamp-3">
                                   {post.content}
                                 </p>
-                                <div className="text-xs text-on-surface-variant">
-                                  โพสต์โดย: <strong className="text-on-surface">{post.author_name}</strong>
+                                <div className="text-xs text-on-surface-variant bg-surface-container-low/50 p-2.5 rounded-xl border border-outline-variant/20 space-y-0.5">
+                                  <p>
+                                    โพสต์โดย: <strong className="text-on-surface">{post.author_name}</strong>
+                                    {post.author_email && (
+                                      <span className="font-mono text-primary font-bold ml-1.5">({post.author_email})</span>
+                                    )}
+                                  </p>
+                                  {post.author_department && (
+                                    <p className="text-[11px]">แผนก: <strong>{post.author_department}</strong></p>
+                                  )}
                                 </div>
                               </div>
 
@@ -833,6 +897,94 @@ export default function AdminDashboardPage() {
                           );
                         }
 
+                        if (modItem.type === "comment") {
+                          const comm = modItem.data as AdminComment;
+                          return (
+                            <div
+                              key={`comm-${comm.id}`}
+                              className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all space-y-3.5 flex flex-col justify-between"
+                            >
+                              <div className="space-y-2.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-sky-50 text-sky-800 border border-sky-200">
+                                    ความคิดเห็นในกระทู้
+                                  </span>
+                                  {comm.is_anonymous ? (
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                      ไม่ระบุชื่อ
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-container text-on-surface-variant">
+                                      ระบุชื่อ
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-on-surface-variant font-mono">
+                                    {comm.created_at || "-"}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[11px] text-on-surface-variant block">ตอบกลับในกระทู้:</span>
+                                  <h4 className="text-sm font-bold font-headline-sm text-primary line-clamp-1">
+                                    {comm.post_title || "กระทู้ในคอมมูนิตี้"}
+                                  </h4>
+                                </div>
+                                <p className="text-xs text-on-surface bg-surface-container-low/50 p-3 rounded-xl border border-outline-variant/20 leading-relaxed line-clamp-4 whitespace-pre-wrap">
+                                  {comm.content}
+                                </p>
+                                <div className="text-xs text-on-surface-variant space-y-0.5">
+                                  <p>
+                                    ผู้เขียน: <strong className="text-primary font-bold">{comm.author_name}</strong>
+                                    {comm.author_email && (
+                                      <span className="font-mono text-primary font-bold ml-1.5">({comm.author_email})</span>
+                                    )}
+                                  </p>
+                                  {comm.author_department && (
+                                    <p className="text-[11px]">แผนก: <strong>{comm.author_department}</strong></p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDetailModalItem({
+                                      type: "comment",
+                                      title: `ความคิดเห็นในกระทู้: ${comm.post_title || ""}`,
+                                      data: comm,
+                                    })
+                                  }
+                                  className="px-3.5 py-2 rounded-xl border border-outline-variant/60 bg-surface-container-low hover:bg-surface-container text-primary text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                                >
+                                  <span className="material-symbols-outlined text-[16px] text-secondary">visibility</span>
+                                  ดูฉบับเต็ม
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    setRejectTarget({
+                                      type: "comment",
+                                      id: comm.id,
+                                      title: `ความคิดเห็นของ ${comm.author_name} ในกระทู้ ${comm.post_title || ""}`,
+                                    })
+                                  }
+                                  className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">close</span>
+                                  ปฏิเสธ
+                                </button>
+                                <button
+                                  onClick={() => handleApprove("comment", comm.id)}
+                                  disabled={actionLoading?.type === "comment" && actionLoading?.id === comm.id}
+                                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">check</span>
+                                  อนุมัติความคิดเห็น
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
                         if (modItem.type === "job") {
                           const job = modItem.data as AdminJob;
                           return (
@@ -852,13 +1004,29 @@ export default function AdminDashboardPage() {
                                 <h4 className="text-base font-bold font-headline-sm text-primary">
                                   {job.title}
                                 </h4>
-                                <div className="text-xs text-on-surface-variant flex items-center gap-2 flex-wrap">
-                                  <span className="font-bold text-on-surface">{job.employer_name}</span>
-                                  {job.location && (
-                                    <span className="flex items-center gap-0.5 text-on-surface-variant">
-                                      <span className="material-symbols-outlined text-[14px]">location_on</span>
-                                      {job.location}
-                                    </span>
+                                <div className="text-xs space-y-1 text-on-surface-variant bg-surface-container-low/50 p-3 rounded-xl border border-outline-variant/20">
+                                  <p>
+                                    สถานประกอบการ: <strong className="text-primary font-bold">{job.employer_name}</strong>
+                                  </p>
+                                  <p>
+                                    อีเมลผู้ลงประกาศ: <strong className="text-on-surface font-mono">{job.employer_email || job.email || "-"}</strong>
+                                  </p>
+                                  {(job.phone || job.employer_phone) && (
+                                    <p>
+                                      เบอร์โทรศัพท์: <strong className="text-on-surface">{job.phone || job.employer_phone}</strong>
+                                      {job.line_id && <span className="ml-2 font-mono">LINE: <strong>{job.line_id}</strong></span>}
+                                    </p>
+                                  )}
+                                  {job.contact_person && (
+                                    <p>
+                                      ผู้ติดต่อ/HR: <strong className="text-on-surface">{job.contact_person}</strong>
+                                    </p>
+                                  )}
+                                  {job.department && (
+                                    <p>
+                                      แผนกวิชา: <strong className="text-secondary">{job.department}</strong>
+                                      {job.daily_allowance ? <span className="ml-2">เบี้ยเลี้ยง: <strong>฿{job.daily_allowance}/วัน</strong></span> : null}
+                                    </p>
                                   )}
                                 </div>
                                 <p className="text-xs text-on-surface-variant bg-surface-container-low/40 p-3 rounded-xl border border-outline-variant/20 leading-relaxed line-clamp-3">
@@ -1248,7 +1416,10 @@ export default function AdminDashboardPage() {
                               {post.title}
                             </td>
                             <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant">
-                              {post.author_name}
+                              <div className="font-semibold text-on-surface">{post.author_name}</div>
+                              {post.author_email && (
+                                <div className="text-[10px] font-mono text-primary font-bold">{post.author_email}</div>
+                              )}
                             </td>
                             <td className="py-3 px-3 text-on-surface max-w-sm truncate">
                               {post.content}
@@ -1368,7 +1539,7 @@ export default function AdminDashboardPage() {
                         <tr className="border-b border-outline-variant/40 bg-surface-container-low/60 font-bold font-label-md text-on-surface">
                           <th className="py-3.5 px-3">วัน/เวลา</th>
                           <th className="py-3.5 px-3">ตำแหน่งงาน</th>
-                          <th className="py-3.5 px-3">สถานประกอบการ</th>
+                          <th className="py-3.5 px-3">สถานประกอบการ / ผู้ลงประกาศ</th>
                           <th className="py-3.5 px-3">สถานที่ปฏิบัติงาน</th>
                           <th className="py-3.5 px-3">สถานะ</th>
                           <th className="py-3.5 px-3 text-right">ดำเนินการ</th>
@@ -1384,7 +1555,13 @@ export default function AdminDashboardPage() {
                               {job.title}
                             </td>
                             <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant">
-                              {job.employer_name}
+                              <div className="font-bold text-on-surface">{job.employer_name}</div>
+                              <div className="text-[10px] font-mono text-primary font-bold">
+                                {job.employer_email || job.email || "-"}
+                              </div>
+                              {job.phone && (
+                                <div className="text-[10px] text-on-surface-variant">โทร: {job.phone}</div>
+                              )}
                             </td>
                             <td className="py-3 px-3 text-on-surface whitespace-nowrap">
                               {job.location || "-"}

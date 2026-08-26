@@ -46,11 +46,7 @@ export default function StudentVerificationModal({
       // 1. Upload proof file to backend/cloudinary
       const formData = new FormData();
       formData.append("file", cardFile);
-      const uploadRes = await api.post("/auth/upload-proof", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const uploadRes = await api.post("/auth/upload-proof", formData);
       const cardImageUrl = uploadRes.data.url;
 
       // 2. Submit request with card_image_url

@@ -146,8 +146,8 @@ function InsightsPageContent() {
           onReset={handleResetFilters}
         />
 
-        {/* Company Grid & Search Controls */}
-        <div className="flex-1 space-y-6">
+        {/* Right Main Content (75% on Desktop) */}
+        <div id="insights-companies-section" className="flex-1 space-y-6 scroll-mt-20">
           {/* Top Search Bar & Controls */}
           <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:w-96">
@@ -208,6 +208,7 @@ function InsightsPageContent() {
             currentPage={page}
             totalPages={totalPages}
             onPageChange={setPage}
+            scrollTargetId="insights-companies-section"
           />
         </div>
       </div>

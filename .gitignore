@@ -20,6 +20,10 @@ backend/.venv/
 backend/venv/
 backend/env/
 backend/*.db
+backend/seed_*.py
+backend/mock_*.py
+backend/test_*.py
+backend/scripts/mock/
 
 # Node / Frontend
 frontend/node_modules/

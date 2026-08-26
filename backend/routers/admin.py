@@ -1,8 +1,9 @@
+import re
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from database import get_db
-from models import (Review, Employer, ReviewStatus, AuditLog, User, UserRole,
+from models import (Review, Employer, Company, ReviewStatus, AuditLog, User, UserRole,
                     JobPosting, CommunityPost, CommunityComment, Report,
                     UpgradeRequest, UpgradeRequestStatus)
 from dependencies import require_admin, require_super_admin
@@ -34,6 +35,7 @@ def get_admin_stats(db: Session = Depends(get_db), admin: User = Depends(require
     
     total_posts = db.query(CommunityPost).count()
     pending_posts = db.query(CommunityPost).filter(CommunityPost.status == "pending").count()
+    pending_comments = db.query(CommunityComment).filter(CommunityComment.status == "pending").count()
     pending_reports = db.query(Report).filter(Report.status == "pending").count()
     pending_upgrades = db.query(UpgradeRequest).filter(UpgradeRequest.status == UpgradeRequestStatus.pending).count()
 
@@ -55,6 +57,7 @@ def get_admin_stats(db: Session = Depends(get_db), admin: User = Depends(require
         "community": {
             "posts": total_posts,
             "pending_posts": pending_posts,
+            "pending_comments": pending_comments,
             "pending_reports": pending_reports,
         },
         "upgrades": {
@@ -211,10 +214,13 @@ def list_admin_posts(status: str = Query(None),
             "id": p.id,
             "user_id": p.user_id,
             "author_name": p.user.name if p.user else "Unknown",
+            "author_email": p.user.email if p.user else "Unknown",
+            "author_department": p.user.department if p.user else None,
             "type": p.type.value if p.type else "qa",
             "department": p.department,
             "title": p.title,
             "content": p.content,
+            "is_anonymous": p.is_anonymous,
             "status": p.status or "pending",
             "rejection_reason": p.rejection_reason,
             "is_pinned": p.is_pinned,
@@ -270,6 +276,86 @@ def update_post_status(post_id: int, payload: dict = Body(...),
                         target_type="post", target_id=post_id))
         db.commit()
         return {"message": "อนุมัติโพสต์สำเร็จ"}
+    else:
+        raise HTTPException(400, "สถานะไม่ถูกต้อง")
+
+# --- 3.1 การจัดการความคิดเห็นชุมชน (Community Comments Moderation) ---
+@router.get("/comments")
+def list_admin_comments(status: str = Query(None),
+                        db: Session = Depends(get_db),
+                        admin: User = Depends(require_admin)):
+    """ ดึงรายการความคิดเห็นในระบบเพื่อการตรวจสอบ """
+    query = db.query(CommunityComment)
+    if status:
+        query = query.filter(CommunityComment.status == status)
+    comments = query.order_by(CommunityComment.created_at.desc()).all()
+    return [
+        {
+            "id": c.id,
+            "post_id": c.post_id,
+            "post_title": c.post.title if c.post else "กระทู้",
+            "user_id": c.user_id,
+            "author_name": c.user.name if c.user else "Unknown",
+            "author_email": c.user.email if c.user else "Unknown",
+            "author_department": c.user.department if c.user else None,
+            "content": c.content,
+            "is_anonymous": c.is_anonymous,
+            "status": c.status or "pending",
+            "rejection_reason": c.rejection_reason,
+            "created_at": to_thai_str(c.created_at),
+        }
+        for c in comments
+    ]
+
+@router.patch("/comments/{comment_id}")
+def update_comment_status(comment_id: int, payload: dict = Body(...),
+                          db: Session = Depends(get_db),
+                          admin: User = Depends(require_admin)):
+    """ อนุมัติหรือปฏิเสธความคิดเห็นในคอมมูนิตี้ """
+    comment = db.query(CommunityComment).filter(CommunityComment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(404, "ไม่พบความคิดเห็น")
+    
+    status_str = payload.get("status")
+    reason = payload.get("rejection_reason") or payload.get("reason")
+    
+    if status_str == "rejected":
+        if not reason or not str(reason).strip():
+            raise HTTPException(400, "ต้องระบุเหตุผลในการปฏิเสธ")
+        comment.status = "rejected"
+        comment.rejection_reason = str(reason).strip()
+        
+        post_title = comment.post.title if comment.post else ""
+        create_notification(
+            db=db,
+            user_id=comment.user_id,
+            title="ความคิดเห็นของคุณถูกปฏิเสธ",
+            message=f"ความคิดเห็นในกระทู้ '{post_title[:30]}' ถูกปฏิเสธเนื่องจาก: {str(reason).strip()}",
+            type="warning",
+            link=f"/community/{comment.post_id}" if comment.post_id else "/community"
+        )
+        db.add(AuditLog(admin_id=admin.id, action="reject_comment",
+                        target_type="comment", target_id=comment_id, reason=str(reason).strip()))
+        db.commit()
+        return {"message": "ปฏิเสธความคิดเห็นสำเร็จ"}
+        
+    elif status_str == "approved":
+        comment.status = "approved"
+        comment.rejection_reason = None
+        
+        post_title = comment.post.title if comment.post else ""
+        create_notification(
+            db=db,
+            user_id=comment.user_id,
+            title="ความคิดเห็นของคุณได้รับการอนุมัติ",
+            message=f"ความคิดเห็นในกระทู้ '{post_title[:30]}' ได้รับการอนุมัติและเผยแพร่แล้ว",
+            type="info",
+            link=f"/community/{comment.post_id}" if comment.post_id else "/community"
+        )
+        db.add(AuditLog(admin_id=admin.id, action="approve_comment",
+                        target_type="comment", target_id=comment_id))
+        db.commit()
+        return {"message": "อนุมัติความคิดเห็นสำเร็จ"}
     else:
         raise HTTPException(400, "สถานะไม่ถูกต้อง")
 
@@ -386,12 +472,49 @@ def list_admin_jobs(status: str = Query(None),
     if status:
         query = query.filter(JobPosting.status == status)
     jobs = query.order_by(JobPosting.created_at.desc()).all()
-    return [
-        {
+    results = []
+    for j in jobs:
+        emp = j.employer
+        emp_name = emp.company_name if emp else "Unknown"
+        emp_email = emp.email if emp else "-"
+        emp_phone = ""
+        comp_name = emp_name
+        contact_person = "ฝ่ายรับสมัครฝึกงาน / HR"
+        line_id = ""
+        
+        if j.company_id:
+            comp = db.query(Company).filter(Company.id == j.company_id).first()
+            if comp:
+                comp_name = comp.name or emp_name
+                if comp.phone:
+                    emp_phone = comp.phone
+
+        desc = j.description or ""
+        if "ผู้ติดต่อ:" in desc:
+            cp_match = re.search(r"ผู้ติดต่อ:\s*([^|\(]+)", desc)
+            if cp_match:
+                contact_person = cp_match.group(1).strip()
+            ph_match = re.search(r"\((0[0-9]{1,2}-[0-9]{3,4}-?[0-9]{3,4}|0[0-9]{8,9})\)", desc)
+            if ph_match and not emp_phone:
+                emp_phone = ph_match.group(1).strip()
+            line_match = re.search(r"LINE:\s*([^|]+)", desc)
+            if line_match:
+                line_id = line_match.group(1).strip()
+                if line_id == "-":
+                    line_id = ""
+
+        results.append({
             "id": j.id,
             "title": j.title,
             "employer_id": j.employer_id,
-            "employer_name": j.employer.company_name if j.employer else "Unknown",
+            "employer_name": emp_name,
+            "employer_email": emp_email,
+            "employer_phone": emp_phone,
+            "company_name": comp_name,
+            "contact_person": contact_person,
+            "phone": emp_phone,
+            "email": emp_email,
+            "line_id": line_id,
             "department": j.department,
             "description": j.description,
             "daily_allowance": j.daily_allowance,
@@ -400,9 +523,8 @@ def list_admin_jobs(status: str = Query(None),
             "status": j.status or "pending",
             "rejection_reason": j.rejection_reason,
             "created_at": to_thai_str(j.created_at),
-        }
-        for j in jobs
-    ]
+        })
+    return results
 
 @router.patch("/jobs/{job_id}")
 def update_job_status(job_id: int, payload: dict = Body(...),
