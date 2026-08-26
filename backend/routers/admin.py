@@ -490,6 +490,7 @@ def list_admin_jobs(status: str = Query(None),
                     emp_phone = comp.phone
 
         desc = j.description or ""
+        contact_email = ""
         if "ผู้ติดต่อ:" in desc:
             cp_match = re.search(r"ผู้ติดต่อ:\s*([^|\(]+)", desc)
             if cp_match:
@@ -497,23 +498,33 @@ def list_admin_jobs(status: str = Query(None),
             ph_match = re.search(r"\((0[0-9]{1,2}-[0-9]{3,4}-?[0-9]{3,4}|0[0-9]{8,9})\)", desc)
             if ph_match and not emp_phone:
                 emp_phone = ph_match.group(1).strip()
+        if "อีเมลติดต่อ:" in desc:
+            em_match = re.search(r"อีเมลติดต่อ:\s*([^|]+)", desc)
+            if em_match:
+                contact_email = em_match.group(1).strip()
+        if "LINE:" in desc:
             line_match = re.search(r"LINE:\s*([^|]+)", desc)
             if line_match:
                 line_id = line_match.group(1).strip()
                 if line_id == "-":
                     line_id = ""
 
+        if not contact_email:
+            contact_email = emp_email
+
         results.append({
             "id": j.id,
             "title": j.title,
             "employer_id": j.employer_id,
             "employer_name": emp_name,
+            "poster_email": emp_email,
             "employer_email": emp_email,
+            "contact_email": contact_email,
             "employer_phone": emp_phone,
             "company_name": comp_name,
             "contact_person": contact_person,
             "phone": emp_phone,
-            "email": emp_email,
+            "email": contact_email,
             "line_id": line_id,
             "department": j.department,
             "description": j.description,

@@ -43,7 +43,8 @@ def _extract_job_details(p: JobPosting, db: Session) -> dict:
     lat = comp.lat if comp and comp.lat else 7.0088
     lng = comp.lng if comp and comp.lng else 100.4747
     phone = comp.phone if comp and comp.phone else ""
-    email = emp.email if emp else ""
+    poster_email = emp.email if emp else ""
+    contact_email = ""
     contact_person = "ฝ่ายรับสมัครฝึกงาน / HR"
     line_id = ""
 
@@ -55,11 +56,19 @@ def _extract_job_details(p: JobPosting, db: Session) -> dict:
         ph_match = re.search(r"\((0[0-9]{1,2}-[0-9]{3,4}-?[0-9]{3,4}|0[0-9]{8,9})\)", desc)
         if ph_match and not phone:
             phone = ph_match.group(1).strip()
+    if "อีเมลติดต่อ:" in desc:
+        em_match = re.search(r"อีเมลติดต่อ:\s*([^|]+)", desc)
+        if em_match:
+            contact_email = em_match.group(1).strip()
+    if "LINE:" in desc:
         line_match = re.search(r"LINE:\s*([^|]+)", desc)
         if line_match:
             line_id = line_match.group(1).strip()
             if line_id == "-":
                 line_id = ""
+
+    if not contact_email:
+        contact_email = poster_email
 
     return {
         "id": p.id,
@@ -92,7 +101,10 @@ def _extract_job_details(p: JobPosting, db: Session) -> dict:
         "latitude": lat,
         "longitude": lng,
         "phone": phone,
-        "email": email,
+        "email": contact_email or poster_email,
+        "contact_email": contact_email or poster_email,
+        "poster_email": poster_email,
+        "employer_email": poster_email,
         "contact_person": contact_person,
         "line_id": line_id,
         "logo_url": logo_url,
@@ -121,18 +133,26 @@ def get_my_job_postings(auth: dict = Depends(get_current_user_or_employer),
             JobPosting.employer_id == auth["id"]
         ).order_by(JobPosting.created_at.desc()).all()
     else:
-        # ค้นหาผ่าน Employer ที่ใช้อีเมลเดียวกันกับ User (แบบ Case-Insensitive)
-        from sqlalchemy import func
+        # ค้นหาผ่าน Employer ที่ใช้อีเมลเดียวกันกับ User (แบบ Case-Insensitive) หรือที่ตรงกับใน JobPosting
+        from sqlalchemy import func, or_
         user_email = (auth.get("email") or "").lower().strip()
         if not user_email:
             return []
         employers = db.query(Employer).filter(func.lower(Employer.email) == user_email).all()
         emp_ids = [e.id for e in employers]
-        if not emp_ids:
-            return []
-        postings = db.query(JobPosting).filter(
-            JobPosting.employer_id.in_(emp_ids)
-        ).order_by(JobPosting.created_at.desc()).all()
+        
+        query = db.query(JobPosting)
+        if emp_ids:
+            query = query.filter(
+                or_(
+                    JobPosting.employer_id.in_(emp_ids),
+                    JobPosting.description.ilike(f"%{user_email}%")
+                )
+            )
+        else:
+            query = query.filter(JobPosting.description.ilike(f"%{user_email}%"))
+            
+        postings = query.order_by(JobPosting.created_at.desc()).all()
 
     return [_extract_job_details(p, db) for p in postings]
 

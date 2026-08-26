@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { api } from "@/lib/api";
+import { getUser } from "@/lib/auth";
 
 interface EmployerRegisterModalProps {
   isOpen: boolean;
@@ -43,10 +44,15 @@ export default function EmployerRegisterModal({
     setErrorMsg("");
     setSuccessMsg("");
 
+    const currentUser = getUser();
+    const posterAccountEmail = currentUser?.email || email.trim();
+    const contactEmail = email.trim();
+
     try {
       await api.post("/auth/register/employer", {
         company_name: companyName.trim(),
-        email: email.trim(),
+        email: posterAccountEmail,
+        contact_email: contactEmail,
         phone: phone.trim(),
         address: address.trim(),
         industry: industry.trim(),

@@ -4,7 +4,7 @@ from database import get_db
 from models import User, Employer, Company, JobPosting, UserRole, UpgradeRequest, UpgradeRequestStatus
 from schemas.auth import StudentRegister, EmployerRegister, LoginRequest, TokenResponse
 from auth import hash_password, verify_password, create_access_token, decode_token
-from dependencies import get_current_user, get_any_current_user, oauth2_scheme
+from dependencies import get_current_user, get_any_current_user, get_current_user_optional, oauth2_scheme
 from services.cloudinary_service import upload_review_photo
 from routers.notifications import create_notification
 import secrets
@@ -94,7 +94,9 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     return {"message": "ยืนยันอีเมลสำเร็จ สามารถ login ได้แล้ว"}
 
 @router.post("/register/employer", status_code=201)
-def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
+def register_employer(data: EmployerRegister,
+                      db: Session = Depends(get_db),
+                      current_user: User | None = Depends(get_current_user_optional)):
     """ ลงทะเบียนสถานประกอบการใหม่ และสร้างประกาศงานรอ Admin ตรวจสอบ """
     if data.phone:
         digits_only = re.sub(r"\D", "", data.phone)
@@ -102,8 +104,17 @@ def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
             raise HTTPException(400, "เบอร์โทรศัพท์ติดต่อต้องเป็นตัวเลข 9-10 หลัก เริ่มต้นด้วย 0 (เช่น 000-000-0000 หรือ 000-000-000)")
 
     from sqlalchemy import func
-    user_email = (data.email or "").strip().lower()
-    employer = db.query(Employer).filter(func.lower(Employer.email) == user_email).first()
+    # อีเมลบัญชีผู้ลงประกาศ (Poster Account Email)
+    poster_email = (current_user.email if current_user else (data.email or "")).strip().lower()
+    # อีเมลสำหรับติดต่อรับสมัครงานที่ระบุในฟอร์ม (Contact Email)
+    contact_email = (data.contact_email or data.email or "").strip()
+    if not poster_email:
+        poster_email = contact_email.lower()
+
+    if not poster_email:
+        raise HTTPException(400, "กรุณาระบุอีเมลบัญชีผู้ลงประกาศ")
+
+    employer = db.query(Employer).filter(func.lower(Employer.email) == poster_email).first()
     if employer:
         existing_job = db.query(JobPosting).filter(JobPosting.employer_id == employer.id).first()
         if existing_job:
@@ -111,7 +122,7 @@ def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
 
     if not employer:
         employer = Employer(
-            email=user_email,
+            email=poster_email,
             password_hash=hash_password(data.password or "default12345"),
             company_name=data.company_name,
             address=data.address,
@@ -149,12 +160,17 @@ def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
             except ValueError:
                 allowance_val = 400
 
+    contact_info_str = f"สวัสดิการ: {data.benefits or '-'} | ผู้ติดต่อ: {data.contact_person or '-'} ({data.phone or '-'})"
+    if contact_email:
+        contact_info_str += f" | อีเมลติดต่อ: {contact_email}"
+    contact_info_str += f" | LINE: {data.line_id or '-'}"
+
     job_posting = JobPosting(
         employer_id=employer.id,
         company_id=comp.id,
         title=f"นักศึกษาฝึกงาน ({data.company_name})",
         department=dept_str,
-        description=f"สวัสดิการ: {data.benefits or '-'} | ผู้ติดต่อ: {data.contact_person or '-'} ({data.phone or '-'}) | LINE: {data.line_id or '-'}",
+        description=contact_info_str,
         daily_allowance=allowance_val,
         location=data.address,
         is_active=False,

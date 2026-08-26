@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { isStudent, isEmployer } from "@/lib/auth";
+import { isStudent, isEmployer, getUser } from "@/lib/auth";
 import DepartmentDropdown, { ALL_DEPARTMENTS } from "@/components/DepartmentDropdown";
 import CompanySearchBar, { SelectedCompany } from "@/components/CompanySearchBar";
 import { JobData } from "@/components/jobs/JobCard";
@@ -272,10 +272,15 @@ export default function EmployerRegisterPage() {
 
     setSubmitting(true);
 
+    const currentUser = getUser();
+    const posterAccountEmail = currentUser?.email || email.trim();
+    const contactEmail = email.trim();
+
     try {
       await api.post("/auth/register/employer", {
         company_name: companyName.trim(),
-        email: email.trim(),
+        email: posterAccountEmail,
+        contact_email: contactEmail,
         phone: phone.trim(),
         contact_person: contactPerson.trim(),
         address: `${address.trim()} อ.${district.trim()} จ.${province.trim()}`,
@@ -658,9 +663,16 @@ export default function EmployerRegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-primary mb-1.5">
-                    อีเมลติดต่อรับสมัครฝึกงาน*
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                    <label className="block text-xs font-bold text-primary">
+                      อีเมลติดต่อรับสมัครฝึกงาน*
+                    </label>
+                    {mounted && getUser()?.email && (
+                      <span className="text-[10px] text-secondary font-mono">
+                        (ลงประกาศในนาม: {getUser()?.email})
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="email"
                     required

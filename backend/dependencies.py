@@ -95,3 +95,22 @@ def get_current_employer(token: str = Depends(oauth2_scheme),
     if not employer or not employer.is_approved:
         raise HTTPException(status_code=403, detail="Employer not approved")
     return employer
+
+def get_current_user_optional(token: str = Depends(oauth2_scheme),
+                              db: Session = Depends(get_db)) -> User | None:
+    """ ดึงข้อมูลผู้ใช้ปัจจุบันหากมีการส่ง Token มา ถ้าไม่มีหรือ Token ผิดพลาดจะ return None """
+    if not token:
+        return None
+    try:
+        payload = decode_token(token)
+        raw_sub = payload.get("sub")
+        role: str = payload.get("role")
+        if role == "employer":
+            return None
+        user_id = int(raw_sub) if raw_sub is not None else None
+        if user_id is None:
+            return None
+        return db.query(User).filter(User.id == user_id).first()
+    except Exception:
+        return None
+

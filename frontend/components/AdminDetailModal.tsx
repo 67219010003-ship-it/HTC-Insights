@@ -212,7 +212,10 @@ export default function AdminDetailModal({
               <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant/30 space-y-2 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>สถานประกอบการ: <strong className="text-primary font-bold">{data.employer_name || data.company_name}</strong></div>
-                  <div>อีเมลผู้ลงประกาศ: <span className="font-mono text-primary font-bold">{data.employer_email || data.email || "-"}</span></div>
+                  <div>อีเมลบัญชีผู้ลงประกาศ: <span className="font-mono text-primary font-bold">{data.poster_email || data.employer_email || data.email || "-"}</span></div>
+                  {data.contact_email && data.contact_email !== (data.poster_email || data.employer_email) && (
+                    <div>อีเมลติดต่อรับสมัคร: <span className="font-mono text-secondary font-bold">{data.contact_email}</span></div>
+                  )}
                   <div>เบอร์โทรศัพท์ติดต่อ: <strong className="text-on-surface">{data.phone || data.employer_phone || "-"}</strong></div>
                   <div>LINE ID: <strong className="text-on-surface font-mono">{data.line_id || "-"}</strong></div>
                   <div>ผู้ประสานงาน / HR: <strong className="text-on-surface">{data.contact_person || "-"}</strong></div>
@@ -267,17 +270,7 @@ export default function AdminDetailModal({
 
               {data.card_image_url && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-primary text-xs">ภาพถ่ายหลักฐานบัตรประจำตัวนักศึกษา:</h4>
-                    <a
-                      href={data.card_image_url}
-                      download="student_id_card.jpg"
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-secondary hover:underline cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">download</span>
-                      ดาวน์โหลดรูปภาพ
-                    </a>
-                  </div>
+                  <h4 className="font-bold text-primary text-xs">ภาพถ่ายหลักฐานบัตรประจำตัวนักศึกษา:</h4>
                   <div className="rounded-2xl overflow-hidden border border-outline-variant max-h-80 bg-slate-900 flex items-center justify-center p-2">
                     <img
                       src={data.card_image_url}

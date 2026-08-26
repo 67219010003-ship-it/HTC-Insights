@@ -69,7 +69,9 @@ interface AdminJob {
   id: number;
   title: string;
   employer_name: string;
+  poster_email?: string;
   employer_email?: string;
+  contact_email?: string;
   employer_phone?: string;
   company_name?: string;
   contact_person?: string;
@@ -1010,8 +1012,13 @@ export default function AdminDashboardPage() {
                                     สถานประกอบการ: <strong className="text-primary font-bold">{job.employer_name}</strong>
                                   </p>
                                   <p>
-                                    อีเมลผู้ลงประกาศ: <strong className="text-on-surface font-mono">{job.employer_email || job.email || "-"}</strong>
+                                    อีเมลบัญชีผู้ลงประกาศ: <strong className="text-on-surface font-mono">{job.poster_email || job.employer_email || job.email || "-"}</strong>
                                   </p>
+                                  {job.contact_email && job.contact_email !== (job.poster_email || job.employer_email) && (
+                                    <p>
+                                      อีเมลติดต่อรับสมัคร: <strong className="text-secondary font-mono">{job.contact_email}</strong>
+                                    </p>
+                                  )}
                                   {(job.phone || job.employer_phone) && (
                                     <p>
                                       เบอร์โทรศัพท์: <strong className="text-on-surface">{job.phone || job.employer_phone}</strong>
@@ -1557,8 +1564,13 @@ export default function AdminDashboardPage() {
                             <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant">
                               <div className="font-bold text-on-surface">{job.employer_name}</div>
                               <div className="text-[10px] font-mono text-primary font-bold">
-                                {job.employer_email || job.email || "-"}
+                                บัญชี: {job.poster_email || job.employer_email || job.email || "-"}
                               </div>
+                              {job.contact_email && job.contact_email !== (job.poster_email || job.employer_email) && (
+                                <div className="text-[10px] font-mono text-secondary font-semibold">
+                                  ติดต่อ: {job.contact_email}
+                                </div>
+                              )}
                               {job.phone && (
                                 <div className="text-[10px] text-on-surface-variant">โทร: {job.phone}</div>
                               )}
@@ -1891,23 +1903,13 @@ export default function AdminDashboardPage() {
                 <span className="material-symbols-outlined text-secondary text-[22px]">id_card</span>
                 <h3 className="font-bold text-primary text-sm">ภาพถ่ายหลักฐานบัตรประจำตัวนักศึกษา</h3>
               </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={previewImageUrl}
-                  download="student_id_card.jpg"
-                  className="px-3 py-1.5 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[16px]">download</span>
-                  ดาวน์โหลดรูปภาพ
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setPreviewImageUrl(null)}
-                  className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewImageUrl(null)}
+                className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
             </div>
             <div className="flex-1 p-4 bg-slate-950 flex items-center justify-center overflow-auto">
               <img
