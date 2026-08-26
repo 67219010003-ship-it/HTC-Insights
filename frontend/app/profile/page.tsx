@@ -1784,13 +1784,18 @@ export default function StudentProfilePage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-primary block mb-1">เบี้ยเลี้ยง (บาท/วัน)</label>
+                  <label className="font-bold text-primary block mb-1">เบี้ยเลี้ยง (บาท/วัน - สูงสุด 5 หลัก)</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={5}
                     value={editJobModal.daily_allowance}
-                    onChange={(e) => setEditJobModal((prev) => ({ ...prev, daily_allowance: e.target.value }))}
-                    className="w-full p-2.5 bg-surface-container-low border border-outline-variant/40 rounded-xl focus:border-secondary focus:outline-none text-xs"
-                    placeholder="เช่น 400"
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 5);
+                      setEditJobModal((prev) => ({ ...prev, daily_allowance: digits }));
+                    }}
+                    className="w-full p-2.5 bg-surface-container-low border border-outline-variant/40 rounded-xl focus:border-secondary focus:outline-none text-xs font-mono"
+                    placeholder="เช่น 400 (สูงสุด 99,999)"
                   />
                 </div>
                 <div>

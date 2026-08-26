@@ -6,7 +6,7 @@ class JobPostingCreate(BaseModel):
     title: str = Field(..., min_length=5, max_length=120, description="ตำแหน่งงาน 5-120 ตัวอักษร")
     department: str = Field(..., min_length=2, max_length=100, description="แผนกวิชา")
     description: str = Field(..., min_length=20, max_length=2000, description="รายละเอียดงาน 20-2000 ตัวอักษร")
-    daily_allowance: Optional[int] = Field(None, ge=0, le=5000, description="เบี้ยเลี้ยง 0-5000 บาท/วัน")
+    daily_allowance: Optional[int] = Field(None, ge=0, le=99999, description="เบี้ยเลี้ยง 0-99999 บาท/วัน")
     location: str = Field(..., min_length=3, max_length=250, description="สถานที่ปฏิบัติงาน 3-250 ตัวอักษร")
     deadline: date
 
@@ -14,7 +14,7 @@ class JobPostingUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=3, max_length=120)
     department: Optional[str] = Field(None, min_length=2, max_length=100)
     description: Optional[str] = Field(None, min_length=5, max_length=2000)
-    daily_allowance: Optional[int] = Field(None, ge=0, le=5000)
+    daily_allowance: Optional[int] = Field(None, ge=0, le=99999)
     location: Optional[str] = Field(None, min_length=3, max_length=250)
     contact_person: Optional[str] = None
     phone: Optional[str] = None

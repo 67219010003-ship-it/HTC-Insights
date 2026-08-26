@@ -98,8 +98,8 @@ def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
     """ ลงทะเบียนสถานประกอบการใหม่ และสร้างประกาศงานรอ Admin ตรวจสอบ """
     if data.phone:
         digits_only = re.sub(r"\D", "", data.phone)
-        if len(digits_only) < 9 or len(digits_only) > 10:
-            raise HTTPException(400, "เบอร์โทรศัพท์ติดต่อต้องเป็นตัวเลข 9-10 หลัก (เช่น 000-000-0000 หรือ 000-000-000)")
+        if not digits_only.startswith("0") or (len(digits_only) != 9 and len(digits_only) != 10):
+            raise HTTPException(400, "เบอร์โทรศัพท์ติดต่อต้องเป็นตัวเลข 9-10 หลัก เริ่มต้นด้วย 0 (เช่น 000-000-0000 หรือ 000-000-000)")
 
     employer = db.query(Employer).filter(Employer.email == data.email).first()
     if employer:

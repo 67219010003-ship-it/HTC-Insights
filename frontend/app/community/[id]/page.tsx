@@ -15,7 +15,8 @@ export default function ThreadDetailPage() {
   const postId = params?.id;
   const [post, setPost] = useState<any>(null);
   const [comment, setComment] = useState("");
-  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6;
   const [currentUser, setCurrentUser] = useState<any>(() => {
@@ -27,15 +28,17 @@ export default function ThreadDetailPage() {
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentText, setEditCommentText] = useState("");
   const [editLoading, setEditLoading] = useState(false);
-  const [deleteCommentModal, setDeleteCommentModal] = useState<{
-    isOpen: boolean;
-    commentId: number;
-  }>({
+  const [deleteCommentModal, setDeleteCommentModal] = useState<{ isOpen: boolean; commentId: number }>({
     isOpen: false,
     commentId: 0,
   });
 
-  const [toast, setToast] = useState<{ isOpen: boolean; message: string; type: "success" | "error" | "info" }>({
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    isOpen: boolean;
+    message: string;
+    type: "success" | "error" | "info";
+  }>({
     isOpen: false,
     message: "",
     type: "info",
@@ -70,12 +73,14 @@ export default function ThreadDetailPage() {
   }, [postId, router]);
 
   const handleAddComment = async () => {
+    if (submittingComment) return;
     if (!comment.trim()) return;
     if (comment.trim().length < 2 || comment.trim().length > 600) {
       setToast({ isOpen: true, message: "ความคิดเห็นต้องมีความยาวระหว่าง 2 - 600 ตัวอักษร", type: "error" });
       return;
     }
     try {
+      setSubmittingComment(true);
       await api.post(`/community/posts/${postId}/comments`, {
         content: comment.trim(),
         is_anonymous: isAnonymous,
@@ -83,11 +88,13 @@ export default function ThreadDetailPage() {
       setComment("");
       const updated = await api.get(`/community/posts/${postId}`);
       setPost(updated.data);
-      setToast({ isOpen: true, message: "แสดงความคิดเห็นเรียบร้อยแล้ว", type: "success" });
+      setToast({ isOpen: true, message: "แสดงความคิดเห็นเรียบร้อยแล้ว (ส่งรอแอดมินอนุมัติ)", type: "success" });
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === "string" ? detail : "เกิดข้อผิดพลาดในการส่งความคิดเห็น";
       setToast({ isOpen: true, message: msg, type: "error" });
+    } finally {
+      setSubmittingComment(false);
     }
   };
 
@@ -278,10 +285,22 @@ export default function ThreadDetailPage() {
                 ตอบแบบไม่ระบุชื่อ
               </label>
               <button
+                type="button"
+                disabled={submittingComment || comment.trim().length < 2}
                 onClick={handleAddComment}
-                className="px-5 py-2 bg-secondary text-on-secondary rounded-xl text-xs font-bold hover:bg-secondary/90 shadow-sm transition-all cursor-pointer"
+                className="px-5 py-2 bg-secondary text-on-secondary rounded-xl text-xs font-bold hover:bg-secondary/90 shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
-                ส่งความคิดเห็น
+                {submittingComment ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>กำลังส่ง...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[15px]">send</span>
+                    <span>ส่งความคิดเห็น</span>
+                  </>
+                )}
               </button>
             </div>
           </>
@@ -367,22 +386,24 @@ export default function ThreadDetailPage() {
                             )}
                           </div>
                         )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setReportModal({
-                              isOpen: true,
-                              targetType: "comment",
-                              targetId: c.id,
-                              title: "รายงานความคิดเห็น",
-                            })
-                          }
-                          className="text-slate-400 hover:text-amber-600 flex items-center gap-0.5 text-[11px] font-medium transition-colors cursor-pointer"
-                          title="รายงานความคิดเห็นนี้"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">flag</span>
-                          รายงาน
-                        </button>
+                        {!isOwner && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReportModal({
+                                isOpen: true,
+                                targetType: "comment",
+                                targetId: c.id,
+                                title: "รายงานความคิดเห็น",
+                              })
+                            }
+                            className="text-slate-400 hover:text-amber-600 flex items-center gap-0.5 text-[11px] font-medium transition-colors cursor-pointer"
+                            title="รายงานความคิดเห็นนี้"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">flag</span>
+                            รายงาน
+                          </button>
+                        )}
                       </div>
                     </div>
 

@@ -129,7 +129,7 @@ class ReviewPhoto(Base):
     __tablename__ = "review_photos"
     id = Column(Integer, primary_key=True, index=True)
     review_id = Column(Integer, ForeignKey("reviews.id"), nullable=False)
-    url = Column(String(500), nullable=False)
+    url = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     review = relationship("Review", back_populates="photos")
@@ -263,7 +263,7 @@ class UpgradeRequest(Base):
     reason = Column(Text, nullable=True)
     status = Column(Enum(UpgradeRequestStatus), default=UpgradeRequestStatus.pending)
     rejection_reason = Column(Text, nullable=True)
-    card_image_url = Column(String(500), nullable=True)
+    card_image_url = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")

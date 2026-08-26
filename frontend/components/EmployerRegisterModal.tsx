@@ -23,6 +23,18 @@ export default function EmployerRegisterModal({
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+    if (digits.length <= 2) return digits;
+    if (digits.startsWith("02")) {
+      if (digits.length <= 5) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+      return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+    }
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,13 +45,13 @@ export default function EmployerRegisterModal({
 
     try {
       await api.post("/auth/register/employer", {
-        company_name: companyName,
-        email,
-        phone,
-        address,
-        industry,
+        company_name: companyName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        industry: industry.trim(),
         password: "google_partner_account", // System auto partner account
-        notes,
+        notes: notes.trim(),
       });
 
       setSuccessMsg("ส่งข้อมูลลงทะเบียนสถานประกอบการพาร์ทเนอร์สำเร็จ! เจ้าหน้าที่จะติดต่อกลับและอนุมัติบัญชีภายใน 1-2 วัน");
@@ -48,12 +60,7 @@ export default function EmployerRegisterModal({
         setSuccessMsg("");
       }, 2500);
     } catch (err: any) {
-      // If endpoint returns success or mock success
-      setSuccessMsg("ส่งข้อมูลลงทะเบียนสถานประกอบการพาร์ทเนอร์สำเร็จ! เจ้าหน้าที่จะติดต่อกลับเพื่ออนุมัติสิทธิ์");
-      setTimeout(() => {
-        onClose();
-        setSuccessMsg("");
-      }, 2500);
+      setErrorMsg(err.response?.data?.detail || "เกิดข้อผิดพลาดในการลงทะเบียน");
     } finally {
       setLoading(false);
     }
@@ -103,6 +110,7 @@ export default function EmployerRegisterModal({
             <input
               type="text"
               required
+              maxLength={150}
               placeholder="เช่น บจก. เอ็นเนอร์ยี่ โซลูชั่น หาดใหญ่"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
@@ -117,6 +125,7 @@ export default function EmployerRegisterModal({
             <input
               type="email"
               required
+              maxLength={100}
               placeholder="hr@company.co.th"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -126,15 +135,16 @@ export default function EmployerRegisterModal({
 
           <div>
             <label className="block text-xs font-bold text-primary mb-1">
-              เบอร์โทรศัพท์ติดต่อ*
+              เบอร์โทรศัพท์ติดต่อ* (ตัวเลข 9-10 หลัก)
             </label>
             <input
               type="tel"
               required
-              placeholder="000-000-000 หรือ 000-000-0000"
+              maxLength={12}
+              placeholder="000-000-0000 หรือ 000-000-000"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full p-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs"
+              onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+              className="w-full p-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-mono"
             />
           </div>
 
@@ -144,6 +154,7 @@ export default function EmployerRegisterModal({
             </label>
             <input
               type="text"
+              maxLength={100}
               placeholder="เช่น ช่างยนต์, ช่างไฟฟ้า, เทคโนโลยีสารสนเทศ"
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
@@ -157,6 +168,7 @@ export default function EmployerRegisterModal({
             </label>
             <input
               type="text"
+              maxLength={300}
               placeholder="อ.หาดใหญ่ จ.สงขลา"
               value={address}
               onChange={(e) => setAddress(e.target.value)}

@@ -53,6 +53,18 @@ export default function EmployerRegisterPage() {
   const [benefits, setBenefits] = useState("อาหารกลางวัน, ชุดยูนิฟอร์มฟรี, เบี้ยเลี้ยงรายวัน");
   const [notes, setNotes] = useState("");
 
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+    if (digits.length <= 2) return digits;
+    if (digits.startsWith("02")) {
+      if (digits.length <= 5) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+      return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+    }
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
   const toggleDepartment = (deptLabel: string) => {
     setTargetDepartments((prev) => {
       if (prev.includes(deptLabel)) {
@@ -78,7 +90,7 @@ export default function EmployerRegisterPage() {
     if (comp.address) setAddress(comp.address);
     if (comp.lat) setLat(comp.lat);
     if (comp.lng) setLng(comp.lng);
-    if (comp.phone) setPhone(comp.phone);
+    if (comp.phone) setPhone(formatPhoneNumber(comp.phone));
     if (comp.website) setWebsite(comp.website);
     setMapOpen(false);
     setMapError(false);
@@ -113,7 +125,7 @@ export default function EmployerRegisterPage() {
 
   const validateStep2 = (): boolean => {
     if (!contactPerson.trim() || contactPerson.trim().length < 2) {
-      setError("กรุณากรอกชื่อฝ่าย หรือชื่อผู้ประสานงานรับสมัครฝึกงาน");
+      setError("กรุณากรอกชื่อฝ่าย หรือชื่อผู้ประสานงานรับสมัครฝึกงาน (อย่างน้อย 2 ตัวอักษร)");
       return false;
     }
     if (!phone.trim()) {
@@ -121,8 +133,8 @@ export default function EmployerRegisterPage() {
       return false;
     }
     const digitsOnly = phone.replace(/\D/g, "");
-    if (digitsOnly.length < 9 || digitsOnly.length > 10) {
-      setError("กรุณากรอกเบอร์โทรศัพท์ติดต่อให้ถูกต้อง (ตัวเลข 9-10 หลัก เช่น 000-000-0000 หรือ 000-000-000)");
+    if (!digitsOnly.startsWith("0") || (digitsOnly.length !== 9 && digitsOnly.length !== 10)) {
+      setError("กรุณากรอกเบอร์โทรศัพท์ติดต่อให้ถูกต้อง (ตัวเลข 9-10 หลัก เริ่มต้นด้วย 0 เช่น 000-000-0000 หรือ 000-000-000)");
       return false;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -512,6 +524,7 @@ export default function EmployerRegisterPage() {
                   <input
                     type="text"
                     required
+                    maxLength={150}
                     onKeyDown={handleKeyDown}
                     placeholder="เช่น บจก. หาดใหญ่เทค โซลูชั่น"
                     value={companyName}
@@ -526,6 +539,7 @@ export default function EmployerRegisterPage() {
                   </label>
                   <input
                     type="text"
+                    maxLength={100}
                     onKeyDown={handleKeyDown}
                     placeholder="เช่น ยานยนต์, อิเล็กทรอนิกส์, ซอฟต์แวร์, ก่อสร้าง"
                     value={industry}
@@ -540,6 +554,7 @@ export default function EmployerRegisterPage() {
                   </label>
                   <input
                     type="text"
+                    maxLength={200}
                     onKeyDown={handleKeyDown}
                     placeholder="https://www.company.co.th"
                     value={website}
@@ -555,6 +570,7 @@ export default function EmployerRegisterPage() {
                   <input
                     type="text"
                     required
+                    maxLength={300}
                     onKeyDown={handleKeyDown}
                     placeholder="เช่น 123/45 ถ.กาญจนวนิช ต.คอหงส์"
                     value={address}
@@ -570,6 +586,7 @@ export default function EmployerRegisterPage() {
                   <input
                     type="text"
                     required
+                    maxLength={100}
                     onKeyDown={handleKeyDown}
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
@@ -584,6 +601,7 @@ export default function EmployerRegisterPage() {
                   <input
                     type="text"
                     required
+                    maxLength={100}
                     onKeyDown={handleKeyDown}
                     value={province}
                     onChange={(e) => setProvince(e.target.value)}
@@ -609,11 +627,12 @@ export default function EmployerRegisterPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-primary mb-1.5">
-                    ชื่อฝ่าย / ชื่อผู้ประสานงาน*
+                    ชื่อฝ่าย / ชื่อผู้ประสานงาน* (สูงสุด 100 ตัวอักษร)
                   </label>
                   <input
                     type="text"
                     required
+                    maxLength={100}
                     onKeyDown={handleKeyDown}
                     placeholder="เช่น ฝ่ายทรัพยากรบุคคล (HR) / คุณสมชาย"
                     value={contactPerson}
@@ -624,20 +643,17 @@ export default function EmployerRegisterPage() {
 
                 <div>
                   <label className="block text-xs font-bold text-primary mb-1.5">
-                    เบอร์โทรศัพท์ติดต่อ*
+                    เบอร์โทรศัพท์ติดต่อ* (ตัวเลข 9-10 หลัก)
                   </label>
                   <input
                     type="tel"
                     required
                     maxLength={12}
                     onKeyDown={handleKeyDown}
-                    placeholder="000-000-000 หรือ 000-000-0000"
+                    placeholder="000-000-0000 หรือ 000-000-000"
                     value={phone}
-                    onChange={(e) => {
-                      const filtered = e.target.value.replace(/[^0-9-]/g, "");
-                      setPhone(filtered);
-                    }}
-                    className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm focus:outline-none focus:border-secondary"
+                    onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+                    className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm focus:outline-none focus:border-secondary font-mono"
                   />
                 </div>
 
@@ -648,6 +664,7 @@ export default function EmployerRegisterPage() {
                   <input
                     type="email"
                     required
+                    maxLength={100}
                     onKeyDown={handleKeyDown}
                     placeholder="hr@company.co.th"
                     value={email}
@@ -662,6 +679,7 @@ export default function EmployerRegisterPage() {
                   </label>
                   <input
                     type="text"
+                    maxLength={100}
                     onKeyDown={handleKeyDown}
                     placeholder="@company_hr"
                     value={lineId}
@@ -780,25 +798,34 @@ export default function EmployerRegisterPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-primary mb-1.5">
-                    อัตราเบี้ยเลี้ยงรายวัน (บาท/วัน)
-                  </label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-xs font-bold text-primary">
+                      อัตราเบี้ยเลี้ยงรายวัน (บาท/วัน)*
+                    </label>
+                    <span className="text-[10px] text-on-surface-variant font-medium">สูงสุด 5 หลัก (0 - 99,999)</span>
+                  </div>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    maxLength={5}
                     onKeyDown={handleKeyDown}
-                    placeholder="เช่น 350 - 450 หรือ 400"
+                    placeholder="เช่น 400 (ใส่ 0 หรือตัวเลขได้สูงสุด 99,999)"
                     value={dailyAllowance}
-                    onChange={(e) => setDailyAllowance(e.target.value)}
-                    className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm focus:outline-none focus:border-secondary"
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 5);
+                      setDailyAllowance(digits);
+                    }}
+                    className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm focus:outline-none focus:border-secondary font-mono"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-primary mb-1.5">
-                    สวัสดิการไฮไลท์
+                    สวัสดิการไฮไลท์ (สูงสุด 300 ตัวอักษร)
                   </label>
                   <input
                     type="text"
+                    maxLength={300}
                     onKeyDown={handleKeyDown}
                     placeholder="เช่น ชุดยูนิฟอร์มฟรี, รถรับส่ง, โบนัส"
                     value={benefits}
@@ -809,10 +836,11 @@ export default function EmployerRegisterPage() {
 
                 <div className="md:col-span-2">
                   <label className="block text-xs font-bold text-primary mb-1.5">
-                    หมายเหตุ / รายละเอียดเพิ่มเติมเกี่ยวกับตำแหน่งฝึกงาน
+                    หมายเหตุ / รายละเอียดเพิ่มเติมเกี่ยวกับตำแหน่งฝึกงาน (สูงสุด 500 ตัวอักษร)
                   </label>
                   <textarea
                     rows={3}
+                    maxLength={500}
                     placeholder="ระบุจำนวนนักศึกษาที่ต้องการเปิดรับ หรือเงื่อนไขเพิ่มเติม..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
