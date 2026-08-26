@@ -938,7 +938,7 @@ export default function StudentProfilePage() {
       </div>
 
       {/* ================= EMPLOYER / EXTERNAL TAB 1: MY JOB POSTINGS ================= */}
-      {(isEmployer || isExternal) && activeTab === "employer_jobs" && (
+      {(isEmployer || isExternal || employerJobs.length > 0) && activeTab === "employer_jobs" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
@@ -1822,9 +1822,10 @@ export default function StudentProfilePage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-primary block mb-1">ชื่อผู้ติดต่อ / HR</label>
+                  <label className="font-bold text-primary block mb-1">ชื่อผู้ติดต่อ / HR (สูงสุด 30 ตัวอักษร)</label>
                   <input
                     type="text"
+                    maxLength={30}
                     value={editJobModal.contact_person}
                     onChange={(e) => setEditJobModal((prev) => ({ ...prev, contact_person: e.target.value }))}
                     className="w-full p-2.5 bg-surface-container-low border border-outline-variant/40 rounded-xl focus:border-secondary focus:outline-none text-xs"
@@ -1832,9 +1833,10 @@ export default function StudentProfilePage() {
                   />
                 </div>
                 <div>
-                  <label className="font-bold text-primary block mb-1">LINE ID</label>
+                  <label className="font-bold text-primary block mb-1">LINE ID (สูงสุด 30 ตัวอักษร)</label>
                   <input
                     type="text"
+                    maxLength={30}
                     value={editJobModal.line_id}
                     onChange={(e) => setEditJobModal((prev) => ({ ...prev, line_id: e.target.value }))}
                     className="w-full p-2.5 bg-surface-container-low border border-outline-variant/40 rounded-xl focus:border-secondary focus:outline-none text-xs"

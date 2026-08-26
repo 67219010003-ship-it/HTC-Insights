@@ -627,14 +627,14 @@ export default function EmployerRegisterPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-primary mb-1.5">
-                    ชื่อฝ่าย / ชื่อผู้ประสานงาน* (สูงสุด 100 ตัวอักษร)
+                    ชื่อฝ่าย / ชื่อผู้ประสานงาน* (สูงสุด 30 ตัวอักษร)
                   </label>
                   <input
                     type="text"
                     required
-                    maxLength={100}
+                    maxLength={30}
                     onKeyDown={handleKeyDown}
-                    placeholder="เช่น ฝ่ายทรัพยากรบุคคล (HR) / คุณสมชาย"
+                    placeholder="เช่น ฝ่ายบุคคล / คุณสมชาย"
                     value={contactPerson}
                     onChange={(e) => setContactPerson(e.target.value)}
                     className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm focus:outline-none focus:border-secondary"
@@ -675,11 +675,11 @@ export default function EmployerRegisterPage() {
 
                 <div>
                   <label className="block text-xs font-bold text-primary mb-1.5">
-                    LINE ID สำหรับติดต่อ (ถ้ามี)
+                    LINE ID สำหรับติดต่อ (ถ้ามี, สูงสุด 30 ตัวอักษร)
                   </label>
                   <input
                     type="text"
-                    maxLength={100}
+                    maxLength={30}
                     onKeyDown={handleKeyDown}
                     placeholder="@company_hr"
                     value={lineId}

@@ -267,11 +267,23 @@ export default function AdminDetailModal({
 
               {data.card_image_url && (
                 <div className="space-y-2">
-                  <h4 className="font-bold text-primary text-xs">ภาพถ่ายหลักฐานบัตรประจำตัวนักศึกษา:</h4>
-                  <div className="rounded-2xl overflow-hidden border border-outline-variant max-h-80 bg-slate-900 flex items-center justify-center p-2">
-                    <a href={data.card_image_url} target="_blank" rel="noreferrer">
-                      <img src={data.card_image_url} alt="Student ID card proof" className="max-h-72 object-contain rounded-xl hover:scale-102 transition-transform" />
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-primary text-xs">ภาพถ่ายหลักฐานบัตรประจำตัวนักศึกษา:</h4>
+                    <a
+                      href={data.card_image_url}
+                      download="student_id_card.jpg"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-secondary hover:underline cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">download</span>
+                      ดาวน์โหลดรูปภาพ
                     </a>
+                  </div>
+                  <div className="rounded-2xl overflow-hidden border border-outline-variant max-h-80 bg-slate-900 flex items-center justify-center p-2">
+                    <img
+                      src={data.card_image_url}
+                      alt="Student ID card proof"
+                      className="max-h-72 object-contain rounded-xl shadow-md"
+                    />
                   </div>
                 </div>
               )}

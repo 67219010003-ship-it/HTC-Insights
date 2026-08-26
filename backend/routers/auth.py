@@ -101,7 +101,9 @@ def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
         if not digits_only.startswith("0") or (len(digits_only) != 9 and len(digits_only) != 10):
             raise HTTPException(400, "เบอร์โทรศัพท์ติดต่อต้องเป็นตัวเลข 9-10 หลัก เริ่มต้นด้วย 0 (เช่น 000-000-0000 หรือ 000-000-000)")
 
-    employer = db.query(Employer).filter(Employer.email == data.email).first()
+    from sqlalchemy import func
+    user_email = (data.email or "").strip().lower()
+    employer = db.query(Employer).filter(func.lower(Employer.email) == user_email).first()
     if employer:
         existing_job = db.query(JobPosting).filter(JobPosting.employer_id == employer.id).first()
         if existing_job:
@@ -109,7 +111,7 @@ def register_employer(data: EmployerRegister, db: Session = Depends(get_db)):
 
     if not employer:
         employer = Employer(
-            email=data.email,
+            email=user_email,
             password_hash=hash_password(data.password or "default12345"),
             company_name=data.company_name,
             address=data.address,

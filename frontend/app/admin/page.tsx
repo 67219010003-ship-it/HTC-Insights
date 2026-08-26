@@ -176,6 +176,7 @@ export default function AdminDashboardPage() {
 
   // Modals & Action status
   const [detailModalItem, setDetailModalItem] = useState<{ type: "review" | "post" | "job" | "upgrade" | "report" | "employer" | "comment"; title?: string; data: any } | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<RejectTarget | null>(null);
   const [revealTargetId, setRevealTargetId] = useState<number | null>(null);
   const [rejecting, setRejecting] = useState(false);
@@ -1106,15 +1107,14 @@ export default function AdminDashboardPage() {
                                   </p>
                                 </div>
                                 {upg.card_image_url && (
-                                  <a
-                                    href={upg.card_image_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs font-bold text-secondary hover:underline"
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewImageUrl(upg.card_image_url || null)}
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-secondary hover:text-primary bg-secondary/10 hover:bg-secondary/20 px-3 py-1.5 rounded-xl border border-secondary/20 transition-all cursor-pointer"
                                   >
                                     <span className="material-symbols-outlined text-[16px]">id_card</span>
-                                    ดูรูปภาพบัตรประจำตัวนักศึกษา →
-                                  </a>
+                                    ดูรูปภาพบัตรประจำตัวนักศึกษา 🔍
+                                  </button>
                                 )}
                               </div>
 
@@ -1874,6 +1874,50 @@ export default function AdminDashboardPage() {
           onRevealAnonymous={(reviewId) => setRevealTargetId(reviewId)}
           onClose={() => setDetailModalItem(null)}
         />
+      )}
+
+      {/* Student Card Image Preview Lightbox Modal */}
+      {previewImageUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setPreviewImageUrl(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full max-h-[90vh] bg-surface-container-lowest rounded-3xl overflow-hidden shadow-2xl border border-outline-variant/30 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 bg-surface-container border-b border-outline-variant/30 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-secondary text-[22px]">id_card</span>
+                <h3 className="font-bold text-primary text-sm">ภาพถ่ายหลักฐานบัตรประจำตัวนักศึกษา</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewImageUrl}
+                  download="student_id_card.jpg"
+                  className="px-3 py-1.5 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">download</span>
+                  ดาวน์โหลดรูปภาพ
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewImageUrl(null)}
+                  className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 p-4 bg-slate-950 flex items-center justify-center overflow-auto">
+              <img
+                src={previewImageUrl}
+                alt="Student ID card proof"
+                className="max-h-[75vh] w-auto object-contain rounded-xl shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

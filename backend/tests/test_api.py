@@ -62,20 +62,21 @@ def test_google_auth_success():
 
 def test_external_user_blocked_from_reviews_and_companies():
     # Create external user in DB
-    db = SessionLocal()
     from models import User, UserRole
-    ext_user = User(
-        email="external@gmail.com",
-        password_hash="hash",
-        name="External User",
-        role=UserRole.external,
-        is_verified=True
-    )
-    db.add(ext_user)
-    db.commit()
-    db.refresh(ext_user)
+    with SessionLocal() as db:
+        ext_user = User(
+            email="external@gmail.com",
+            password_hash="hash",
+            name="External User",
+            role=UserRole.external,
+            is_verified=True
+        )
+        db.add(ext_user)
+        db.commit()
+        db.refresh(ext_user)
+        ext_user_id = ext_user.id
 
-    external_token = create_access_token({"sub": ext_user.id, "role": "external"})
+    external_token = create_access_token({"sub": ext_user_id, "role": "external"})
     headers = {"Authorization": f"Bearer {external_token}"}
     
     # Check reviews
@@ -118,10 +119,10 @@ def test_comment_edit_and_delete():
     # Approve post in DB for viewing
     from database import SessionLocal
     from models import CommunityPost
-    db = SessionLocal()
-    p = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
-    p.status = "approved"
-    db.commit()
+    with SessionLocal() as db:
+        p = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+        p.status = "approved"
+        db.commit()
 
     # Add comment
     comm_res = client.post(f"/community/posts/{post_id}/comments", json={
@@ -166,10 +167,10 @@ def test_one_comment_per_post_limit_and_admin_approval():
     # Approve post in DB for full accessibility
     from database import SessionLocal
     from models import CommunityPost
-    db = SessionLocal()
-    p = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
-    p.status = "approved"
-    db.commit()
+    with SessionLocal() as db:
+        p = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+        p.status = "approved"
+        db.commit()
 
     # 1. First comment succeeds
     comm1 = client.post(f"/community/posts/{post_id}/comments", json={
@@ -217,11 +218,11 @@ def test_six_posts_limit_per_student():
     # Delete existing posts for this test user first
     from database import SessionLocal
     from models import CommunityPost, User
-    db = SessionLocal()
-    u = db.query(User).filter(User.email == "student01@htc.ac.th").first()
-    if u:
-        db.query(CommunityPost).filter(CommunityPost.user_id == u.id).delete()
-        db.commit()
+    with SessionLocal() as db:
+        u = db.query(User).filter(User.email == "student01@htc.ac.th").first()
+        if u:
+            db.query(CommunityPost).filter(CommunityPost.user_id == u.id).delete()
+            db.commit()
 
     # Create 6 posts successfully
     for i in range(6):
@@ -249,11 +250,11 @@ def test_my_upgrade_request_crud():
     # 1. Clean previous requests for test user
     from database import SessionLocal
     from models import UpgradeRequest, User
-    db = SessionLocal()
-    u = db.query(User).filter(User.email == "student01@htc.ac.th").first()
-    if u:
-        db.query(UpgradeRequest).filter(UpgradeRequest.user_id == u.id).delete()
-        db.commit()
+    with SessionLocal() as db:
+        u = db.query(User).filter(User.email == "student01@htc.ac.th").first()
+        if u:
+            db.query(UpgradeRequest).filter(UpgradeRequest.user_id == u.id).delete()
+            db.commit()
 
     # 2. Get when no request
     res_empty = client.get("/auth/my-upgrade-request", headers=headers)
