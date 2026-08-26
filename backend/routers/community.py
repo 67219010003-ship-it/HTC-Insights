@@ -105,20 +105,24 @@ def get_my_comments(db: Session = Depends(get_db), current_user: User = Depends(
 @router.get("/posts/{post_id}")
 def get_post(post_id: int, db: Session = Depends(get_db),
              current_user: User = Depends(require_student)):
-    """ ดึงรายละเอียดกระทู้ พร้อมรายการความคิดเห็น (เฉพาะที่ผ่านการอนุมัติ หรือความคิดเห็นของตนเอง) """
+    """ ดึงรายละเอียดกระทู้ พร้อมรายการความคิดเห็นที่ผ่านการอนุมัติแล้วเท่านั้น และข้อมูลความคิดเห็นของผู้ใช้ปัจจุบัน (ถ้ามี) """
     post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
     if not post:
         raise HTTPException(404, "ไม่พบโพสต์")
     
-    if current_user.role == UserRole.admin:
-        filtered_comments = post.comments
-    else:
-        filtered_comments = [
-            c for c in post.comments
-            if c.status == "approved"
-        ]
+    # ดึงเฉพาะความคิดเห็นที่ผ่านการอนุมัติแล้วเท่านั้นสำหรับรายการแสดงผลสาธารณะ
+    approved_comments = [c for c in post.comments if c.status == "approved"]
+    
+    # ค้นหาความคิดเห็นของผู้ใช้งานปัจจุบันในกระทู้นี้ (ไม่ว่าจะสถานะใด)
+    my_comment_obj = next((c for c in post.comments if c.user_id == current_user.id), None)
+    my_comment = _format_comment(my_comment_obj) if my_comment_obj else None
         
-    return {**_format_post(post), "comments": [_format_comment(c) for c in filtered_comments]}
+    return {
+        **_format_post(post),
+        "comments": [_format_comment(c) for c in approved_comments],
+        "my_comment": my_comment,
+        "has_commented": my_comment is not None,
+    }
 
 @router.post("/posts/{post_id}/comments", status_code=201)
 def add_comment(post_id: int, data: CommentCreate,
