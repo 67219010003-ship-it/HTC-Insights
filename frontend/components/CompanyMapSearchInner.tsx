@@ -336,13 +336,13 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col md:flex-row bg-slate-900 overflow-hidden">
       {/* ── SIDEBAR / BOTTOM DRAWER ON MOBILE ── */}
-      <div className="w-full md:w-80 lg:w-96 shrink-0 h-[50vh] md:h-full bg-white flex flex-col shadow-2xl z-10 order-2 md:order-1 rounded-t-3xl md:rounded-none overflow-hidden border-t md:border-t-0 md:border-r border-outline-variant">
+      <div className="w-full md:w-80 lg:w-96 shrink-0 h-[52vh] md:h-full bg-white flex flex-col shadow-2xl z-10 order-2 md:order-1 rounded-t-3xl md:rounded-none border-t md:border-t-0 md:border-r border-outline-variant overflow-hidden">
         {/* Mobile handle indicator */}
-        <div className="w-12 h-1 bg-outline-variant/80 rounded-full mx-auto mt-2.5 mb-1 md:hidden" />
+        <div className="w-12 h-1 bg-outline-variant/80 rounded-full mx-auto mt-2.5 mb-1 md:hidden shrink-0" />
 
-        {/* Header */}
-        <div className="px-4 pt-2 md:pt-4 pb-3 border-b border-outline-variant">
-          <div className="flex items-center justify-between mb-2 md:mb-3">
+        {/* Header (Fixed at top of drawer) */}
+        <div className="px-4 pt-1 md:pt-4 pb-2.5 border-b border-outline-variant shrink-0 bg-white">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-secondary text-[22px]">map</span>
               <h2 className="font-bold text-primary text-sm md:text-base">เลือกสถานประกอบการ</h2>
@@ -361,7 +361,7 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
               placeholder="ค้นหาชื่อสถานที่ หรือบริเวณใกล้เคียง..."
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 bg-surface-container-low rounded-xl text-xs font-semibold border border-outline-variant focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all"
+              className="w-full pl-9 pr-8 py-2 bg-surface-container-low rounded-xl text-xs font-semibold border border-outline-variant focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all"
             />
             {query && (
               <button type="button" onClick={() => { setQuery(""); setResults([]); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary cursor-pointer">
@@ -369,14 +369,11 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
               </button>
             )}
           </div>
-          <p className="text-[10px] text-on-surface-variant mt-2 leading-relaxed">
-            ค้นหาเพื่อนำทางแผนที่ไปยังบริเวณสถานประกอบการ<br/>
-            หรือคลิกบนแผนที่โดยตรงเพื่อปักหมุด
-          </p>
         </div>
 
-        {/* Search results */}
-        <div className="flex-1 overflow-y-auto hide-scrollbar">
+        {/* Scrollable Middle Body (Search results + Form inputs) */}
+        <div className="flex-1 overflow-y-auto overscroll-contain divide-y divide-outline-variant/20">
+          {/* 1. Loading & Empty & Results states */}
           {loadingSearch && (
             <div className="flex items-center justify-center py-6 gap-2 text-xs text-on-surface-variant">
               <div className="w-4 h-4 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
@@ -385,10 +382,10 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
           )}
 
           {!loadingSearch && query.length >= 2 && results.length === 0 && !editName && (
-            <div className="py-6 px-4 text-center text-xs text-on-surface-variant space-y-3">
-              <span className="material-symbols-outlined text-[32px] block opacity-30">location_off</span>
+            <div className="py-5 px-4 text-center text-xs text-on-surface-variant space-y-2.5">
+              <span className="material-symbols-outlined text-[28px] block opacity-30">location_off</span>
               <p className="font-semibold text-primary">"{query}" ไม่พบในฐานข้อมูลหรือแผนที่</p>
-              <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-left leading-relaxed text-[11px] space-y-1.5">
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-left leading-relaxed text-[11px] space-y-1">
                 <p className="font-bold">วิธีเพิ่มสถานประกอบการ:</p>
                 <p>1. เลื่อนแผนที่ไปยังบริเวณที่ตั้ง</p>
                 <p>2. คลิกบนแผนที่เพื่อปักหมุด</p>
@@ -398,16 +395,16 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
           )}
 
           {!loadingSearch && results.length > 0 && (
-            <>
-              <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-                ผลลัพธ์ ({results.length})
+            <div className="divide-y divide-outline-variant/20">
+              <div className="px-4 pt-2.5 pb-1 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-low/50">
+                ผลลัพธ์การค้นหา ({results.length})
               </div>
               {results.map((item, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => handleSelectResult(item)}
-                  className="w-full flex items-start gap-3 px-4 py-3 text-left border-b border-outline-variant/20 hover:bg-surface-container-low transition-colors cursor-pointer group"
+                  className="w-full flex items-start gap-3 px-4 py-2.5 text-left hover:bg-surface-container-low transition-colors cursor-pointer group"
                 >
                   {item.cover_image_url ? (
                     <img
@@ -455,106 +452,108 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
                   </div>
                 </button>
               ))}
-            </>
+            </div>
           )}
 
-          {/* Empty state — no query */}
-          {query.length < 2 && !hasPin && (
-            <div className="p-5 text-center space-y-3">
-              <span className="material-symbols-outlined text-[40px] text-on-surface-variant/30 block">touch_app</span>
+          {query.length < 2 && !hasPin && !editName && (
+            <div className="p-5 text-center space-y-2">
+              <span className="material-symbols-outlined text-[36px] text-on-surface-variant/30 block">touch_app</span>
               <p className="text-xs text-on-surface-variant leading-relaxed">
-                กรุณาใช้ช่องค้นหาพิมพ์ชื่อถนน / ย่าน / พื้นที่<br/>เพื่อนำทางแผนที่ไปยังบริเวณสถานประกอบการ
+                พิมพ์ค้นหาชื่อสถานที่ หรือคลิกบนแผนที่ด้านบน<br/>เพื่อปักหมุดเลือกสถานประกอบการ
               </p>
+            </div>
+          )}
+
+          {/* 2. Detail Form Inputs (Scrollable together with results) */}
+          {(hasPin || editName) && (
+            <div className="p-4 space-y-3 bg-surface-container-lowest">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-secondary text-[18px]">edit_location</span>
+                  <span className="text-xs font-bold text-primary">กรอกรายละเอียดสถานประกอบการ</span>
+                </div>
+                {/* Source badge */}
+                <div className="flex items-center gap-1.5">
+                  {selSource === "db" && selReviewCount !== undefined && (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px]">verified</span>
+                      ในระบบ · {selReviewCount} รีวิว
+                    </span>
+                  )}
+                  {selSource === "google" && <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">Google Maps</span>}
+                  {selSource === "osm" && <span className="text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-bold">จากแผนที่</span>}
+                  {selSource === "manual" && <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">ปักหมุดเอง</span>}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide block mb-1">ชื่อสถานประกอบการ *</label>
+                <input
+                  type="text"
+                  placeholder="เช่น บริษัท เอมิโปร จำกัด..."
+                  value={editName}
+                  onChange={e => { setEditName(e.target.value); setSelSource("manual"); setSelId(undefined); }}
+                  className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-xl text-xs font-bold text-primary focus:ring-2 focus:ring-secondary focus:border-secondary outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide block mb-1">ที่อยู่</label>
+                <input
+                  type="text"
+                  value={editAddress}
+                  onChange={e => setEditAddress(e.target.value)}
+                  placeholder="จะดึงจากแผนที่อัตโนมัติ..."
+                  className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-xl text-[11px] text-primary focus:ring-2 focus:ring-secondary outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-on-surface-variant block mb-1">เบอร์โทร</label>
+                  <input type="text" placeholder="074-xxxxxx" value={editPhone} onChange={e => setEditPhone(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-surface-container-low border border-outline-variant rounded-xl text-[11px] focus:ring-1 focus:ring-secondary outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-on-surface-variant block mb-1">เว็บไซต์</label>
+                  <input type="text" placeholder="www..." value={editWebsite} onChange={e => setEditWebsite(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-surface-container-low border border-outline-variant rounded-xl text-[11px] focus:ring-1 focus:ring-secondary outline-none" />
+                </div>
+              </div>
+
+              {selId && (
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(true)}
+                  className="w-full text-slate-500 hover:text-amber-600 hover:bg-amber-50 border border-slate-200 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 mt-1"
+                  title="รายงานข้อมูลบริษัทนี้"
+                >
+                  <span className="material-symbols-outlined text-[15px]">flag</span>
+                  รายงานข้อมูลบริษัท
+                </button>
+              )}
             </div>
           )}
         </div>
 
-        {/* Bottom info panel */}
-        {(hasPin || editName) && (
-          <div className="border-t border-outline-variant bg-surface p-4 space-y-3 shadow-inner">
-            <div className="flex items-center gap-1.5 mb-2">
-              <span className="material-symbols-outlined text-secondary text-[18px]">edit_location</span>
-              <span className="text-xs font-bold text-primary">กรอกรายละเอียดสถานประกอบการ</span>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide block mb-1">ชื่อสถานประกอบการ *</label>
-              <input
-                type="text"
-                placeholder="เช่น บริษัท เอมิโปร จำกัด..."
-                value={editName}
-                onChange={e => { setEditName(e.target.value); setSelSource("manual"); setSelId(undefined); }}
-                className="w-full px-3 py-2 bg-white border border-outline-variant rounded-xl text-xs font-bold text-primary focus:ring-2 focus:ring-secondary focus:border-secondary outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide block mb-1">ที่อยู่</label>
-              <input
-                type="text"
-                value={editAddress}
-                onChange={e => setEditAddress(e.target.value)}
-                placeholder="จะดึงจากแผนที่อัตโนมัติ..."
-                className="w-full px-3 py-2 bg-white border border-outline-variant rounded-xl text-[11px] text-primary focus:ring-2 focus:ring-secondary outline-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] font-bold text-on-surface-variant block mb-1">เบอร์โทร</label>
-                <input type="text" placeholder="074-xxxxxx" value={editPhone} onChange={e => setEditPhone(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-outline-variant rounded-xl text-[11px] focus:ring-1 focus:ring-secondary outline-none" />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-on-surface-variant block mb-1">เว็บไซต์</label>
-                <input type="text" placeholder="www..." value={editWebsite} onChange={e => setEditWebsite(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-outline-variant rounded-xl text-[11px] focus:ring-1 focus:ring-secondary outline-none" />
-              </div>
-            </div>
-
-            {/* Source badge */}
-            <div className="flex items-center gap-2">
-              {selSource === "db" && selReviewCount !== undefined && (
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[13px]">verified</span>
-                  ในระบบ · {selReviewCount} รีวิว
-                </span>
-              )}
-              {selSource === "google" && <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">จาก Google Maps</span>}
-              {selSource === "osm" && <span className="text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-bold">จากแผนที่</span>}
-              {selSource === "manual" && <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">ปักหมุดเอง</span>}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={!canConfirm}
-              className="w-full bg-secondary text-on-secondary py-3 rounded-xl font-label-md text-label-md font-bold flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] transition-all disabled:opacity-40 disabled:scale-100 cursor-pointer disabled:cursor-not-allowed"
-            >
-              <span className="material-symbols-outlined text-[18px]">check_circle</span>
-              เลือกสถานประกอบการนี้
-            </button>
-
-            {selId && (
-              <button
-                type="button"
-                onClick={() => setShowReportModal(true)}
-                className="w-full text-slate-500 hover:text-amber-600 hover:bg-amber-50 border border-slate-200 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                title="รายงานข้อมูลบริษัทนี้"
-              >
-                <span className="material-symbols-outlined text-[16px]">flag</span>
-                รายงานข้อมูลบริษัท
-              </button>
-            )}
-
-            {!hasPin && (
-              <p className="text-[10px] text-on-surface-variant text-center flex items-center justify-center gap-1">
-                <span className="material-symbols-outlined text-[14px] text-amber-600">warning</span>
-                คลิกบนแผนที่เพื่อปักหมุดก่อน
-              </p>
-            )}
-          </div>
-        )}
+        {/* Sticky Footer: Action Confirmation Button - NEVER SUNKEN */}
+        <div className="p-3 md:p-4 bg-white/95 backdrop-blur-md border-t border-outline-variant shadow-lg shrink-0 z-20 space-y-1.5">
+          {!hasPin && (
+            <p className="text-[11px] text-amber-700 font-semibold text-center flex items-center justify-center gap-1 mb-1">
+              <span className="material-symbols-outlined text-[15px]">touch_app</span>
+              คลิกบนแผนที่เพื่อปักหมุดก่อนเลือก
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={!canConfirm}
+            className="w-full bg-secondary text-on-secondary py-3 rounded-xl font-label-md text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:scale-[1.01] transition-all disabled:opacity-40 disabled:scale-100 cursor-pointer disabled:cursor-not-allowed"
+          >
+            <span className="material-symbols-outlined text-[18px]">check_circle</span>
+            เลือกสถานประกอบการนี้
+          </button>
+        </div>
       </div>
 
       {/* ── FULLSCREEN MAP ── */}

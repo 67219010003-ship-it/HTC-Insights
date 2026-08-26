@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { setToken } from "@/lib/auth";
+import { setToken, getToken, getRole, isSuperAdmin as checkSuperAdmin } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,6 +12,18 @@ export default function LoginPage() {
   const initializedRef = useRef(false);
 
   useEffect(() => {
+    // If already logged in, redirect away from login page
+    const token = getToken();
+    if (token) {
+      const role = getRole();
+      if (role === "admin" || checkSuperAdmin()) {
+        window.location.replace("/admin");
+      } else {
+        window.location.replace("/");
+      }
+      return;
+    }
+
     if (initializedRef.current) return;
 
     const googleClientId =
@@ -43,6 +55,7 @@ export default function LoginPage() {
           client_id: googleClientId,
           callback: handleGoogleResponse,
           auto_select: false,
+          cancel_on_tap_outside: false,
         });
 
         const container = document.getElementById("google-signin-container");
@@ -63,25 +76,32 @@ export default function LoginPage() {
   };
 
   const handleGoogleResponse = async (response: any) => {
+    if (!response || !response.credential) {
+      setError("ไม่พบข้อมูลการเข้าสู่ระบบจาก Google กรุณาลองใหม่อีกครั้ง");
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
       const res = await api.post("/auth/google", { id_token: response.credential });
+      
       setToken(
         res.data.access_token,
         res.data.role,
         res.data.is_super_admin ?? false,
         res.data.user ?? null
       );
+
+      // Perform a full redirect to ensure clean authentication state across mobile and desktop
       if (res.data.role === "admin" || res.data.is_super_admin) {
-        router.push("/admin");
+        window.location.href = "/admin";
       } else {
-        router.push("/");
+        window.location.href = "/";
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || "เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google Account");
-    } finally {
       setLoading(false);
+      setError(err.response?.data?.detail || "เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google Account");
     }
   };
 
@@ -110,7 +130,13 @@ export default function LoginPage() {
         )}
 
         {/* ปุ่มล็อกอิน Google */}
-        <div className="py-4 flex flex-col items-center justify-center min-h-[50px]">
+        <div className="py-4 flex flex-col items-center justify-center min-h-[50px] relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-xs flex items-center justify-center gap-2 z-10 rounded-2xl">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold text-primary">กำลังเข้าสู่ระบบ...</span>
+            </div>
+          )}
           <div id="google-signin-container" className="flex justify-center"></div>
         </div>
 

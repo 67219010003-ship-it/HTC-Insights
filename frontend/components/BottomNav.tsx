@@ -7,9 +7,11 @@ import { getRole } from "@/lib/auth";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
+    setMounted(true);
     const updateRole = () => setRole(getRole());
     updateRole();
 
@@ -20,6 +22,11 @@ export default function BottomNav() {
       window.removeEventListener("storage", updateRole);
     };
   }, [pathname]);
+
+  // If not mounted, not logged in, or on auth login page, do not render BottomNav
+  if (!mounted || !role || pathname === "/auth/login") {
+    return null;
+  }
 
   const isEmp = role === "employer";
   const isAdmin = role === "admin";
