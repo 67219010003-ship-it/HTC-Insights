@@ -158,6 +158,7 @@ export default function WriteReviewPage() {
     if (reviewIdParam) {
       const revId = Number(reviewIdParam);
       setEditingReviewId(revId);
+      setIsCompanyLocked(true);
       
       const applyReviewData = (match: any) => {
         if (!match) return;
@@ -207,6 +208,7 @@ export default function WriteReviewPage() {
     }
 
     if (companyIdParam) {
+      setIsCompanyLocked(true);
       fetchCompanyData(Number(companyIdParam));
     }
 
@@ -531,7 +533,7 @@ export default function WriteReviewPage() {
                       <div className="text-xs text-on-surface-variant mt-0.5">{selectedCompany.address}</div>
                     </div>
                   </div>
-                  {!isCompanyLocked ? (
+                  {!isCompanyLocked && !editingReviewId ? (
                     <button
                       type="button"
                       onClick={() => setMapOpen(true)}

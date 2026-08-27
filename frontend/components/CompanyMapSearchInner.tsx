@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import { api } from "@/lib/api";
-import ReportModal from "@/components/ReportModal";
 
 const pinIcon = L.icon({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -547,18 +546,6 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
                   />
                 </div>
               </div>
-
-              {selId && (
-                <button
-                  type="button"
-                  onClick={() => setShowReportModal(true)}
-                  className="w-full text-slate-500 hover:text-amber-600 hover:bg-amber-50 border border-slate-200 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 mt-1"
-                  title="รายงานข้อมูลบริษัทนี้"
-                >
-                  <span className="material-symbols-outlined text-[15px]">flag</span>
-                  รายงานข้อมูลบริษัท
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -656,16 +643,6 @@ export default function CompanyMapFullscreen({ onSelect, onClose, hideDbCompanie
           </div>
         </div>
       </div>
-
-      {selId && (
-        <ReportModal
-          isOpen={showReportModal}
-          title="รายงานข้อมูลบริษัท"
-          targetType="company"
-          targetId={selId}
-          onClose={() => setShowReportModal(false)}
-        />
-      )}
     </div>
   );
 }
