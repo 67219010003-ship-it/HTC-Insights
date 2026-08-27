@@ -27,8 +27,7 @@ export default function LoginPage() {
     if (initializedRef.current) return;
 
     const googleClientId =
-      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-      "YOUR_GOOGLE_CLIENT_ID";
+      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
     // โหลด Google GSI Script สำหรับปุ่มล็อกอิน
     if (!document.getElementById("google-gsi-script")) {

@@ -20,8 +20,7 @@ export default function HomeLoginGate({ onLoginSuccess }: HomeLoginGateProps) {
     if (initializedRef.current) return;
 
     const googleClientId =
-      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-      "YOUR_GOOGLE_CLIENT_ID";
+      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
     // Load Google Identity Services script if not already present
     if (!document.getElementById("google-gsi-script")) {
