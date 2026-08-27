@@ -120,9 +120,9 @@ export default function CompanyDetailPage() {
     setConfirmModal({
       isOpen: true,
       title: "ยืนยันการลบรีวิว",
-      message: "คุณแน่ใจหรือไม่ว่าต้องการลบรีวิวนี้ออกจากระบบ? ข้อมูลประสบการณ์จะถูกลบถาวร",
+      message: "คุณแน่ใจหรือไม่ว่าต้องการลบ รีวิว นี้อย่างถาวรจากฐานข้อมูล? การกระทำนี้ไม่สามารถย้อนกลับได้",
       type: "danger",
-      confirmText: "ยืนยันลบรีวิว",
+      confirmText: "ยืนยัน ลบถาวร",
       onConfirm: () => executeDeleteReview(reviewId),
     });
   };

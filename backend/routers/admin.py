@@ -185,19 +185,42 @@ def reject_review(review_id: int, payload: dict = Body(default={}),
     return update_review_status(review_id, payload, db, admin)
 
 @router.get("/anonymous-reveal/{review_id}")
-def reveal_anonymous(review_id: int, reason: str,
+def reveal_anonymous(review_id: int,
+                     reason: str = Query(default="Admin Audit"),
                      db: Session = Depends(get_db),
                      admin: User = Depends(require_admin)):
     """ ถอดรหัสเพื่อดูตัวตนจริงของผู้เขียนรีวิวแบบไม่ระบุชื่อ (พร้อมบันทึก Audit Log) """
     review = db.query(Review).filter(Review.id == review_id).first()
-    if not review or not review.is_anonymous:
-        raise HTTPException(404, "ไม่พบรีวิว anonymous")
-    real_user_id = decrypt_identity(review.anon_identity_enc)
+    if not review:
+        raise HTTPException(404, "ไม่พบรีวิว")
+    if not review.is_anonymous:
+        raise HTTPException(400, "รีวิวนี้ไม่ได้ถูกตั้งค่าเป็น Anonymous")
+
+    # พยายามถอดรหัสจาก anon_identity_enc ก่อน หากล้มเหลวให้ fallback ใช้ user_id จากรีวิว
+    real_user_id = None
+    if review.anon_identity_enc:
+        real_user_id = decrypt_identity(review.anon_identity_enc)
+
+    if real_user_id is None:
+        # Fallback: ใช้ user_id ที่บันทึกในรีวิวโดยตรง (สำหรับรีวิวรุ่นเก่าหรือ key rotation)
+        real_user_id = review.user_id
+
     user = db.query(User).filter(User.id == real_user_id).first()
+    if not user:
+        raise HTTPException(404, "ไม่พบข้อมูลผู้ใช้ที่เชื่อมกับรีวิวนี้")
+
     db.add(AuditLog(admin_id=admin.id, action="reveal_anonymous",
-                    target_type="review", target_id=review_id, reason=reason))
+                    target_type="review", target_id=review_id,
+                    reason=reason.strip() if reason else "Admin Audit"))
     db.commit()
-    return {"real_name": user.name if user else "Unknown", "real_email": user.email if user else "Unknown"}
+
+    return {
+        "real_name": user.name,
+        "real_email": user.email,
+        "real_department": user.department,
+        "real_level": user.level,
+    }
+
 
 # --- 3. การจัดการกระทู้ชุมชน (Community Posts Moderation) ---
 @router.get("/posts")

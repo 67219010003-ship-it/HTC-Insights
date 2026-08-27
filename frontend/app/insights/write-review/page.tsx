@@ -190,11 +190,15 @@ export default function WriteReviewPage() {
         const match = res.data?.find((r: any) => r.id === revId);
         if (match) {
           applyReviewData(match);
+          setStep(2); // ข้ามหน้าเลือกแผนที่ทันทีในโหมดแก้ไข
         } else if (companyIdParam) {
           fetchCompanyData(Number(companyIdParam));
           api.get(`/companies/${companyIdParam}/reviews`).then((cRes) => {
             const cMatch = cRes.data?.find((r: any) => r.id === revId);
-            if (cMatch) applyReviewData(cMatch);
+            if (cMatch) {
+              applyReviewData(cMatch);
+              setStep(2); // ข้ามหน้าเลือกแผนที่ทันทีในโหมดแก้ไข
+            }
           }).catch(() => {});
         }
       }).catch(() => {}).finally(() => setCheckingExisting(false));
@@ -264,6 +268,7 @@ export default function WriteReviewPage() {
     try {
       window.history.pushState({}, "", `/insights/write-review?company_id=${rev.company_id}&review_id=${rev.id}`);
     } catch {}
+    setStep(2); // ข้ามหน้าเลือกแผนที่ทันทีในโหมดแก้ไข
   };
 
   const validateStep = (s: number): string | null => {
@@ -1012,7 +1017,8 @@ export default function WriteReviewPage() {
 
         {/* Navigation Buttons */}
         <div className="flex justify-between items-center mt-lg pt-md border-t border-outline-variant">
-          {step > 1 ? (
+          {/* ในโหมดแก้ไข: ซ่อนปุ่มย้อนกลับที่ step 2 เพราะ step 1 คือหน้าแผนที่ที่ไม่ต้องการ */}
+          {step > 1 && !(editingReviewId && step === 2) ? (
             <button onClick={() => setStep(step - 1)} className="px-lg py-3 font-label-md text-label-md font-bold text-on-surface-variant border border-outline-variant rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer">
               ย้อนกลับ
             </button>
@@ -1028,7 +1034,7 @@ export default function WriteReviewPage() {
               disabled={loading}
               className="px-xl py-3.5 bg-secondary text-on-secondary font-label-md text-label-md font-bold rounded-xl hover:bg-opacity-90 transition-opacity shadow-lg cursor-pointer"
             >
-              {loading ? "กำลังส่ง..." : "ส่งรีวิวเพื่อรออนุมัติ"}
+              {loading ? "กำลังส่ง..." : editingReviewId ? "บันทึกการแก้ไข" : "ส่งรีวิวเพื่อรออนุมัติ"}
             </button>
           )}
         </div>

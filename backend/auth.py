@@ -1,4 +1,4 @@
-﻿import os
+import os
 import base64
 import hashlib
 from datetime import datetime, timedelta
@@ -47,6 +47,12 @@ def encrypt_identity(user_id: int) -> str:
     f = _get_fernet()
     return f.encrypt(str(user_id).encode()).decode()
 
-def decrypt_identity(token: str) -> int:
-    f = _get_fernet()
-    return int(f.decrypt(token.encode()).decode())
+def decrypt_identity(token: Optional[str]) -> Optional[int]:
+    """ถอดรหัส anon_identity_enc คืนค่า user_id (int) หรือ None เมื่อไม่สามารถถอดรหัสได้"""
+    if not token:
+        return None
+    try:
+        f = _get_fernet()
+        return int(f.decrypt(token.encode()).decode())
+    except Exception:
+        return None

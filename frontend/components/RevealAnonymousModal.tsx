@@ -13,6 +13,7 @@ interface RevealData {
   real_name: string;
   real_email: string;
   real_department?: string;
+  real_level?: string;
   revealed_at?: string;
 }
 
@@ -70,7 +71,7 @@ export default function RevealAnonymousModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-surface border border-outline-variant rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
         
         {/* Header */}
@@ -197,9 +198,15 @@ export default function RevealAnonymousModal({
                   <span className="font-bold text-primary font-mono">{result.real_email}</span>
                 </div>
                 {result.real_department && (
-                  <div className="flex justify-between py-1">
+                  <div className="flex justify-between py-1 border-b border-outline-variant/20">
                     <span className="text-on-surface-variant font-medium">แผนกวิชา:</span>
                     <span className="font-bold text-primary">{result.real_department}</span>
+                  </div>
+                )}
+                {result.real_level && (
+                  <div className="flex justify-between py-1">
+                    <span className="text-on-surface-variant font-medium">ระดับชั้น:</span>
+                    <span className="font-bold text-primary">{result.real_level}</span>
                   </div>
                 )}
               </div>

@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 import os
 
@@ -74,6 +75,14 @@ app.include_router(jobs.router)
 app.include_router(community.router)
 app.include_router(notifications.router)
 app.include_router(reports.router)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """ Global exception handler — ทำให้ทุก unhandled exception ส่ง JSON response ที่มี CORS headers อยู่เสมอ """
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์ กรุณาติดต่อผู้ดูแลระบบ"},
+    )
 
 @app.get("/health")
 def health_check():

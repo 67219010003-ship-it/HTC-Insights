@@ -9,6 +9,7 @@ import RevealAnonymousModal from "@/components/RevealAnonymousModal";
 import AdminHeader from "@/components/AdminHeader";
 import Pagination from "@/components/Pagination";
 import AdminDetailModal from "@/components/AdminDetailModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import { api } from "@/lib/api";
 
 interface StatsData {
@@ -185,6 +186,12 @@ export default function AdminDashboardPage() {
   const [deleting, setDeleting] = useState<{ type: string; id: number } | null>(null);
   const [actionLoading, setActionLoading] = useState<{ type: string; id: number } | null>(null);
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
+    isOpen: boolean;
+    type: "review" | "post" | "job" | "comment";
+    id: number;
+    title: string;
+  } | null>(null);
 
   // Fetch all dashboard data
   const fetchDashboardData = useCallback(async () => {
@@ -273,12 +280,22 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Admin Deletion Function
-  const handleDelete = async (type: "review" | "post" | "job" | "comment", id: number) => {
+  // Admin Deletion — step 1: show ConfirmModal
+  const promptDelete = (type: "review" | "post" | "job" | "comment", id: number, itemTitle?: string) => {
     const typeNames = { review: "รีวิว", post: "กระทู้", job: "ประกาศงาน", comment: "ความคิดเห็น" };
-    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${typeNames[type]} นี้อย่างถาวรจากฐานข้อมูล?`)) {
-      return;
-    }
+    setDeleteConfirmModal({
+      isOpen: true,
+      type,
+      id,
+      title: itemTitle || typeNames[type],
+    });
+  };
+
+  // Admin Deletion — step 2: actually delete after confirmation
+  const executeDelete = async () => {
+    if (!deleteConfirmModal) return;
+    const { type, id } = deleteConfirmModal;
+    setDeleteConfirmModal(null);
     setDeleting({ type, id });
     try {
       let res;
@@ -1325,7 +1342,7 @@ export default function AdminDashboardPage() {
                                 ดู
                               </button>
                               <button
-                                onClick={() => handleDelete("review", rev.id)}
+                                onClick={() => promptDelete("review", rev.id, rev.company_name)}
                                 disabled={deleting?.type === "review" && deleting?.id === rev.id}
                                 className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 rounded-xl text-[11px] transition-all cursor-pointer disabled:opacity-50"
                               >
@@ -1464,7 +1481,7 @@ export default function AdminDashboardPage() {
                                 ดู
                               </button>
                               <button
-                                onClick={() => handleDelete("post", post.id)}
+                                onClick={() => promptDelete("post", post.id, post.title)}
                                 disabled={deleting?.type === "post" && deleting?.id === post.id}
                                 className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 rounded-xl text-[11px] transition-all cursor-pointer disabled:opacity-50"
                               >
@@ -1611,7 +1628,7 @@ export default function AdminDashboardPage() {
                                 ดู
                               </button>
                               <button
-                                onClick={() => handleDelete("job", job.id)}
+                                onClick={() => promptDelete("job", job.id, job.title)}
                                 disabled={deleting?.type === "job" && deleting?.id === job.id}
                                 className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 rounded-xl text-[11px] transition-all cursor-pointer disabled:opacity-50"
                               >
@@ -1857,7 +1874,17 @@ export default function AdminDashboardPage() {
         )}
       </div>
 
-      {/* Reject Reason Modal */}
+      {/* Admin Full Detail Viewer Modal — z-50 */}
+      {detailModalItem && (
+        <AdminDetailModal
+          isOpen={!!detailModalItem}
+          item={detailModalItem}
+          onRevealAnonymous={(reviewId) => setRevealTargetId(reviewId)}
+          onClose={() => setDetailModalItem(null)}
+        />
+      )}
+
+      {/* Reject Reason Modal — z-[70] (via RejectReasonModal own z-index) */}
       {rejectTarget && (
         <RejectReasonModal
           isOpen={!!rejectTarget}
@@ -1869,7 +1896,7 @@ export default function AdminDashboardPage() {
         />
       )}
 
-      {/* Reveal Anonymous Modal */}
+      {/* Reveal Anonymous Modal — z-[70] */}
       {revealTargetId !== null && (
         <RevealAnonymousModal
           isOpen={revealTargetId !== null}
@@ -1878,17 +1905,22 @@ export default function AdminDashboardPage() {
         />
       )}
 
-      {/* Admin Full Detail Viewer Modal */}
-      {detailModalItem && (
-        <AdminDetailModal
-          isOpen={!!detailModalItem}
-          item={detailModalItem}
-          onRevealAnonymous={(reviewId) => setRevealTargetId(reviewId)}
-          onClose={() => setDetailModalItem(null)}
+      {/* Delete Confirm Modal — z-[70] */}
+      {deleteConfirmModal && (
+        <ConfirmModal
+          isOpen={deleteConfirmModal.isOpen}
+          title={`ยืนยันการลบ${deleteConfirmModal.type === "review" ? "รีวิว" : deleteConfirmModal.type === "post" ? "กระทู้" : deleteConfirmModal.type === "comment" ? "ความคิดเห็น" : "ประกาศงาน"}`}
+          message={`คุณแน่ใจหรือไม่ว่าต้องการลบ ${deleteConfirmModal.type === "review" ? "รีวิว" : deleteConfirmModal.type === "post" ? "กระทู้" : deleteConfirmModal.type === "comment" ? "ความคิดเห็น" : "ประกาศงาน"} "${deleteConfirmModal.title}" นี้อย่างถาวรจากฐานข้อมูล? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+          type="danger"
+          confirmText="ยืนยัน ลบถาวร"
+          cancelText="ยกเลิก"
+          loading={!!(deleting?.type === deleteConfirmModal.type && deleting?.id === deleteConfirmModal.id)}
+          onConfirm={executeDelete}
+          onClose={() => setDeleteConfirmModal(null)}
         />
       )}
 
-      {/* Student Card Image Preview Lightbox Modal */}
+      {/* Student Card Image Preview Lightbox Modal — z-50 */}
       {previewImageUrl && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
