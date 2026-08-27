@@ -29,6 +29,11 @@ export default function LoginPage() {
     const googleClientId =
       process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
+    if (!googleClientId) {
+      setError("ระบบยังไม่ได้ตั้งค่า NEXT_PUBLIC_GOOGLE_CLIENT_ID บน Vercel Environment Variables");
+      return;
+    }
+
     // โหลด Google GSI Script สำหรับปุ่มล็อกอิน
     if (!document.getElementById("google-gsi-script")) {
       const script = document.createElement("script");
