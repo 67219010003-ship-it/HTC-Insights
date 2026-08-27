@@ -25,7 +25,7 @@ class StudentRegister(BaseModel):
 class EmployerRegister(BaseModel):
     email: EmailStr | None = None
     contact_email: EmailStr | None = None
-    password: str = Field("default_password123", min_length=8, max_length=100)
+    password: str | None = Field(None, max_length=100)
     company_name: str = Field(..., min_length=3, max_length=150, description="ชื่อสถานประกอบการ 3-150 ตัวอักษร")
     address: str = Field(..., min_length=5, max_length=300, description="ที่อยู่ 5-300 ตัวอักษร")
     industry: str = Field("ทั่วไป", max_length=100)

@@ -133,7 +133,7 @@ def register_employer(data: EmployerRegister,
     if not employer:
         employer = Employer(
             email=poster_email,
-            password_hash=hash_password(data.password or "default12345"),
+            password_hash=hash_password(data.password or secrets.token_urlsafe(16)),
             company_name=data.company_name,
             address=data.address,
             industry=data.industry or "ทั่วไป",

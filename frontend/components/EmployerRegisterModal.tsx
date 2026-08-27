@@ -56,7 +56,6 @@ export default function EmployerRegisterModal({
         phone: phone.trim(),
         address: address.trim(),
         industry: industry.trim(),
-        password: "google_partner_account", // System auto partner account
         notes: notes.trim(),
       });
 
