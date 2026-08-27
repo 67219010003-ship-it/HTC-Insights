@@ -16,55 +16,65 @@ import re
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 def parse_google_token_claims(id_token: str, client_id: str):
-    """ ถอดรหัส Google ID Token เพื่ออ่านอีเมล, ชื่อ และรูปโปรไฟล์ของบัญชี Google """
+    """ ตรวจสอบความถูกต้องและถอดรหัส Google ID Token ด้วย Google Auth API อย่างปลอดภัย """
     if not id_token:
         return None
 
-    if id_token == "dummy_token" or os.getenv("TESTING") == "1":
+    # อนุญาตเฉพาะการทดสอบอัตโนมัติ (Automated Unit Tests)
+    if os.getenv("TESTING") == "1" and id_token == "dummy_token":
         return {
             "email": "student01@htc.ac.th",
             "name": "Student Test",
             "picture": None,
         }
 
-    # 1. ถอดรหัสผ่าน Google Official Library
-    if client_id and client_id != "YOUR_GOOGLE_CLIENT_ID_HERE":
-        try:
-            from google.oauth2 import id_token as google_id_token
-            from google.auth.transport import requests
-            id_info = google_id_token.verify_oauth2_token(id_token, requests.Request(), client_id)
-            if id_info.get("email"):
-                return {
-                    "email": id_info.get("email"),
-                    "name": id_info.get("name") or id_info.get("email", "").split("@")[0],
-                    "picture": id_info.get("picture"),
-                }
-        except Exception:
-            pass
-
-    # 2. ถอดรหัสผ่าน JWT Payload สำรอง (Base64URL)
+    # 1. ตรวจสอบผ่าน google.oauth2 official library
     try:
-        parts = str(id_token).split(".")
-        if len(parts) >= 2:
-            rem = len(parts[1]) % 4
-            padding = "=" * ((4 - rem) % 4) if rem != 0 else ""
-            payload_bytes = base64.urlsafe_b64decode(parts[1] + padding)
-            payload = json.loads(payload_bytes.decode("utf-8"))
-            email = payload.get("email")
-            if email:
-                return {
-                    "email": email,
-                    "name": payload.get("name") or email.split("@")[0],
-                    "picture": payload.get("picture"),
-                }
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests
+        aud = client_id if (client_id and client_id != "YOUR_GOOGLE_CLIENT_ID_HERE") else None
+        id_info = google_id_token.verify_oauth2_token(id_token, requests.Request(), audience=aud)
+        email = id_info.get("email")
+        if email and id_info.get("email_verified", True):
+            return {
+                "email": email,
+                "name": id_info.get("name") or email.split("@")[0],
+                "picture": id_info.get("picture"),
+            }
     except Exception:
         pass
 
+    # 2. ตรวจสอบผ่าน Google TokenInfo Endpoint (Cryptographically validated by Google)
+    try:
+        import urllib.request
+        req_url = f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}"
+        with urllib.request.urlopen(req_url, timeout=5) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode("utf-8"))
+                email = data.get("email")
+                if email and (data.get("email_verified") == "true" or data.get("email_verified") is True):
+                    if client_id and client_id != "YOUR_GOOGLE_CLIENT_ID_HERE":
+                        if data.get("aud") != client_id:
+                            return None
+                    return {
+                        "email": email,
+                        "name": data.get("name") or email.split("@")[0],
+                        "picture": data.get("picture"),
+                    }
+    except Exception:
+        pass
+
+    # ❌ ปิดการถอดรหัส unverified payload ออกโดยเด็ดขาด เพื่อป้องกันการ Bypass หรือปลอมแปลง Token จากผู้ไม่ประสงค์ดี
     return None
 
 @router.post("/register/student", status_code=201)
 def register_student(data: StudentRegister, db: Session = Depends(get_db)):
     """ สมัครสมาชิกบัญชีนักศึกษาใหม่ พร้อมส่ง Verify Token """
+    env_admin_emails = os.getenv("SUPER_ADMIN_EMAILS", "67219010003@htc.ac.th")
+    admin_emails = {e.strip() for e in env_admin_emails.split(",") if e.strip()}
+    if data.email in admin_emails or data.email == "67219010003@htc.ac.th":
+        raise HTTPException(400, "อีเมลผู้ดูแลระบบ (67219010003@htc.ac.th) ต้องเข้าสู่ระบบผ่าน Google Authentication เท่านั้น")
+
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(400, "อีเมลนี้ถูกใช้งานแล้ว")
     token = secrets.token_urlsafe(32)
@@ -201,6 +211,11 @@ def register_employer(data: EmployerRegister,
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)):
     """ เข้าสู่ระบบด้วย Email/Password ทั่วไป """
+    env_admin_emails = os.getenv("SUPER_ADMIN_EMAILS", "67219010003@htc.ac.th")
+    admin_emails = {e.strip() for e in env_admin_emails.split(",") if e.strip()}
+    if data.email in admin_emails or data.email == "67219010003@htc.ac.th":
+        raise HTTPException(403, "บัญชีผู้ดูแลระบบ (67219010003@htc.ac.th) ต้องเข้าสู่ระบบด้วย Google Authentication เท่านั้น เพื่อความปลอดภัยสูงสุด")
+
     if data.role == "student":
         user = db.query(User).filter(User.email == data.email).first()
         if not user or not verify_password(data.password, user.password_hash):
@@ -252,7 +267,8 @@ def google_auth(payload: dict = Body(...), db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
 
-    ADMIN_EMAILS = {"noreply@htc.ac.th", "67219010003@htc.ac.th"}
+    env_admin_emails = os.getenv("SUPER_ADMIN_EMAILS", "67219010003@htc.ac.th")
+    ADMIN_EMAILS = {e.strip() for e in env_admin_emails.split(",") if e.strip()}
     if email in ADMIN_EMAILS:
         user.role = UserRole.admin
         user.is_super_admin = True

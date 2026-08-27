@@ -350,6 +350,28 @@ def test_my_upgrade_request_crud():
     assert res_after_del.status_code == 200
     assert res_after_del.json()["has_request"] is False
 
+def test_admin_google_login_enforced():
+    # 1. Register with admin email via password must fail
+    res_reg = client.post("/auth/register/student", json={
+        "email": "67219010003@htc.ac.th",
+        "password": "password123!",
+        "name": "Super Admin",
+        "department": "แผนกวิชาเทคโนโลยีสารสนเทศ",
+        "level": "pvs"
+    })
+    assert res_reg.status_code == 400
+    assert "ต้องเข้าสู่ระบบผ่าน Google Authentication เท่านั้น" in res_reg.json()["detail"]
+
+    # 2. Login with admin email via password must fail
+    res_login = client.post("/auth/login", json={
+        "email": "67219010003@htc.ac.th",
+        "password": "password123!",
+        "role": "student"
+    })
+    assert res_login.status_code == 403
+    assert "ต้องเข้าสู่ระบบด้วย Google Authentication เท่านั้น" in res_login.json()["detail"]
+
+
 
 
 
