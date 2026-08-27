@@ -332,7 +332,7 @@ def request_student_verification(payload: dict = Body(...),
 
     clean_student_id = re.sub(r"\D", "", str(student_id))
     if len(clean_student_id) != 11:
-        raise HTTPException(400, "รหัสนักศึกษาต้องเป็นตัวเลข 11 หลักเท่านั้น (เช่น 67219010003)")
+        raise HTTPException(400, "รหัสนักศึกษาต้องเป็นตัวเลข 11 หลักเท่านั้น (เช่น 67xxxxxxxx)")
 
     if not card_image_url:
         raise HTTPException(400, "กรุณาแนบรูปภาพหลักฐานบัตรประจำตัวนักศึกษา")
@@ -417,7 +417,7 @@ def update_my_upgrade_request(
     if student_id:
         clean_student_id = re.sub(r"\D", "", str(student_id))
         if len(clean_student_id) != 11:
-            raise HTTPException(400, "รหัสนักศึกษาต้องเป็นตัวเลข 11 หลักเท่านั้น (เช่น 67219010003)")
+            raise HTTPException(400, "รหัสนักศึกษาต้องเป็นตัวเลข 11 หลักเท่านั้น (เช่น 67xxxxxxxx)")
         req.student_id = clean_student_id
 
     if "department" in payload and payload["department"]:

@@ -639,7 +639,7 @@ export default function EmployerRegisterPage() {
                     required
                     maxLength={30}
                     onKeyDown={handleKeyDown}
-                    placeholder="เช่น ฝ่ายบุคคล / คุณสมชาย"
+                    placeholder="เช่น ฝ่ายบุคคล / เจ้าหน้าที่ประสานงาน"
                     value={contactPerson}
                     onChange={(e) => setContactPerson(e.target.value)}
                     className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm focus:outline-none focus:border-secondary"

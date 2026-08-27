@@ -50,7 +50,7 @@ export default function JobDetailView({ job, onBack }: JobDetailViewProps) {
   const phone = job.phone || "000-000-000 (ฝ่าย HR/รับสมัครฝึกงาน)";
   const email = job.email || "hr@company.co.th";
   const contactPerson = job.contact_person || "ฝ่ายทรัพยากรบุคคล / ผู้จัดการแผนก";
-  const lineId = job.line_id || "@htc_internship";
+  const lineId = job.line_id || "-";
 
 
 

@@ -638,7 +638,7 @@ export default function ProfileUpgradePage() {
                 type="text"
                 required
                 maxLength={11}
-                placeholder="เช่น 67219010003 (11 หลัก)"
+                placeholder="เช่น 67xxxxxxxx (11 หลัก)"
                 value={studentId}
                 onChange={(e) => {
                   const filtered = e.target.value.replace(/\D/g, "").slice(0, 11);

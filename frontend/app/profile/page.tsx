@@ -1795,7 +1795,7 @@ export default function StudentProfilePage() {
                     value={editJobModal.contact_person}
                     onChange={(e) => setEditJobModal((prev) => ({ ...prev, contact_person: e.target.value }))}
                     className="w-full p-2.5 bg-surface-container-low border border-outline-variant/40 rounded-xl focus:border-secondary focus:outline-none text-xs"
-                    placeholder="เช่น คุณสมชาย (ฝ่ายบุคคล)"
+                    placeholder="เช่น ฝ่ายบุคคล / HR"
                   />
                 </div>
                 <div>
