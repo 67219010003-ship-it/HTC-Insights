@@ -216,7 +216,7 @@ export default function WriteReviewPage() {
       fetchCompanyData(Number(companyIdParam));
     }
 
-    api.get("/companies").then((res) => {
+    api.get("/companies?all=true").then((res) => {
       setCompanies(res.data || []);
     }).catch(() => {});
   }, []);
@@ -427,6 +427,16 @@ export default function WriteReviewPage() {
       <div className="max-w-3xl mx-auto px-margin-mobile pt-16 pb-24 text-center">
         <div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
         <p className="text-xs font-bold text-on-surface-variant">กำลังตรวจสอบสิทธิ์การเข้าถึง...</p>
+      </div>
+    );
+  }
+
+  if (checkingExisting) {
+    return (
+      <div className="max-w-md mx-auto px-margin-mobile py-20 text-center space-y-3 bg-white border border-outline-variant/60 rounded-3xl shadow-sm mt-12">
+        <div className="w-10 h-10 border-3 border-secondary border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-sm font-bold text-primary font-headline">กำลังโหลดข้อมูลรีวิวของคุณ...</p>
+        <p className="text-xs text-on-surface-variant">กรุณารอสักครู่ ระบบกำลังจัดเตรียมข้อมูลเดิม</p>
       </div>
     );
   }
@@ -737,23 +747,6 @@ export default function WriteReviewPage() {
               </p>
             </div>
 
-            {/* Live Auto-computed Overall Score Card */}
-            <div className="bg-gradient-to-r from-secondary/15 via-secondary/10 to-transparent border border-secondary/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold text-secondary uppercase tracking-wide flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[18px]">calculate</span>
-                  คะแนนภาพรวม (คำนวณเฉลี่ยอัตโนมัติ)
-                </span>
-                <p className="text-xs text-on-surface-variant">
-                  คิดจากค่าเฉลี่ยของคะแนน 4 ด้านย่อยด้านล่าง
-                </p>
-              </div>
-              <div className="flex items-center gap-2 bg-white/90 px-4 py-2 rounded-xl border border-secondary/30 shadow-xs">
-                <span className="material-symbols-outlined text-secondary text-[26px] active-tab">star</span>
-                <span className="text-2xl font-black text-primary font-mono">{Number(((scoreWork + scoreEnv + scoreMentor + scoreWelfare) / 4).toFixed(1))}</span>
-                <span className="text-xs text-on-surface-variant font-bold">/ 5.0</span>
-              </div>
-            </div>
 
             <div className="space-y-2.5">
               {[

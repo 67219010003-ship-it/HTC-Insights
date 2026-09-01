@@ -591,31 +591,41 @@ export default function CompanyDetailPage() {
                     </div>
 
                     {/* Photos Gallery - Responsive & Overflow Safe */}
-                    {r.photo_urls && r.photo_urls.length > 0 && (
-                      <div className="mt-3 space-y-1.5">
-                        <div className="text-[11px] font-bold text-on-surface-variant flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[16px] text-secondary">photo_camera</span>
-                          รูปภาพบรรยากาศจริง ({r.photo_urls.length} รูป)
+                    {(() => {
+                      const photoList: string[] = (r.photo_urls && r.photo_urls.length > 0)
+                        ? r.photo_urls
+                        : (r.photos && r.photos.length > 0)
+                          ? r.photos.map((p: any) => typeof p === "string" ? p : (p.photo_url || p.url)).filter(Boolean)
+                          : [];
+                      
+                      if (photoList.length === 0) return null;
+
+                      return (
+                        <div className="mt-3 space-y-1.5">
+                          <div className="text-[11px] font-bold text-on-surface-variant flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[16px] text-secondary">photo_camera</span>
+                            รูปภาพบรรยากาศจริง ({photoList.length} รูป)
+                          </div>
+                          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+                            {photoList.map((url: string, idx: number) => (
+                              <button
+                                type="button"
+                                key={idx}
+                                onClick={() => setLightbox({ isOpen: true, images: photoList, index: idx })}
+                                className="w-full h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-outline-variant/60 shadow-xs hover:opacity-95 hover:scale-[1.02] hover:border-secondary transition-all cursor-pointer bg-surface-container-low group relative"
+                              >
+                                <img src={url} alt={`Review photo ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+                                  <span className="material-symbols-outlined text-white text-[20px] opacity-0 group-hover:opacity-100 transition-opacity drop-shadow">
+                                    zoom_in
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
-                          {r.photo_urls.map((url: string, idx: number) => (
-                            <button
-                              type="button"
-                              key={idx}
-                              onClick={() => setLightbox({ isOpen: true, images: r.photo_urls, index: idx })}
-                              className="w-full h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-outline-variant/60 shadow-xs hover:opacity-95 hover:scale-[1.02] hover:border-secondary transition-all cursor-pointer bg-surface-container-low group relative"
-                            >
-                              <img src={url} alt={`Review photo ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
-                                <span className="material-symbols-outlined text-white text-[20px] opacity-0 group-hover:opacity-100 transition-opacity drop-shadow">
-                                  zoom_in
-                                </span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     <div className="pt-2.5 border-t border-outline-variant/40 flex justify-between items-center text-[10px] sm:text-[11px] text-on-surface-variant font-medium">
                       <span className="text-slate-400">รีวิวผ่านการตรวจสอบแล้ว</span>

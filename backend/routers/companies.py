@@ -8,19 +8,42 @@ from schemas.companies import CompanyCreate, CompanyPublic
 router = APIRouter(tags=["companies"])
 
 @router.get("/companies", response_model=list[CompanyPublic])
-def list_companies(db: Session = Depends(get_db)):
-    """ ดึงรายชื่อสถานประกอบการทั้งหมด พร้อมคำนวณคะแนนเฉลี่ยและจำนวนรีวิว """
-    companies = db.query(Company).all()
-    results = []
-    for c in companies:
-        rev_stats = db.query(
-            func.avg(Review.score_overall).label("avg_score"),
-            func.count(Review.id).label("rev_count")
-        ).filter(
-            Review.company_id == c.id,
-            Review.status == ReviewStatus.approved
-        ).first()
+def list_companies(all: bool = False,
+                   include_empty: bool = False,
+                   q: str = None,
+                   department: str = None,
+                   limit: int = 100,
+                   db: Session = Depends(get_db)):
+    """ ค้นหาและแสดงรายการสถานประกอบการ พร้อมคำนวณคะแนนเฉลี่ยและจำนวนรีวิวที่ผ่านการอนุมัติแล้วเท่านั้น (ตรงตามระบบเดิม 100%) """
+    avg_expr = func.avg(Review.score_overall)
+    count_expr = func.count(Review.id)
 
+    query = db.query(
+        Company,
+        avg_expr.label("avg_score"),
+        count_expr.label("review_count"),
+    ).outerjoin(
+        Review,
+        (Review.company_id == Company.id) & (Review.status == ReviewStatus.approved)
+    ).group_by(Company.id)
+
+    # กฎของระบบเดิม: หน้าสำรวจจะแสดงเฉพาะสถานที่ที่มีรีวิวอนุมัติแล้วเท่านั้น (having count > 0)
+    if not all and not include_empty and not (q and q.strip()):
+        query = query.having(count_expr > 0)
+
+    if q and q.strip():
+        query = query.filter(Company.name.ilike(f"%{q.strip()}%"))
+
+    if department and department != "ทั้งหมด" and department.strip():
+        dept_subquery = db.query(Review.company_id).filter(
+            Review.department == department.strip(),
+            Review.status == ReviewStatus.approved
+        ).distinct()
+        query = query.filter(Company.id.in_(dept_subquery))
+
+    rows = query.limit(limit).all()
+    results = []
+    for c, avg_s, rev_c in rows:
         results.append(CompanyPublic(
             id=c.id,
             name=c.name,
@@ -31,8 +54,8 @@ def list_companies(db: Session = Depends(get_db)):
             phone=c.phone,
             website=c.website,
             cover_image_url=c.cover_image_url,
-            avg_score=round(rev_stats.avg_score, 1) if rev_stats and rev_stats.avg_score else None,
-            review_count=rev_stats.rev_count if rev_stats else 0,
+            avg_score=round(avg_s, 1) if avg_s else None,
+            review_count=rev_c or 0,
             created_at=c.created_at.strftime("%Y-%m-%d") if c.created_at else None,
         ))
     return results
@@ -129,6 +152,7 @@ def get_company_reviews(company_id: int, db: Session = Depends(get_db)):
             "text_cons": r.text_cons or "",
             "text_advice": r.text_advice or "",
             "is_anonymous": r.is_anonymous,
+            "photo_urls": [p.url for p in r.photos],
             "photos": [{"id": p.id, "photo_url": p.url} for p in r.photos],
             "created_at": r.created_at.strftime("%Y-%m-%d") if r.created_at else "",
         })
