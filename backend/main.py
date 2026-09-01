@@ -15,9 +15,19 @@ def run_migrations():
     with engine.connect() as conn:
         from sqlalchemy import text
         statements = [
+            'ALTER TABLE users ADD COLUMN is_super_admin BOOLEAN DEFAULT FALSE',
+            'ALTER TABLE users ADD COLUMN avatar_url TEXT NULL',
+            'ALTER TABLE users MODIFY COLUMN avatar_url TEXT NULL',
+            'ALTER TABLE users MODIFY COLUMN role ENUM(\'student\', \'admin\', \'external\') DEFAULT \'student\'',
+            'ALTER TABLE companies ADD COLUMN cover_image_url TEXT NULL',
+            'ALTER TABLE companies ADD COLUMN description TEXT NULL',
+            'ALTER TABLE employers ADD COLUMN logo_url TEXT NULL',
+            'ALTER TABLE employers ADD COLUMN is_approved BOOLEAN DEFAULT FALSE',
             'ALTER TABLE reviews ADD COLUMN rejection_reason TEXT NULL',
+            'ALTER TABLE reviews ADD COLUMN anon_identity_enc VARCHAR(500) NULL',
             'ALTER TABLE community_posts ADD COLUMN status VARCHAR(20) DEFAULT \'pending\'',
             'ALTER TABLE community_posts ADD COLUMN rejection_reason TEXT NULL',
+            'ALTER TABLE community_posts ADD COLUMN anon_identity_enc VARCHAR(500) NULL',
             'ALTER TABLE job_postings ADD COLUMN status VARCHAR(20) DEFAULT \'pending\'',
             'ALTER TABLE job_postings ADD COLUMN rejection_reason TEXT NULL',
             'ALTER TABLE upgrade_requests ADD COLUMN rejection_reason TEXT NULL',
@@ -29,6 +39,7 @@ def run_migrations():
             'ALTER TABLE reports ADD COLUMN comment_id INT NULL',
             'ALTER TABLE community_comments ADD COLUMN status VARCHAR(20) DEFAULT \'pending\'',
             'ALTER TABLE community_comments ADD COLUMN rejection_reason TEXT NULL',
+            'ALTER TABLE community_comments ADD COLUMN anon_identity_enc VARCHAR(500) NULL',
         ]
         for stmt in statements:
             try:

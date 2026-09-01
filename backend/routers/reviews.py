@@ -5,7 +5,7 @@ import os
 from database import get_db
 from models import Review, ReviewPhoto, Company, User, ReviewStatus, Gender, UserRole
 from schemas.reviews import ReviewCreate, ReviewPublic
-from dependencies import require_student
+from dependencies import require_student, get_current_user
 from auth import encrypt_identity
 from services.cloudinary_service import upload_review_photo
 from routers.notifications import create_notification
@@ -31,14 +31,12 @@ def get_all_reviews(skip: int = 0, limit: int = 20, db: Session = Depends(get_db
     result = []
     for r in reviews:
         author_name = None if r.is_anonymous else (r.user.name if r.user else "นักศึกษา HTC")
-        author_dept = r.department or (r.user.department if r.user else "วิทยาลัยเทคนิคหาดใหญ่")
         photo_urls = [p.url for p in r.photos]
         result.append(ReviewPublic(
             id=r.id, company_id=r.company_id, user_id=r.user_id,
             gender=r.gender.value if r.gender else "prefer_not",
             department=r.department,
             daily_allowance=r.daily_allowance,
-            has_transport=r.has_transport,
             work_start_time=r.work_start_time,
             work_end_time=r.work_end_time,
             score_overall=r.score_overall, score_work=r.score_work,
@@ -48,7 +46,7 @@ def get_all_reviews(skip: int = 0, limit: int = 20, db: Session = Depends(get_db
             text_cons=r.text_cons, text_advice=r.text_advice,
             is_anonymous=r.is_anonymous,
             author_name=author_name,
-            author_department=None if r.is_anonymous else author_dept,
+            author_department=None if r.is_anonymous else r.department,
             photo_urls=photo_urls,
             status=r.status.value if r.status else "approved",
             created_at=to_thai_date(r.created_at),
@@ -59,19 +57,17 @@ def get_all_reviews(skip: int = 0, limit: int = 20, db: Session = Depends(get_db
 def create_review(data: ReviewCreate,
                   current_user: User = Depends(require_student),
                   db: Session = Depends(get_db)):
-    """ บันทึกรีวิวประสบการณ์ฝึกงานใหม่ของนักศึกษา พร้อมระบบจำกัด 1 รีวิว/บริษัท/ปีการศึกษา """
+    """ บันทึกรีวิวประสบการณ์ฝึกงานใหม่ของนักศึกษา พร้อมระบบจำกัด 1 รีวิว/คน """
     if not db.query(Company).filter(Company.id == data.company_id).first():
         raise HTTPException(404, "ไม่พบสถานประกอบการ")
     if len(data.text_work.strip()) < 30:
         raise HTTPException(400, "รายละเอียดลักษณะงานต้องมีอย่างน้อย 30 ตัวอักษร")
     if len(data.text_work) > 1000:
         raise HTTPException(400, "รายละเอียดลักษณะงานต้องไม่เกิน 1000 ตัวอักษร")
-    if data.text_pros and len(data.text_pros) > 500:
-        raise HTTPException(400, "จุดเด่น/ข้อดีต้องไม่เกิน 500 ตัวอักษร")
-    if data.text_cons and len(data.text_cons) > 500:
-        raise HTTPException(400, "ข้อจำกัด/ข้อควรปรับปรุงต้องไม่เกิน 500 ตัวอักษร")
-    if data.text_advice and len(data.text_advice) > 500:
-        raise HTTPException(400, "คำแนะนำแก่น้องๆ ต้องไม่เกิน 500 ตัวอักษร")
+    if not data.text_pros or not data.text_pros.strip():
+        raise HTTPException(400, "กรุณาระบุข้อดี/จุดเด่นของสถานที่ฝึกงาน")
+    if not data.text_cons or not data.text_cons.strip():
+        raise HTTPException(400, "กรุณาระบุข้อจำกัด/ข้อควรปรับปรุงของสถานที่ฝึกงาน")
 
     existing = db.query(Review).filter(
         Review.user_id == current_user.id,
@@ -92,8 +88,7 @@ def create_review(data: ReviewCreate,
         period_start=data.period_start,
         period_end=data.period_end,
         department=data.department,
-        daily_allowance=data.daily_allowance,
-        has_transport=data.has_transport,
+        daily_allowance=data.daily_allowance or 0,
         work_start_time=data.work_start_time,
         work_end_time=data.work_end_time,
         score_overall=computed_overall,
@@ -113,7 +108,6 @@ def create_review(data: ReviewCreate,
     db.commit()
     db.refresh(review)
 
-    # ส่งการแจ้งเตือนไปยัง Admin ทุกคนเมื่อมีรีวิวใหม่รอการอนุมัติ
     if review.status == ReviewStatus.pending:
         admins = db.query(User).filter(User.role == UserRole.admin).all()
         comp_obj = db.query(Company).filter(Company.id == data.company_id).first()
@@ -148,130 +142,103 @@ def upload_photos(
     current_photo_count = db.query(ReviewPhoto).filter(ReviewPhoto.review_id == review.id).count()
     if current_photo_count + len(files) > 2:
         raise HTTPException(400, f"แนบรูปได้สูงสุดรวมไม่เกิน 2 รูป (ปัจจุบันมีแล้ว {current_photo_count} รูป)")
-    if len(files) < 1:
-        raise HTTPException(400, "ต้องแนบรูปอย่างน้อย 1 รูป")
 
-    urls = []
-    for file in files:
-        if file.content_type and not file.content_type.startswith("image/"):
-            raise HTTPException(400, f"{file.filename} ต้องเป็นไฟล์รูปภาพ")
-        content = file.file.read()
-        if len(content) > 5 * 1024 * 1024:
-            raise HTTPException(400, f"{file.filename} ขนาดไฟล์เกิน 5MB")
-        url = upload_review_photo(content, file.filename)
-        db.add(ReviewPhoto(review_id=review.id, url=url))
-        urls.append(url)
+    uploaded_urls = []
+    for f in files:
+        if f.content_type and not f.content_type.startswith("image/"):
+            raise HTTPException(400, f"ไฟล์ {f.filename} ไม่ใช่รูปภาพ")
+        try:
+            content = f.file.read()
+            if len(content) > 5 * 1024 * 1024:
+                raise HTTPException(400, f"ไฟล์ {f.filename} มีขนาดเกิน 5MB")
+            url = upload_review_photo(content, f.filename)
+            rp = ReviewPhoto(review_id=review.id, url=url)
+            db.add(rp)
+            uploaded_urls.append(url)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(500, f"อัปโหลดรูปภาพไม่สำเร็จ: {str(e)}")
+
     db.commit()
-    return {"uploaded": len(urls), "urls": urls}
+    return {"message": f"อัปโหลดสำเร็จ {len(uploaded_urls)} รูป", "urls": uploaded_urls}
 
 @router.delete("/reviews/{review_id}/photos")
-def clear_review_photos(
+def delete_review_photos(
     review_id: int,
     current_user: User = Depends(require_student),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 ):
-    """ ลบรูปภาพประกอบทั้งหมดของรีวิว (สำหรับการอัปโหลดใหม่ในโหมดแก้ไข) """
-    review = db.query(Review).filter(Review.id == review_id).first()
-    if not review:
-        raise HTTPException(404, "ไม่พบรีวิว")
-    if review.user_id != current_user.id and current_user.role.value != "admin":
-        raise HTTPException(403, "ไม่มีสิทธิ์จัดการรูปภาพรีวิวนี้")
-    
-    db.query(ReviewPhoto).filter(ReviewPhoto.review_id == review.id).delete()
+    """ ลบรูปภาพทั้งหมดที่แนบกับรีวิวนี้ """
+    review = db.query(Review).filter(
+        Review.id == review_id, Review.user_id == current_user.id
+    ).first()
+    if not review and current_user.role != UserRole.admin:
+        raise HTTPException(404, "ไม่พบรีวิวหรือไม่มีสิทธิ์")
+
+    db.query(ReviewPhoto).filter(ReviewPhoto.review_id == review_id).delete()
     db.commit()
-    return {"message": "ลบรูปภาพประกอบรีวิวเรียบร้อยแล้ว"}
+    return {"message": "ลบรูปภาพทั้งหมดเรียบร้อยแล้ว"}
 
-@router.get("/companies/{company_id}/reviews", response_model=list[ReviewPublic])
-def get_company_reviews(company_id: int,
-                         skip: int = 0, limit: int = 20,
-                         db: Session = Depends(get_db),
-                         current_user: User = Depends(require_student)):
-    """ ดึงรายการรีวิวทั้งหมดของสถานประกอบการที่ระบุ (เฉพาะที่อนุมัติแล้ว) """
-    reviews = db.query(Review).filter(
-        Review.company_id == company_id,
-        Review.status == ReviewStatus.approved,
-    ).order_by(Review.created_at.desc()).offset(skip).limit(limit).all()
-
-    result = []
-    for r in reviews:
-        author_name = None if r.is_anonymous else r.user.name
-        author_dept = r.department or r.user.department
-        photo_urls = [p.url for p in r.photos]
-        result.append(ReviewPublic(
-            id=r.id, company_id=r.company_id, user_id=r.user_id,
-            gender=r.gender.value if r.gender else "prefer_not",
-            department=r.department,
-            daily_allowance=r.daily_allowance,
-            has_transport=r.has_transport,
-            work_start_time=r.work_start_time,
-            work_end_time=r.work_end_time,
-            score_overall=r.score_overall, score_work=r.score_work,
-            score_env=r.score_env, score_mentor=r.score_mentor,
-            score_welfare=r.score_welfare,
-            text_work=r.text_work, text_pros=r.text_pros,
-            text_cons=r.text_cons, text_advice=r.text_advice,
-            is_anonymous=r.is_anonymous,
-            author_name=author_name,
-            author_department=None if r.is_anonymous else author_dept,
-            photo_urls=photo_urls,
-            status=r.status.value if r.status else "approved",
-            created_at=to_thai_date(r.created_at),
-        ))
-    return result
-
-@router.get("/reviews/my", response_model=list[ReviewPublic])
-def get_my_reviews(current_user: User = Depends(require_student),
+@router.get("/reviews/my")
+def get_my_reviews(current_user: User = Depends(get_current_user),
                    db: Session = Depends(get_db)):
-    """ ดึงประวัติรีวิวทั้งหมดที่ตนเองเคยเขียนไว้ """
-    reviews = db.query(Review).filter(Review.user_id == current_user.id).order_by(Review.created_at.desc()).all()
+    """ ดึงรายการรีวิวทั้งหมดของผู้ใช้งานปัจจุบัน """
+    reviews = db.query(Review).filter(
+        Review.user_id == current_user.id
+    ).order_by(Review.created_at.desc()).all()
+    
     result = []
     for r in reviews:
-        result.append(ReviewPublic(
-            id=r.id, company_id=r.company_id, user_id=r.user_id,
-            gender=r.gender.value if r.gender else "prefer_not",
-            department=r.department,
-            daily_allowance=r.daily_allowance,
-            has_transport=r.has_transport,
-            work_start_time=r.work_start_time,
-            work_end_time=r.work_end_time,
-            score_overall=r.score_overall, score_work=r.score_work,
-            score_env=r.score_env, score_mentor=r.score_mentor,
-            score_welfare=r.score_welfare,
-            text_work=r.text_work, text_pros=r.text_pros,
-            text_cons=r.text_cons, text_advice=r.text_advice,
-            is_anonymous=r.is_anonymous,
-            author_name=current_user.name,
-            author_department=r.department or current_user.department,
-            photo_urls=[p.url for p in r.photos],
-            status=r.status.value if r.status else "pending",
-            created_at=to_thai_date(r.created_at),
-        ))
+        author_name = None if r.is_anonymous else current_user.name
+        photo_urls = [p.url for p in r.photos]
+        result.append({
+            "id": r.id,
+            "company_id": r.company_id,
+            "company_name": r.company.name if r.company else "สถานประกอบการ",
+            "gender": r.gender.value if r.gender else "prefer_not",
+            "period_start": r.period_start.isoformat() if r.period_start else None,
+            "period_end": r.period_end.isoformat() if r.period_end else None,
+            "department": r.department,
+            "daily_allowance": r.daily_allowance,
+            "work_start_time": r.work_start_time,
+            "work_end_time": r.work_end_time,
+            "score_overall": r.score_overall,
+            "score_work": r.score_work,
+            "score_env": r.score_env,
+            "score_mentor": r.score_mentor,
+            "score_welfare": r.score_welfare,
+            "text_work": r.text_work,
+            "text_pros": r.text_pros,
+            "text_cons": r.text_cons,
+            "text_advice": r.text_advice,
+            "is_anonymous": r.is_anonymous,
+            "author_name": author_name,
+            "author_department": None if r.is_anonymous else r.department,
+            "photo_urls": photo_urls,
+            "status": r.status.value if r.status else "pending",
+            "rejection_reason": r.rejection_reason,
+            "created_at": to_thai_date(r.created_at),
+        })
     return result
 
 @router.put("/reviews/{review_id}")
-def update_review(
-    review_id: int,
-    data: ReviewCreate,
-    current_user: User = Depends(require_student),
-    db: Session = Depends(get_db),
-):
-    """ แก้ไขข้อมูลรีวิวของตนเอง (การแก้ไขจะส่งกลับไปรอ Admin อนุมัติใหม่) """
-    review = db.query(Review).filter(Review.id == review_id).first()
+def update_review(review_id: int,
+                  data: ReviewCreate,
+                  current_user: User = Depends(require_student),
+                  db: Session = Depends(get_db)):
+    """ แก้ไขรีวิวเดิมของตนเอง และส่งให้ Admin ตรวจสอบใหม่ """
+    review = db.query(Review).filter(
+        Review.id == review_id,
+        Review.user_id == current_user.id
+    ).first()
     if not review:
-        raise HTTPException(404, "ไม่พบรีวิวในระบบ")
-    if review.user_id != current_user.id and current_user.role.value != "admin":
-        raise HTTPException(403, "ไม่มีสิทธิ์แก้ไขรีวิวนี้เนื่องจากไม่ใช่เจ้าของรีวิว")
+        raise HTTPException(404, "ไม่พบรีวิวที่ต้องการแก้ไข")
 
-    if len(data.text_work) < 50:
-        raise HTTPException(400, "รายละเอียดลักษณะงานต้องมีอย่างน้อย 50 ตัวอักษร")
-    if len(data.text_work) > 1000:
-        raise HTTPException(400, "รายละเอียดลักษณะงานต้องไม่เกิน 1000 ตัวอักษร")
-    if data.text_pros and len(data.text_pros) > 500:
-        raise HTTPException(400, "จุดเด่น/ข้อดีต้องไม่เกิน 500 ตัวอักษร")
-    if data.text_cons and len(data.text_cons) > 500:
-        raise HTTPException(400, "ข้อจำกัด/ข้อควรปรับปรุงต้องไม่เกิน 500 ตัวอักษร")
-    if data.text_advice and len(data.text_advice) > 500:
-        raise HTTPException(400, "คำแนะนำแก่น้องๆ ต้องไม่เกิน 500 ตัวอักษร")
+    if not data.text_pros or not data.text_pros.strip():
+        raise HTTPException(400, "กรุณาระบุข้อดี/จุดเด่น")
+    if not data.text_cons or not data.text_cons.strip():
+        raise HTTPException(400, "กรุณาระบุข้อควรปรับปรุง")
 
     gender_enum = Gender(data.gender) if data.gender in Gender.__members__ else Gender.prefer_not
     anon_enc = encrypt_identity(current_user.id) if data.is_anonymous else None
@@ -279,12 +246,12 @@ def update_review(
     sub_scores = [s for s in [data.score_work, data.score_env, data.score_mentor, data.score_welfare] if s is not None]
     computed_overall = round(sum(sub_scores) / len(sub_scores), 1) if sub_scores else (data.score_overall or 5.0)
 
-    review.department = data.department
+    review.company_id = data.company_id
     review.gender = gender_enum
     review.period_start = data.period_start
     review.period_end = data.period_end
-    review.daily_allowance = data.daily_allowance
-    review.has_transport = data.has_transport
+    review.department = data.department
+    review.daily_allowance = data.daily_allowance or 0
     review.work_start_time = data.work_start_time
     review.work_end_time = data.work_end_time
     review.score_overall = computed_overall
@@ -298,27 +265,25 @@ def update_review(
     review.text_advice = data.text_advice
     review.is_anonymous = data.is_anonymous
     review.anon_identity_enc = anon_enc
-    auto_appr = is_auto_approve()
-    review.status = ReviewStatus.approved if auto_appr else ReviewStatus.pending
+    review.status = ReviewStatus.approved if is_auto_approve() else ReviewStatus.pending
+    review.rejection_reason = None
 
     db.commit()
     db.refresh(review)
-    return {"message": "แก้ไขรีวิวเรียบร้อยแล้ว" if auto_appr else "แก้ไขรีวิวเรียบร้อยแล้ว (รอผู้ดูแลระบบอนุมัติใหม่)"}
+    return {"message": "บันทึกการแก้ไขรีวิวสำเร็จ ส่งให้แอดมินตรวจสอบใหม่เรียบร้อยแล้ว", "review_id": review.id}
 
 @router.delete("/reviews/{review_id}")
-def delete_review(
-    review_id: int,
-    current_user: User = Depends(require_student),
-    db: Session = Depends(get_db),
-):
-    """ ลบรีวิวของตนเอง พร้อมลบรูปภาพประกอบทั้งหมด """
+def delete_review(review_id: int,
+                  current_user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    """ ลบรีวิวของตนเอง หรือ Admin ลบรีวิวใดๆ """
     review = db.query(Review).filter(Review.id == review_id).first()
     if not review:
-        raise HTTPException(404, "ไม่พบรีวิวในระบบ")
-    if review.user_id != current_user.id and current_user.role.value != "admin":
-        raise HTTPException(403, "ไม่มีสิทธิ์ลบรีวิวนี้เนื่องจากไม่ใช่เจ้าของรีวิว")
-    
-    db.query(ReviewPhoto).filter(ReviewPhoto.review_id == review.id).delete()
+        raise HTTPException(404, "ไม่พบรีวิว")
+    if review.user_id != current_user.id and current_user.role != UserRole.admin:
+        raise HTTPException(403, "ไม่มีสิทธิ์ลบรีวิวนี้")
+
+    db.query(ReviewPhoto).filter(ReviewPhoto.review_id == review_id).delete()
     db.delete(review)
     db.commit()
     return {"message": "ลบรีวิวเรียบร้อยแล้ว"}

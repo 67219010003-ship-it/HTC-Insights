@@ -1,49 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import JobPosting, Employer, Company, User, UserRole, Report
-from schemas.jobs import JobPostingCreate, JobPostingUpdate, JobPostingPublic
-from dependencies import oauth2_scheme, get_current_employer
+from models import JobPosting, Company, User, UserRole, Report
+from schemas.jobs import JobPostingCreate, JobPostingUpdate
+from dependencies import get_current_user, require_admin, oauth2_scheme
 from auth import decode_token
 from routers.notifications import create_notification
 import re
 
 router = APIRouter(tags=["jobs"])
 
-def get_current_user_or_employer(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    """ ดึงข้อมูลผู้ใช้งานหรือสถานประกอบการปัจจุบันจาก Token เพื่อตรวจสอบสิทธิ์เจ้าของประกาศงาน """
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        payload = decode_token(token)
-        raw_sub = payload.get("sub")
-        role = payload.get("role")
-        sub_id = int(raw_sub) if raw_sub is not None else None
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    
-    if role == "employer":
-        emp = db.query(Employer).filter(Employer.id == sub_id).first()
-        if not emp:
-            raise HTTPException(404, "Employer not found")
-        return {"type": "employer", "id": emp.id, "email": emp.email, "role": "employer", "obj": emp}
-    
-    user = db.query(User).filter(User.id == sub_id).first()
-    if not user:
-        raise HTTPException(404, "User not found")
-    return {"type": "user", "id": user.id, "email": user.email, "role": user.role.value, "obj": user}
-
 def _extract_job_details(p: JobPosting, db: Session) -> dict:
-    """ ฟังก์ชันแปลงข้อมูลตำแหน่งงาน พร้อมสกัดข้อมูลผู้ติดต่อและบริษัทให้ครบถ้วน """
-    emp = p.employer
+    """ แปลงข้อมูลประกาศงาน พร้อมสกัดข้อมูลผู้ติดต่อและบริษัทให้ครบถ้วน """
+    user = p.user
     comp = db.query(Company).filter(Company.id == p.company_id).first() if p.company_id else None
     
-    comp_name = emp.company_name if emp else (comp.name if comp else "สถานประกอบการ")
-    logo_url = emp.logo_url if emp and emp.logo_url else (comp.cover_image_url if comp else None)
+    comp_name = comp.name if comp else "สถานประกอบการ"
+    logo_url = comp.cover_image_url if comp else None
     lat = comp.lat if comp and comp.lat else 7.0088
     lng = comp.lng if comp and comp.lng else 100.4747
     phone = comp.phone if comp and comp.phone else ""
-    poster_email = emp.email if emp else ""
+    poster_email = user.email if user else ""
     contact_email = ""
     contact_person = "ฝ่ายรับสมัครฝึกงาน / HR"
     line_id = ""
@@ -73,6 +50,7 @@ def _extract_job_details(p: JobPosting, db: Session) -> dict:
     return {
         "id": p.id,
         "title": p.title,
+        "user_id": p.user_id,
         "company_name": comp_name,
         "company_id": p.company_id,
         "department": p.department,
@@ -104,7 +82,6 @@ def _extract_job_details(p: JobPosting, db: Session) -> dict:
         "email": contact_email or poster_email,
         "contact_email": contact_email or poster_email,
         "poster_email": poster_email,
-        "employer_email": poster_email,
         "contact_person": contact_person,
         "line_id": line_id,
         "logo_url": logo_url,
@@ -125,167 +102,115 @@ def list_jobs(db: Session = Depends(get_db)):
     return [_extract_job_details(p, db) for p in postings]
 
 @router.get("/jobs/my-postings")
-def get_my_job_postings(auth: dict = Depends(get_current_user_or_employer),
+def get_my_job_postings(current_user: User = Depends(get_current_user),
                         db: Session = Depends(get_db)):
-    """ ดึงประวัติประกาศงานทั้งหมดของผู้ใช้งานปัจจุบัน (ทั้งผู้ใช้ภายนอกและบัญชีสถานประกอบการ) """
-    if auth["type"] == "employer":
-        postings = db.query(JobPosting).filter(
-            JobPosting.employer_id == auth["id"]
-        ).order_by(JobPosting.created_at.desc()).all()
-    else:
-        # ค้นหาผ่าน Employer ที่ใช้อีเมลเดียวกันกับ User (แบบ Case-Insensitive) หรือที่ตรงกับใน JobPosting
-        from sqlalchemy import func, or_
-        user = auth.get("obj")
-        user_name = (user.name if user else "").strip()
-        user_email = (auth.get("email") or "").lower().strip()
-        if not user_email and not user_name:
-            return []
-
-        employers = db.query(Employer).filter(func.lower(Employer.email) == user_email).all()
-        emp_ids = [e.id for e in employers]
-        
-        query = db.query(JobPosting)
-        filters = []
-        if emp_ids:
-            filters.append(JobPosting.employer_id.in_(emp_ids))
-        if user_email:
-            filters.append(JobPosting.description.ilike(f"%{user_email}%"))
-        if user_name and len(user_name) >= 3:
-            filters.append(JobPosting.description.ilike(f"%{user_name}%"))
-            
-        if filters:
-            postings = query.filter(or_(*filters)).order_by(JobPosting.created_at.desc()).all()
-        else:
-            postings = []
-
+    """ ดึงประวัติประกาศงานทั้งหมดของผู้ใช้งานปัจจุบันโดยตรงจาก User ID """
+    postings = db.query(JobPosting).filter(
+        JobPosting.user_id == current_user.id
+    ).order_by(JobPosting.created_at.desc()).all()
     return [_extract_job_details(p, db) for p in postings]
 
-@router.post("/employer/postings", status_code=201)
-def create_posting(data: JobPostingCreate,
-                   employer: Employer = Depends(get_current_employer),
-                   db: Session = Depends(get_db)):
-    """ สถานประกอบการสร้างประกาศรับสมัครฝึกงานใหม่ (จำกัด 1 บัญชี 1 ที่) """
-    existing_job = db.query(JobPosting).filter(JobPosting.employer_id == employer.id).first()
-    if existing_job:
-        raise HTTPException(status_code=400, detail="1 บัญชีสามารถลงประกาศรับสมัครฝึกงานได้สูงสุด 1 แห่งเท่านั้น (คุณสามารถแก้ไขหรือลบประกาศเดิมได้จากหน้าโปรไฟล์)")
+@router.post("/jobs", status_code=201)
+def create_job(data: JobPostingCreate,
+               current_user: User = Depends(get_current_user),
+               db: Session = Depends(get_db)):
+    """ สร้างประกาศรับสมัครงานใหม่ """
+    contact_info_str = f"สวัสดิการ: {data.benefits or '-'} | ผู้ติดต่อ: {data.contact_person or '-'} ({data.phone or '-'})"
+    if data.email:
+        contact_info_str += f" | อีเมลติดต่อ: {data.email}"
+    if data.line_id:
+        contact_info_str += f" | LINE: {data.line_id}"
 
-    posting = JobPosting(employer_id=employer.id, status="pending", is_active=True, **data.model_dump())
+    posting = JobPosting(
+        user_id=current_user.id,
+        company_id=data.company_id,
+        title=data.title,
+        department=data.department,
+        description=contact_info_str,
+        daily_allowance=data.daily_allowance or 400,
+        location=data.location,
+        is_active=False,
+        status="pending"
+    )
     db.add(posting)
     db.commit()
     db.refresh(posting)
+    return {"message": "สร้างประกาศงานสำเร็จ รอการอนุมัติจากผู้ดูแลระบบ", "job_id": posting.id}
 
-    admins = db.query(User).filter(User.role == UserRole.admin).all()
-    for adm in admins:
-        create_notification(
-            db=db,
-            user_id=adm.id,
-            title="มีตำแหน่งงานใหม่รอการอนุมัติ",
-            message=f"สถานประกอบการ '{employer.company_name}' ได้ลงประกาศ '{posting.title[:35]}' รอการตรวจสอบจาก Admin",
-            type="info",
-            link="/admin",
-        )
-
-    return {"message": "สร้างประกาศงานสำเร็จ (อยู่ระหว่างรอ Admin อนุมัติ)", "posting_id": posting.id}
-
-@router.get("/employer/postings", response_model=list[JobPostingPublic])
-def get_employer_postings(employer: Employer = Depends(get_current_employer),
-                          db: Session = Depends(get_db)):
-    """ ดึงประวัติประกาศงานทั้งหมดของสถานประกอบการปัจจุบัน """
-    postings = db.query(JobPosting).filter(JobPosting.employer_id == employer.id).order_by(JobPosting.created_at.desc()).all()
-    return [_extract_job_details(p, db) for p in postings]
+@router.get("/jobs/{job_id}")
+def get_job_detail(job_id: int, db: Session = Depends(get_db)):
+    """ ดึงรายละเอียดของตำแหน่งงานตาม ID """
+    job = db.query(JobPosting).filter(JobPosting.id == job_id).first()
+    if not job:
+        raise HTTPException(404, "ไม่พบประกาศงาน")
+    return _extract_job_details(job, db)
 
 @router.put("/jobs/{job_id}")
 def update_job_posting(job_id: int,
                        data: JobPostingUpdate,
-                       auth: dict = Depends(get_current_user_or_employer),
+                       current_user: User = Depends(get_current_user),
                        db: Session = Depends(get_db)):
-    """ แก้ไขประกาศรับสมัครฝึกงานของตนเอง """
-    p = db.query(JobPosting).filter(JobPosting.id == job_id).first()
-    if not p:
+    """ แก้ไขประกาศงาน (เฉพาะเจ้าของประกาศหรือ Admin) """
+    job = db.query(JobPosting).filter(JobPosting.id == job_id).first()
+    if not job:
         raise HTTPException(404, "ไม่พบประกาศงาน")
-    
-    # ตรวจสอบสิทธิ์เจ้าของประกาศงาน
-    is_owner = False
-    if auth["type"] == "employer" and p.employer_id == auth["id"]:
-        is_owner = True
-    elif auth["type"] == "user":
-        if auth["role"] == "admin":
-            is_owner = True
-        elif p.employer and p.employer.email == auth["email"]:
-            is_owner = True
-    
-    if not is_owner:
-        raise HTTPException(403, "คุณไม่มีสิทธิ์แก้ไขประกาศงานนี้")
+    if job.user_id != current_user.id and current_user.role != UserRole.admin:
+        raise HTTPException(403, "ไม่มีสิทธิ์แก้ไขประกาศงานนี้")
 
-    if data.title is not None:
-        p.title = data.title.strip()
-    if data.department is not None:
-        p.department = data.department.strip()
+    if data.title:
+        job.title = data.title
+    if data.department:
+        job.department = data.department
     if data.daily_allowance is not None:
-        p.daily_allowance = data.daily_allowance
-    if data.location is not None:
-        p.location = data.location.strip()
+        job.daily_allowance = data.daily_allowance
+    if data.location:
+        job.location = data.location
     if data.is_active is not None:
-        p.is_active = data.is_active
+        job.is_active = data.is_active
 
-    # อัปเดตข้อมูลผู้ติดต่อและรายละเอียดงาน
-    if data.description is not None:
-        p.description = data.description.strip()
-    elif data.contact_person or data.phone or data.line_id:
-        benefits_str = "-"
-        if p.description and "สวัสดิการ:" in p.description:
-            b_match = re.search(r"สวัสดิการ:\s*([^|]+)", p.description)
-            if b_match: benefits_str = b_match.group(1).strip()
-        
-        cp = data.contact_person or "ฝ่ายรับสมัครฝึกงาน / HR"
-        ph = data.phone or "-"
-        ln = data.line_id or "-"
-        p.description = f"สวัสดิการ: {benefits_str} | ผู้ติดต่อ: {cp} ({ph}) | LINE: {ln}"
+    # อัปเดตข้อมูลผู้ติดต่อใน description
+    if data.contact_person or data.phone or data.email or data.line_id:
+        current_desc = job.description or ""
+        benefits = "สวัสดิการมาตรฐาน"
+        if "สวัสดิการ:" in current_desc:
+            b_match = re.search(r"สวัสดิการ:\s*([^|]+)", current_desc)
+            if b_match:
+                benefits = b_match.group(1).strip()
 
-    # เมื่อมีการแก้ไขประกาศงาน ให้ปรับสถานะกลับเป็น pending รอ Admin ตรวจสอบใหม่ (ถ้าไม่ใช่ Admin แก้ไข)
-    if auth["role"] != "admin":
-        p.status = "pending"
+        job.description = f"สวัสดิการ: {benefits} | ผู้ติดต่อ: {data.contact_person or '-'} ({data.phone or '-'}) | อีเมลติดต่อ: {data.email or current_user.email} | LINE: {data.line_id or '-'}"
 
     db.commit()
-    db.refresh(p)
-    return {"message": "แก้ไขประกาศงานเรียบร้อยแล้ว (ส่งให้ Admin ตรวจสอบใหม่)", "posting": _extract_job_details(p, db)}
+    db.refresh(job)
+    return {"message": "แก้ไขประกาศงานสำเร็จ", "job": _extract_job_details(job, db)}
 
 @router.delete("/jobs/{job_id}")
 def delete_job_posting(job_id: int,
-                       auth: dict = Depends(get_current_user_or_employer),
+                       current_user: User = Depends(get_current_user),
                        db: Session = Depends(get_db)):
-    """ ลบประกาศรับสมัครฝึกงานของตนเอง """
-    p = db.query(JobPosting).filter(JobPosting.id == job_id).first()
-    if not p:
+    """ ลบประกาศงาน (เฉพาะเจ้าของหรือ Admin) """
+    job = db.query(JobPosting).filter(JobPosting.id == job_id).first()
+    if not job:
         raise HTTPException(404, "ไม่พบประกาศงาน")
-    
-    is_owner = False
-    if auth["type"] == "employer" and p.employer_id == auth["id"]:
-        is_owner = True
-    elif auth["type"] == "user":
-        if auth["role"] == "admin":
-            is_owner = True
-        elif p.employer and p.employer.email == auth["email"]:
-            is_owner = True
-    
-    if not is_owner:
-        raise HTTPException(403, "คุณไม่มีสิทธิ์ลบประกาศงานนี้")
+    if job.user_id != current_user.id and current_user.role != UserRole.admin:
+        raise HTTPException(403, "ไม่มีสิทธิ์ลบประกาศงานนี้")
 
-    # ลบรายงานที่เกี่ยวข้อง
     db.query(Report).filter(Report.job_id == job_id).delete()
-    db.delete(p)
+    db.delete(job)
     db.commit()
     return {"message": "ลบประกาศงานเรียบร้อยแล้ว"}
 
-@router.patch("/employer/postings/{posting_id}/toggle")
-def toggle_posting(posting_id: int,
-                   employer: Employer = Depends(get_current_employer),
-                   db: Session = Depends(get_db)):
-    """ เปิด/ปิด การรับสมัครของตำแหน่งงาน """
-    p = db.query(JobPosting).filter(JobPosting.id == posting_id, JobPosting.employer_id == employer.id).first()
-    if not p:
+@router.patch("/jobs/{job_id}/toggle-status")
+def toggle_job_active(job_id: int,
+                      current_user: User = Depends(get_current_user),
+                      db: Session = Depends(get_db)):
+    """ เปิด/ปิดรับสมัครงาน """
+    job = db.query(JobPosting).filter(JobPosting.id == job_id).first()
+    if not job:
         raise HTTPException(404, "ไม่พบประกาศงาน")
-    p.is_active = not p.is_active
-    db.commit()
-    return {"message": "เปลี่ยนสถานะสำเร็จ", "is_active": p.is_active}
+    if job.user_id != current_user.id and current_user.role != UserRole.admin:
+        raise HTTPException(403, "ไม่มีสิทธิ์ปรับสถานะประกาศงานนี้")
 
+    job.is_active = not job.is_active
+    db.commit()
+    status_str = "เปิดรับสมัคร" if job.is_active else "ปิดรับสมัครชั่วคราว"
+    return {"message": f"{status_str}เรียบร้อยแล้ว", "is_active": job.is_active}

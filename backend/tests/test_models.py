@@ -42,7 +42,7 @@ def test_community_post_status_and_rejection_reason():
 def test_job_posting_status_and_rejection_reason():
     db = SessionLocal()
     job = JobPosting(
-        employer_id=1,
+        user_id=1,
         title="Software Engineer",
         description="Write code",
     )
@@ -63,8 +63,11 @@ def test_review_rejection_reason():
         gender="male",
         period_start=date(2026, 1, 1),
         period_end=date(2026, 6, 1),
+        department="เทคโนโลยีสารสนเทศ",
         score_overall=5.0,
         text_work="Great",
+        text_pros="Good",
+        text_cons="Hard",
     )
     db.add(review)
     db.commit()

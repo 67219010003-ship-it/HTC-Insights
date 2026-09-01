@@ -300,7 +300,13 @@ export default function WriteReviewPage() {
       if (textWork.length > 1000) {
         return "รายละเอียดงานต้องไม่เกิน 1,000 ตัวอักษร";
       }
+      if (!textPros.trim()) {
+        return "กรุณาระบุข้อดี / จุดเด่นของสถานที่ฝึกงาน";
+      }
       if (textPros.length > 500) return "ข้อดีต้องไม่เกิน 500 ตัวอักษร";
+      if (!textCons.trim()) {
+        return "กรุณาระบุข้อควรปรับปรุงของสถานที่ฝึกงาน";
+      }
       if (textCons.length > 500) return "ข้อเสียต้องไม่เกิน 500 ตัวอักษร";
       if (textAdvice.length > 500) return "คำแนะนำต้องไม่เกิน 500 ตัวอักษร";
     }
@@ -801,8 +807,10 @@ export default function WriteReviewPage() {
             </div>
             <div>
               <div className="flex justify-between items-center mb-xs">
-                <label className="block font-label-md text-label-md font-bold text-primary">ข้อดี / สิ่งที่ประทับใจ</label>
-                <span className="text-[10px] text-on-surface-variant font-medium">({textPros.length}/500)</span>
+                <label className="block font-label-md text-label-md font-bold text-primary">ข้อดี / สิ่งที่ประทับใจ*</label>
+                <span className={`text-[10px] font-bold ${textPros.trim() ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  ({textPros.length}/500 {textPros.trim() ? '' : '(จำเป็นต้องกรอก)'})
+                </span>
               </div>
               <input
                 type="text"
@@ -815,8 +823,10 @@ export default function WriteReviewPage() {
             </div>
             <div>
               <div className="flex justify-between items-center mb-xs">
-                <label className="block font-label-md text-label-md font-bold text-primary">ข้อจำกัด / สิ่งที่ควรปรับปรุง</label>
-                <span className="text-[10px] text-on-surface-variant font-medium">({textCons.length}/500)</span>
+                <label className="block font-label-md text-label-md font-bold text-primary">ข้อจำกัด / สิ่งที่ควรปรับปรุง*</label>
+                <span className={`text-[10px] font-bold ${textCons.trim() ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  ({textCons.length}/500 {textCons.trim() ? '' : '(จำเป็นต้องกรอก)'})
+                </span>
               </div>
               <input
                 type="text"

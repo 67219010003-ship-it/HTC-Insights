@@ -2,16 +2,15 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import get_db
-from models import User, Employer, UserRole
+from models import User, UserRole
 from auth import decode_token
 from jose import JWTError
 
-# กำหนดรูปแบบการรับ Bearer Token จาก Header Authorization
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 def get_current_user(token: str = Depends(oauth2_scheme),
                      db: Session = Depends(get_db)) -> User:
-    """ ดึงข้อมูลผู้ใช้งานปัจจุบัน (นักศึกษา/แอดมิน) จาก Token ในระบบ """
+    """ ดึงข้อมูลผู้ใช้งานปัจจุบันจาก Token ในระบบ และตรวจสถานะ is_active """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -22,22 +21,20 @@ def get_current_user(token: str = Depends(oauth2_scheme),
     try:
         payload = decode_token(token)
         raw_sub = payload.get("sub")
-        role: str = payload.get("role")
         user_id = int(raw_sub) if raw_sub is not None else None
     except (JWTError, ValueError):
         raise credentials_exception
 
-    if role == "employer":
-        raise HTTPException(status_code=403, detail="Student access required")
-
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or not user.is_verified:
+    if not user:
         raise credentials_exception
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ")
     return user
 
 def get_any_current_user(token: str = Depends(oauth2_scheme),
                          db: Session = Depends(get_db)) -> User:
-    """ ดึงข้อมูลผู้ใช้งานปัจจุบัน (รวมถึงผู้ใช้ที่ยังไม่ยืนยันสิทธิ์ is_verified=False เพื่อใช้ยื่นคำขอยืนยันตัวตน) """
+    """ ดึงข้อมูลผู้ใช้งานปัจจุบัน """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -75,42 +72,17 @@ def require_super_admin(current_user: User = Depends(require_admin)) -> User:
         raise HTTPException(status_code=403, detail="Super Admin access required")
     return current_user
 
-def get_current_employer(token: str = Depends(oauth2_scheme),
-                         db: Session = Depends(get_db)) -> Employer:
-    """ ดึงข้อมูลบัญชีสถานประกอบการปัจจุบันที่ได้รับการอนุมัติแล้ว """
-    if not token:
-        raise HTTPException(status_code=401, detail="Token missing")
-    try:
-        payload = decode_token(token)
-        raw_sub = payload.get("sub")
-        role: str = payload.get("role")
-        employer_id = int(raw_sub) if raw_sub is not None else None
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-        
-    if role != "employer":
-        raise HTTPException(status_code=403, detail="Employer access required")
-        
-    employer = db.query(Employer).filter(Employer.id == employer_id).first()
-    if not employer or not employer.is_approved:
-        raise HTTPException(status_code=403, detail="Employer not approved")
-    return employer
-
 def get_current_user_optional(token: str = Depends(oauth2_scheme),
                               db: Session = Depends(get_db)) -> User | None:
-    """ ดึงข้อมูลผู้ใช้ปัจจุบันหากมีการส่ง Token มา ถ้าไม่มีหรือ Token ผิดพลาดจะ return None """
+    """ ดึงข้อมูลผู้ใช้ปัจจุบันหากมี Token ส่งมา """
     if not token:
         return None
     try:
         payload = decode_token(token)
         raw_sub = payload.get("sub")
-        role: str = payload.get("role")
-        if role == "employer":
-            return None
         user_id = int(raw_sub) if raw_sub is not None else None
         if user_id is None:
             return None
         return db.query(User).filter(User.id == user_id).first()
     except Exception:
         return None
-

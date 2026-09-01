@@ -778,22 +778,21 @@ export default function AdminDashboardPage() {
                                 {rev.photo_urls && rev.photo_urls.length > 0 && (
                                   <div className="flex gap-2 pt-1 overflow-x-auto">
                                     {rev.photo_urls.map((url, idx) => (
-                                      <a
+                                      <button
                                         key={idx}
-                                        href={url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="shrink-0 group relative rounded-lg overflow-hidden border border-outline-variant/40"
+                                        type="button"
+                                        onClick={() => setPreviewImageUrl(url)}
+                                        className="shrink-0 group relative rounded-lg overflow-hidden border border-outline-variant/40 cursor-pointer"
                                       >
                                         <img
                                           src={url}
                                           alt="Attached evidence"
                                           className="w-16 h-16 object-cover group-hover:scale-105 transition-transform"
                                         />
-                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
-                                          <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                                          <span className="material-symbols-outlined text-[16px]">zoom_in</span>
                                         </div>
-                                      </a>
+                                      </button>
                                     ))}
                                   </div>
                                 )}
@@ -1920,7 +1919,7 @@ export default function AdminDashboardPage() {
         />
       )}
 
-      {/* Student Card Image Preview Lightbox Modal — z-50 */}
+      {/* Image Preview Lightbox Modal — z-50 */}
       {previewImageUrl && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
@@ -1932,8 +1931,8 @@ export default function AdminDashboardPage() {
           >
             <div className="p-4 bg-surface-container border-b border-outline-variant/30 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary text-[22px]">id_card</span>
-                <h3 className="font-bold text-primary text-sm">ภาพถ่ายหลักฐานบัตรประจำตัวนักศึกษา</h3>
+                <span className="material-symbols-outlined text-secondary text-[22px]">image</span>
+                <h3 className="font-bold text-primary text-sm">ดูภาพถ่ายขยาย / หลักฐานประกอบ</h3>
               </div>
               <button
                 type="button"
@@ -1946,7 +1945,7 @@ export default function AdminDashboardPage() {
             <div className="flex-1 p-4 bg-slate-950 flex items-center justify-center overflow-auto">
               <img
                 src={previewImageUrl}
-                alt="Student ID card proof"
+                alt="Enlarged preview"
                 className="max-h-[75vh] w-auto object-contain rounded-xl shadow-lg"
               />
             </div>

@@ -279,7 +279,7 @@ export default function AdminUsersPage() {
                   <tr className="border-b border-outline-variant/40 bg-surface-container-low/60 font-bold font-label-md text-on-surface">
                     <th className="py-3.5 px-4">ชื่อ - นามสกุล</th>
                     <th className="py-3.5 px-4">อีเมล</th>
-                    <th className="py-3.5 px-4">แผนกวิชา / ระดับ</th>
+                    <th className="py-3.5 px-4">ประเภทบัญชี (Domain)</th>
                     <th className="py-3.5 px-4">Role สิทธิ์ปัจจุบัน</th>
                     <th className="py-3.5 px-4">Super Admin</th>
                     <th className="py-3.5 px-4">สถานะบัญชี</th>
@@ -303,7 +303,17 @@ export default function AdminUsersPage() {
                           {u.email}
                         </td>
                         <td className="py-3.5 px-4 text-on-surface whitespace-nowrap">
-                          {u.department || "-"} {u.level ? `(${u.level})` : ""}
+                          {u.email.endsWith("@htc.ac.th") ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                              <span className="material-symbols-outlined text-[13px]">school</span>
+                              บัญชีวิทยาลัย (@htc.ac.th)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
+                              <span className="material-symbols-outlined text-[13px]">public</span>
+                              บัญชีภายนอก (Google)
+                            </span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           <select

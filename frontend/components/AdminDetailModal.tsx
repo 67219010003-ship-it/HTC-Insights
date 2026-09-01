@@ -19,13 +19,16 @@ export default function AdminDetailModal({
   item,
   onRevealAnonymous,
 }: AdminDetailModalProps) {
+  const [previewImage, setPreviewImage] = React.useState<string | null>(null);
+
   if (!isOpen || !item || !item.data) return null;
 
   const { type, data } = item;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-outline-variant max-h-[90vh] overflow-y-auto">
+    <>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+        <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-outline-variant max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-outline-variant/40 pb-4">
           <div className="space-y-1">
@@ -159,11 +162,22 @@ export default function AdminDetailModal({
                 <div className="space-y-2">
                   <h4 className="font-bold text-primary text-xs">รูปภาพประกอบ ({data.photos.length}):</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {data.photos.map((p: any, i: number) => (
-                      <a key={i} href={p.photo_url || p} target="_blank" rel="noreferrer" className="block rounded-xl overflow-hidden border border-outline-variant hover:opacity-90">
-                        <img src={p.photo_url || p} alt="Review attachment" className="w-full h-24 object-cover" />
-                      </a>
-                    ))}
+                    {data.photos.map((p: any, i: number) => {
+                      const imgUrl = p.photo_url || p;
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setPreviewImage(imgUrl)}
+                          className="group relative block rounded-xl overflow-hidden border border-outline-variant hover:opacity-90 cursor-pointer text-left"
+                        >
+                          <img src={imgUrl} alt="Review attachment" className="w-full h-24 object-cover group-hover:scale-105 transition-transform" />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                            <span className="material-symbols-outlined text-[16px]">zoom_in</span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -271,13 +285,20 @@ export default function AdminDetailModal({
               {data.card_image_url && (
                 <div className="space-y-2">
                   <h4 className="font-bold text-primary text-xs">ภาพถ่ายหลักฐานบัตรประจำตัวนักศึกษา:</h4>
-                  <div className="rounded-2xl overflow-hidden border border-outline-variant max-h-80 bg-slate-900 flex items-center justify-center p-2">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewImage(data.card_image_url)}
+                    className="w-full group relative rounded-2xl overflow-hidden border border-outline-variant max-h-80 bg-slate-900 flex items-center justify-center p-2 cursor-pointer"
+                  >
                     <img
                       src={data.card_image_url}
                       alt="Student ID card proof"
-                      className="max-h-72 object-contain rounded-xl shadow-md"
+                      className="max-h-72 object-contain rounded-xl shadow-md group-hover:scale-105 transition-transform"
                     />
-                  </div>
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                      <span className="material-symbols-outlined text-[24px]">zoom_in</span>
+                    </div>
+                  </button>
                 </div>
               )}
             </div>
@@ -299,7 +320,8 @@ export default function AdminDetailModal({
                   )}
                   <div>ผู้รายงาน: {data.reporter_name || "ผู้ใช้งาน"}</div>
                   <div>อีเมลผู้รายงาน: <span className="font-mono">{data.reporter_email || "-"}</span></div>
-                  <div>วันที่รายงาน: <span className="font-mono">{data.created_at || "-"}</span></div>
+                  <div>วันที่ส่งรายงาน: <span className="font-mono">{data.created_at || "-"}</span></div>
+                  <div>สถานะปัจจุบัน: <span className="font-bold uppercase text-secondary">{data.status || "pending"}</span></div>
                 </div>
               </div>
 
@@ -321,7 +343,7 @@ export default function AdminDetailModal({
               )}
 
               <div className="space-y-1.5">
-                <h4 className="font-bold text-rose-800 text-xs">เหตุผลในการรายงานความไม่เหมาะสม:</h4>
+                <h4 className="font-bold text-rose-800 text-xs">เหตุผลในการรายงาน:</h4>
                 <p className="p-3.5 bg-rose-50 text-rose-900 rounded-xl border border-rose-200 leading-relaxed whitespace-pre-wrap">
                   {data.reason || "ไม่ระบุเหตุผล"}
                 </p>
@@ -367,5 +389,40 @@ export default function AdminDetailModal({
         </div>
       </div>
     </div>
+
+    {/* Lightbox Preview Modal inside AdminDetailModal */}
+    {previewImage && (
+      <div
+        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150"
+        onClick={() => setPreviewImage(null)}
+      >
+        <div
+          className="relative max-w-4xl w-full max-h-[90vh] bg-surface-container-lowest rounded-3xl overflow-hidden shadow-2xl border border-outline-variant/30 flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="p-4 bg-surface-container border-b border-outline-variant/30 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-secondary text-[22px]">image</span>
+              <h3 className="font-bold text-primary text-sm">ดูภาพถ่ายขยาย</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[20px]">close</span>
+            </button>
+          </div>
+          <div className="flex-1 p-4 bg-slate-950 flex items-center justify-center overflow-auto">
+            <img
+              src={previewImage}
+              alt="Enlarged preview"
+              className="max-h-[75vh] w-auto object-contain rounded-xl shadow-lg"
+            />
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

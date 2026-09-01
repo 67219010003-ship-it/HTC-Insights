@@ -3,6 +3,7 @@ from sqlalchemy import (Column, Integer, String, Text, Boolean, Float,
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
+from sqlalchemy.dialects.mysql import LONGTEXT
 import enum
 
 class UserRole(str, enum.Enum):
@@ -37,39 +38,21 @@ class PostType(str, enum.Enum):
     team = "team"
 
 class User(Base):
-    """ ตารางเก็บข้อมูลบัญชีผู้ใช้งานระบบ (นักศึกษา, ผู้ดูแลระบบ, บุคคลภายนอก) """
+    """ ตารางเก็บข้อมูลบัญชีผู้ใช้งานระบบ (Google OAuth Only) """
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.student)
+    role = Column(Enum(UserRole, native_enum=False, values_callable=lambda x: [e.value for e in x]), default=UserRole.student)
     is_super_admin = Column(Boolean, default=False)
-    department = Column(String(100))
-    level = Column(String(255))
-    is_verified = Column(Boolean, default=False)
-    verify_token = Column(String(255), nullable=True)
-    avatar_url = Column(String(500), nullable=True)
+    is_active = Column(Boolean, default=True)
+    avatar_url = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     reviews = relationship("Review", back_populates="user")
     community_posts = relationship("CommunityPost", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
-
-class Employer(Base):
-    """ ตารางเก็บข้อมูลบัญชีตัวแทนสถานประกอบการ """
-    __tablename__ = "employers"
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
-    company_name = Column(String(255), nullable=False)
-    address = Column(Text)
-    industry = Column(String(100))
-    logo_url = Column(String(500))
-    is_approved = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    postings = relationship("JobPosting", back_populates="employer")
+    postings = relationship("JobPosting", back_populates="user")
 
 class Company(Base):
     """ ตารางเก็บหมุดและข้อมูลสถานที่/บริษัทฝึกงาน """
@@ -83,9 +66,6 @@ class Company(Base):
     phone = Column(String(50), nullable=True)
     website = Column(String(500), nullable=True)
     cover_image_url = Column(String(500), nullable=True)
-    description = Column(Text, nullable=True)
-    is_verified = Column(Boolean, default=False)
-    employer_id = Column(Integer, ForeignKey("employers.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     reviews = relationship("Review", back_populates="company")
@@ -99,10 +79,8 @@ class Review(Base):
     gender = Column(Enum(Gender), nullable=False)
     period_start = Column(Date, nullable=False)
     period_end = Column(Date, nullable=False)
-    department = Column(String(100))
-    daily_allowance = Column(Integer)
-    has_accommodation = Column(Boolean, default=False)
-    has_transport = Column(Boolean, default=False)
+    department = Column(String(100), nullable=False)
+    daily_allowance = Column(Integer, default=0)
     work_start_time = Column(String(50), nullable=True)
     work_end_time = Column(String(50), nullable=True)
     score_overall = Column(Float, nullable=False)
@@ -111,9 +89,9 @@ class Review(Base):
     score_mentor = Column(Float)
     score_welfare = Column(Float)
     text_work = Column(Text, nullable=False)
-    text_pros = Column(Text)
-    text_cons = Column(Text)
-    text_advice = Column(Text)
+    text_pros = Column(Text, nullable=True)
+    text_cons = Column(Text, nullable=True)
+    text_advice = Column(Text, nullable=True)
     is_anonymous = Column(Boolean, default=False)
     anon_identity_enc = Column(String(500), nullable=True)
     status = Column(Enum(ReviewStatus), default=ReviewStatus.pending)
@@ -129,29 +107,29 @@ class ReviewPhoto(Base):
     __tablename__ = "review_photos"
     id = Column(Integer, primary_key=True, index=True)
     review_id = Column(Integer, ForeignKey("reviews.id"), nullable=False)
-    url = Column(Text, nullable=False)
+    url = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     review = relationship("Review", back_populates="photos")
 
 class JobPosting(Base):
-    """ ตารางเก็บข้อมูลการประกาศงานรับสมัครนักศึกษาฝึกงาน """
+    """ ตารางเก็บข้อมูลการประกาศงานรับสมัครนักศึกษาฝึกงาน (เชื่อมกับ User ID ผู้ลงประกาศ) """
     __tablename__ = "job_postings"
     id = Column(Integer, primary_key=True, index=True)
-    employer_id = Column(Integer, ForeignKey("employers.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     title = Column(String(255), nullable=False)
     department = Column(String(100))
     description = Column(Text)
-    daily_allowance = Column(Integer)
+    daily_allowance = Column(Integer, default=400)
     location = Column(String(255))
-    deadline = Column(Date)
     is_active = Column(Boolean, default=True)
     status = Column(String(20), default="pending")
     rejection_reason = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    employer = relationship("Employer", back_populates="postings")
+    user = relationship("User", back_populates="postings")
+    company = relationship("Company")
 
 class CommunityPost(Base):
     """ ตารางเก็บข้อมูลกระทู้เว็บบอร์ดคอมมูนิตี้แลกเปลี่ยนความคิดเห็น """
@@ -263,7 +241,7 @@ class UpgradeRequest(Base):
     reason = Column(Text, nullable=True)
     status = Column(Enum(UpgradeRequestStatus), default=UpgradeRequestStatus.pending)
     rejection_reason = Column(Text, nullable=True)
-    card_image_url = Column(Text, nullable=True)
+    card_image_url = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
