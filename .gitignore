@@ -42,6 +42,7 @@ yarn-error.log*
 *.sql
 *.dump
 database/
+results-*.csv
 
 # Python / Backend
 **/__pycache__/

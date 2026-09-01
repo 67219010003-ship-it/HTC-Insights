@@ -664,3 +664,216 @@ def update_upgrade_request_status(request_id: int, payload: dict = Body(...),
         return {"message": "อนุมัติคำขอยืนยันสิทธิ์นักศึกษาสำเร็จ"}
     else:
         raise HTTPException(400, "สถานะไม่ถูกต้อง")
+
+
+# --- 7. การจัดการรายงานเนื้อหาไม่เหมาะสม (Reports Moderation) ---
+@router.get("/reports")
+def list_reports(status: str = Query(None),
+                 db: Session = Depends(get_db),
+                 admin: User = Depends(require_admin)):
+    """ ดึงรายการข้อร้องเรียน/รายงานเนื้อหาไม่เหมาะสม """
+    query = db.query(Report)
+    if status == "pending" or not status:
+        query = query.filter(Report.status == "pending")
+    elif status != "all":
+        query = query.filter(Report.status == status)
+
+    reports = query.order_by(Report.created_at.desc()).all()
+    results = []
+    for rep in reports:
+        target_type = "general"
+        target_type_th = "รายงานทั่วไป"
+        target_id = None
+        target_title = None
+        target_content = None
+        is_anon = False
+
+        if rep.post:
+            target_type = "post"
+            target_type_th = "กระทู้ชุมชน"
+            target_id = rep.post_id
+            target_title = rep.post.title
+            target_content = rep.post.content
+            is_anon = rep.post.is_anonymous
+        elif rep.review:
+            target_type = "review"
+            target_type_th = "รีวิวฝึกงาน"
+            target_id = rep.review_id
+            target_title = f"รีวิว {rep.review.company.name if rep.review.company else ''}"
+            target_content = rep.review.text_work
+            is_anon = rep.review.is_anonymous
+        elif rep.comment:
+            target_type = "comment"
+            target_type_th = "ความคิดเห็น"
+            target_id = rep.comment_id
+            target_title = f"ความคิดเห็นในกระทู้ #{rep.comment.post_id}"
+            target_content = rep.comment.content
+            is_anon = rep.comment.is_anonymous
+        elif rep.job:
+            target_type = "job"
+            target_type_th = "ประกาศรับสมัครงาน"
+            target_id = rep.job_id
+            target_title = rep.job.title
+            target_content = rep.job.description
+        elif rep.company:
+            target_type = "company"
+            target_type_th = "ข้อมูลสถานที่ฝึกงาน"
+            target_id = rep.company_id
+            target_title = rep.company.name
+            target_content = rep.company.address
+
+        results.append({
+            "id": rep.id,
+            "reporter_id": rep.reporter_id,
+            "reporter_name": rep.reporter.name if rep.reporter else "ผู้ใช้งาน",
+            "reporter_email": rep.reporter.email if rep.reporter else "-",
+            "reason": rep.reason,
+            "target_type": target_type,
+            "target_type_th": target_type_th,
+            "target_id": target_id,
+            "target_title": target_title,
+            "target_content": target_content,
+            "is_anonymous": is_anon,
+            "post_id": rep.post_id,
+            "review_id": rep.review_id,
+            "comment_id": rep.comment_id,
+            "job_id": rep.job_id,
+            "company_id": rep.company_id,
+            "company_name": rep.company.name if rep.company else None,
+            "status": rep.status or "pending",
+            "created_at": to_thai_str(rep.created_at),
+        })
+    return results
+
+@router.patch("/reports/{report_id}")
+def update_report_status(report_id: int, payload: dict = Body(...),
+                         db: Session = Depends(get_db),
+                         admin: User = Depends(require_admin)):
+    """ ดำเนินการตรวจสอบ/ปัดตก/จัดการข้อร้องเรียน """
+    rep = db.query(Report).filter(Report.id == report_id).first()
+    if not rep:
+        raise HTTPException(404, "ไม่พบรายงานข้อร้องเรียนนี้")
+
+    status_str = payload.get("status", "resolved")
+    action = payload.get("action", "")
+
+    rep.status = status_str
+    db.add(AuditLog(
+        admin_id=admin.id,
+        action=f"report_{status_str}",
+        target_type="report",
+        target_id=report_id,
+        reason=f"Action: {action} | Status: {status_str}"
+    ))
+    db.commit()
+    return {"message": "จัดการรายงานเรียบร้อยแล้ว"}
+
+# --- 8. ประวัติการดำเนินงานของผู้ดูแลระบบ (Audit Logs) ---
+@router.get("/audit-logs")
+def list_audit_logs(limit: int = Query(100),
+                    db: Session = Depends(get_db),
+                    admin: User = Depends(require_admin)):
+    """ ดึงประวัติ Audit Logs ของผู้ดูแลระบบ """
+    logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit).all()
+    return [
+        {
+            "id": l.id,
+            "admin_id": l.admin_id,
+            "admin_name": l.admin.name if l.admin else "Admin",
+            "action": l.action,
+            "target_type": l.target_type,
+            "target_id": l.target_id,
+            "reason": l.reason,
+            "created_at": to_thai_str(l.created_at),
+        }
+        for l in logs
+    ]
+
+
+# --- 9. การลบข้อมูลโดยผู้ดูแลระบบ (Admin Delete Endpoints) ---
+@router.delete("/reviews/{review_id}")
+def admin_delete_review(review_id: int,
+                        db: Session = Depends(get_db),
+                        admin: User = Depends(require_admin)):
+    """ ผู้ดูแลระบบลบรีวิวที่ไม่เหมาะสมถาวร """
+    rev = db.query(Review).filter(Review.id == review_id).first()
+    if not rev:
+        raise HTTPException(404, "ไม่พบรีวิวที่ต้องการลบ")
+
+    company_name = rev.company.name if rev.company else "Unknown"
+    db.query(Report).filter(Report.review_id == review_id).delete()
+    db.delete(rev)
+    db.add(AuditLog(
+        admin_id=admin.id,
+        action="delete_review",
+        target_type="review",
+        target_id=review_id,
+        reason=f"Admin deleted review for {company_name}"
+    ))
+    db.commit()
+    return {"message": "ลบรีวิวเรียบร้อยแล้ว"}
+
+@router.delete("/posts/{post_id}")
+def admin_delete_post(post_id: int,
+                      db: Session = Depends(get_db),
+                      admin: User = Depends(require_admin)):
+    """ ผู้ดูแลระบบลบกระทู้ที่ไม่เหมาะสมถาวร """
+    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+    if not post:
+        raise HTTPException(404, "ไม่พบกระทู้ที่ต้องการลบ")
+
+    title = post.title
+    db.query(Report).filter(Report.post_id == post_id).delete()
+    db.delete(post)
+    db.add(AuditLog(
+        admin_id=admin.id,
+        action="delete_post",
+        target_type="post",
+        target_id=post_id,
+        reason=f"Admin deleted post: {title[:40]}"
+    ))
+    db.commit()
+    return {"message": "ลบกระทู้เรียบร้อยแล้ว"}
+
+@router.delete("/jobs/{job_id}")
+def admin_delete_job(job_id: int,
+                     db: Session = Depends(get_db),
+                     admin: User = Depends(require_admin)):
+    """ ผู้ดูแลระบบลบประกาศงานถาวร """
+    job = db.query(JobPosting).filter(JobPosting.id == job_id).first()
+    if not job:
+        raise HTTPException(404, "ไม่พบประกาศงานที่ต้องการลบ")
+
+    title = job.title
+    db.query(Report).filter(Report.job_id == job_id).delete()
+    db.delete(job)
+    db.add(AuditLog(
+        admin_id=admin.id,
+        action="delete_job",
+        target_type="job",
+        target_id=job_id,
+        reason=f"Admin deleted job: {title[:40]}"
+    ))
+    db.commit()
+    return {"message": "ลบประกาศงานเรียบร้อยแล้ว"}
+
+@router.delete("/comments/{comment_id}")
+def admin_delete_comment(comment_id: int,
+                         db: Session = Depends(get_db),
+                         admin: User = Depends(require_admin)):
+    """ ผู้ดูแลระบบลบความคิดเห็นถาวร """
+    comment = db.query(CommunityComment).filter(CommunityComment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(404, "ไม่พบความคิดเห็นที่ต้องการลบ")
+
+    db.query(Report).filter(Report.comment_id == comment_id).delete()
+    db.delete(comment)
+    db.add(AuditLog(
+        admin_id=admin.id,
+        action="delete_comment",
+        target_type="comment",
+        target_id=comment_id,
+        reason="Admin deleted comment"
+    ))
+    db.commit()
+    return {"message": "ลบความคิดเห็นเรียบร้อยแล้ว"}

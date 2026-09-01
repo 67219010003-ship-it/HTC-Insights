@@ -90,3 +90,46 @@ def create_company(data: CompanyCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(comp)
     return {"message": "เพิ่มสถานประกอบการสำเร็จ", "company_id": comp.id}
+
+
+@router.get("/companies/{company_id}/reviews")
+def get_company_reviews(company_id: int, db: Session = Depends(get_db)):
+    """ ดึงรายการรีวิวที่ผ่านการอนุมัติทั้งหมดของสถานประกอบการนั้นๆ """
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(404, "ไม่พบสถานประกอบการ")
+
+    reviews = db.query(Review).filter(
+        Review.company_id == company_id,
+        Review.status == ReviewStatus.approved
+    ).order_by(Review.created_at.desc()).all()
+
+    results = []
+    for r in reviews:
+        author_name = "นักศึกษาไม่ระบุตัวตน" if r.is_anonymous else (r.user.name if r.user else "นักศึกษา")
+        results.append({
+            "id": r.id,
+            "company_id": r.company_id,
+            "company_name": company.name,
+            "author_name": author_name,
+            "gender": r.gender.value if r.gender else "prefer_not",
+            "period_start": r.period_start.strftime("%Y-%m-%d") if r.period_start else "",
+            "period_end": r.period_end.strftime("%Y-%m-%d") if r.period_end else "",
+            "department": r.department,
+            "daily_allowance": r.daily_allowance,
+            "work_start_time": r.work_start_time,
+            "work_end_time": r.work_end_time,
+            "score_overall": r.score_overall,
+            "score_work": r.score_work,
+            "score_env": r.score_env,
+            "score_mentor": r.score_mentor,
+            "score_welfare": r.score_welfare,
+            "text_work": r.text_work,
+            "text_pros": r.text_pros or "",
+            "text_cons": r.text_cons or "",
+            "text_advice": r.text_advice or "",
+            "is_anonymous": r.is_anonymous,
+            "photos": [{"id": p.id, "photo_url": p.url} for p in r.photos],
+            "created_at": r.created_at.strftime("%Y-%m-%d") if r.created_at else "",
+        })
+    return results
