@@ -371,6 +371,43 @@ def test_admin_google_login_enforced():
     assert res_login.status_code == 403
     assert "ต้องเข้าสู่ระบบด้วย Google Authentication เท่านั้น" in res_login.json()["detail"]
 
+    # 3. Any user with role=admin in database cannot login via password
+    from models import User, UserRole
+    from auth import hash_password
+    db = SessionLocal()
+    custom_admin = User(
+        email="appointed_admin@htc.ac.th",
+        password_hash=hash_password("adminpass123"),
+        name="Custom Admin",
+        role=UserRole.admin,
+        is_verified=True,
+    )
+    db.add(custom_admin)
+    db.commit()
+    db.close()
+
+    res_custom = client.post("/auth/login", json={
+        "email": "appointed_admin@htc.ac.th",
+        "password": "adminpass123",
+        "role": "student"
+    })
+    assert res_custom.status_code == 403
+    assert "ต้องเข้าสู่ระบบด้วย Google Authentication เท่านั้น" in res_custom.json()["detail"]
+
+def test_global_exception_handler_cors():
+    # Test that unhandled exception routes attach CORS headers
+    @app.get("/test-internal-error")
+    def trigger_error():
+        raise RuntimeError("Simulated crash")
+
+    err_client = TestClient(app, raise_server_exceptions=False)
+    response = err_client.get("/test-internal-error", headers={"Origin": "https://htc-insights.vercel.app"})
+    assert response.status_code == 500
+    assert response.headers.get("access-control-allow-origin") == "https://htc-insights.vercel.app"
+    assert response.headers.get("access-control-allow-credentials") == "true"
+
+
+
 
 
 

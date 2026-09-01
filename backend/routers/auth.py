@@ -210,7 +210,7 @@ def register_employer(data: EmployerRegister,
 
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)):
-    """ เข้าสู่ระบบด้วย Email/Password ทั่วไป """
+    """ เข้าสู่ระบบด้วย Email/Password ทั่วไป (บล็อก Admin ทุกบัญชีให้เข้าผ่าน Google Auth เท่านั้น) """
     env_admin_emails = os.getenv("SUPER_ADMIN_EMAILS", "67219010003@htc.ac.th")
     admin_emails = {e.strip() for e in env_admin_emails.split(",") if e.strip()}
     if data.email in admin_emails or data.email == "67219010003@htc.ac.th":
@@ -218,6 +218,8 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
     if data.role == "student":
         user = db.query(User).filter(User.email == data.email).first()
+        if user and (user.role == UserRole.admin or user.is_super_admin):
+            raise HTTPException(403, "บัญชีผู้ดูแลระบบ (Admin) ต้องเข้าสู่ระบบด้วย Google Authentication เท่านั้น เพื่อความปลอดภัยสูงสุด")
         if not user or not verify_password(data.password, user.password_hash):
             raise HTTPException(401, "อีเมลหรือรหัสผ่านไม่ถูกต้อง")
         if not user.is_verified:

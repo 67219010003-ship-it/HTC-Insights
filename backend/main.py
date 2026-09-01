@@ -79,9 +79,19 @@ app.include_router(reports.router)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """ Global exception handler — ทำให้ทุก unhandled exception ส่ง JSON response ที่มี CORS headers อยู่เสมอ """
+    import traceback
+    traceback.print_exc()
+    origin = request.headers.get("origin", "")
+    headers = {}
+    if origin:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+        headers["Access-Control-Allow-Methods"] = "*"
+        headers["Access-Control-Allow-Headers"] = "*"
     return JSONResponse(
         status_code=500,
         content={"detail": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์ กรุณาติดต่อผู้ดูแลระบบ"},
+        headers=headers,
     )
 
 @app.get("/health")
