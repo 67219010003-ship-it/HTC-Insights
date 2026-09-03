@@ -98,21 +98,6 @@ export default function LoadingScreen({
             </p>
           )}
         </div>
-
-        {/* Indeterminate Smooth Progress Bar */}
-        {showProgress && (
-          <div className={`mt-5 ${iconSizes.bar} h-1.5 bg-surface-container-high rounded-full overflow-hidden relative shadow-inner border border-outline-variant/20`}>
-            <div className="absolute inset-y-0 bg-gradient-to-r from-secondary/80 via-secondary-container to-secondary rounded-full animate-loading-bar" />
-          </div>
-        )}
-
-        {/* System Status Indicator Pill */}
-        <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container/20 border border-secondary/20 text-secondary text-[11px] font-semibold">
-          <span className="material-symbols-outlined text-[13px] animate-spin">
-            progress_activity
-          </span>
-          <span>HTC Insights Loading System</span>
-        </div>
       </div>
     </div>
   );
