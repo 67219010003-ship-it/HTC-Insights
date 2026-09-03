@@ -237,6 +237,60 @@ def delete_comment(comment_id: int,
     db.commit()
     return {"message": "ลบความคิดเห็นเรียบร้อยแล้ว"}
 
+@router.patch("/comments/{comment_id}/best-answer")
+def toggle_best_answer(comment_id: int,
+                       current_user: User = Depends(require_student),
+                       db: Session = Depends(get_db)):
+    """ กำหนดหรือยกเลิกความคิดเห็นเป็นคำตอบที่ดีที่สุด (เฉพาะเจ้าของกระทู้หรือ Admin) """
+    comment = db.query(CommunityComment).filter(CommunityComment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="ไม่พบความคิดเห็น")
+
+    post = comment.post
+    if not post:
+        raise HTTPException(status_code=404, detail="ไม่พบกระทู้ที่เกี่ยวข้อง")
+
+    # อนุญาตเฉพาะเจ้าของกระทู้ หรือ แอดมิน
+    if post.user_id != current_user.id and current_user.role != UserRole.admin and not current_user.is_super_admin:
+        raise HTTPException(status_code=403, detail="เฉพาะเจ้าของกระทู้เท่านั้นที่สามารถเลือกคำตอบที่ดีที่สุดได้")
+
+    if comment.status != "approved":
+        raise HTTPException(status_code=400, detail="สามารถเลือกได้เฉพาะความคิดเห็นที่ผ่านการอนุมัติแล้วเท่านั้น")
+
+    new_state = not bool(comment.is_best_answer)
+
+    if new_state:
+        # ปรับความคิดเห็นอื่นทั้งหมดในกระทู้นี้ให้ไม่เป็น Best Answer (มีได้เพียง 1 รายการต่อกระทู้)
+        db.query(CommunityComment).filter(
+            CommunityComment.post_id == comment.post_id,
+            CommunityComment.id != comment.id
+        ).update({"is_best_answer": False})
+
+        comment.is_best_answer = True
+
+        # ส่งการแจ้งเตือนไปยังเจ้าของความคิดเห็น (ถ้าไม่ใช่ความคิดเห็นของตนเอง)
+        if comment.user_id != current_user.id:
+            create_notification(
+                db=db,
+                user_id=comment.user_id,
+                title="ความคิดเห็นของคุณได้รับเลือกเป็นคำตอบที่ดีที่สุด",
+                message=f"เจ้าของกระทู้เรื่อง '{post.title[:30]}' ได้เลือกความคิดเห็นของคุณเป็นคำตอบที่ดีที่สุด",
+                type="success",
+                link=f"/community/{post.id}"
+            )
+        action_msg = "เลือกเป็นคำตอบที่ดีที่สุดเรียบร้อยแล้ว"
+    else:
+        comment.is_best_answer = False
+        action_msg = "ยกเลิกคำตอบที่ดีที่สุดเรียบร้อยแล้ว"
+
+    db.commit()
+    db.refresh(comment)
+    return {
+        "message": action_msg,
+        "comment_id": comment.id,
+        "is_best_answer": comment.is_best_answer
+    }
+
 def _format_post(post: CommunityPost) -> dict:
     """ ฟังก์ชันแปลงข้อมูลกระทู้ให้อยู่ในรูปแบบ JSON พร้อมแสดงชื่อผู้เขียนจริง """
     approved_comments_count = len([c for c in (post.comments or []) if c.status == "approved"])

@@ -165,6 +165,29 @@ export default function ThreadDetailPage() {
     } catch (err: any) {}
   };
 
+  const [bestAnswerLoading, setBestAnswerLoading] = useState<number | null>(null);
+
+  const handleToggleBestAnswer = async (commentId: number) => {
+    if (bestAnswerLoading !== null) return;
+    try {
+      setBestAnswerLoading(commentId);
+      const res = await api.patch(`/community/comments/${commentId}/best-answer`);
+      const updated = await api.get(`/community/posts/${postId}`);
+      setPost(updated.data);
+      setToast({
+        isOpen: true,
+        message: res.data.message || "อัปเดตคำตอบที่ดีที่สุดเรียบร้อยแล้ว",
+        type: "success",
+      });
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : "ไม่สามารถเลือกคำตอบที่ดีที่สุดได้";
+      setToast({ isOpen: true, message: msg, type: "error" });
+    } finally {
+      setBestAnswerLoading(null);
+    }
+  };
+
   if (!post) {
     return (
       <LoadingScreen
@@ -380,6 +403,13 @@ export default function ThreadDetailPage() {
       {/* Comments List */}
       {(() => {
         const approvedComments = (post.comments || []).filter((c: any) => c.status === "approved");
+        const sortedComments = [...approvedComments].sort((a: any, b: any) => {
+          if (a.is_best_answer && !b.is_best_answer) return -1;
+          if (!a.is_best_answer && b.is_best_answer) return 1;
+          return 0;
+        });
+        const isPostAuthor = Boolean(currentUser?.id && post?.user_id === currentUser.id);
+
         return (
           <div id="comments-section" className="space-y-3 scroll-mt-20">
             <div className="flex items-center justify-between px-1">
@@ -398,7 +428,7 @@ export default function ThreadDetailPage() {
               </div>
             ) : (
               <>
-                {approvedComments
+                {sortedComments
                   .slice((currentPage - 1) * pageSize, currentPage * pageSize)
                   .map((c: any) => {
                     const isOwner = Boolean(currentUser?.id && c.user_id === currentUser.id);
@@ -407,7 +437,21 @@ export default function ThreadDetailPage() {
                     const isEditingThis = editingCommentId === c.id;
 
                     return (
-                      <div key={c.id} className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/20 text-sm space-y-2">
+                      <div
+                        key={c.id}
+                        className={`p-4 rounded-xl border text-sm space-y-2 transition-all ${
+                          c.is_best_answer
+                            ? "bg-emerald-50/50 border-emerald-300 ring-1 ring-emerald-300/40 shadow-xs"
+                            : "bg-surface-container-lowest border-outline-variant/20"
+                        }`}
+                      >
+                        {c.is_best_answer && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg w-fit border border-emerald-300">
+                            <span className="material-symbols-outlined text-[16px] text-emerald-700">verified</span>
+                            <span>คำตอบที่ดีที่สุดโดยเจ้าของกระทู้</span>
+                          </div>
+                        )}
+
                         <div className="flex justify-between items-center text-xs text-on-surface-variant mb-1 flex-wrap gap-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-bold text-primary">
@@ -419,8 +463,28 @@ export default function ThreadDetailPage() {
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span>{c.created_at}</span>
+
+                            {(isPostAuthor || isAdm) && (
+                              <button
+                                type="button"
+                                disabled={bestAnswerLoading === c.id}
+                                onClick={() => handleToggleBestAnswer(c.id)}
+                                className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer disabled:opacity-50 ${
+                                  c.is_best_answer
+                                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                    : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high border border-outline-variant/30"
+                                }`}
+                                title={c.is_best_answer ? "คลิกเพื่อยกเลิกคำตอบที่ดีที่สุด" : "เลือกความคิดเห็นนี้เป็นคำตอบที่ดีที่สุด"}
+                              >
+                                <span className="material-symbols-outlined text-[13px]">
+                                  {c.is_best_answer ? "check_circle" : "check"}
+                                </span>
+                                <span>{c.is_best_answer ? "คำตอบที่ดีที่สุด" : "เลือกคำตอบที่ดีที่สุด"}</span>
+                              </button>
+                            )}
+
                             {(isOwner || canDelete) && (
                               <div className="flex items-center gap-1.5 border-l border-outline-variant/30 pl-2">
                                 {isOwner && (

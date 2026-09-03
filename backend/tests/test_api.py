@@ -207,3 +207,48 @@ def test_global_exception_handler_cors():
     assert response.status_code == 500
     assert response.headers.get("access-control-allow-origin") == "https://htc-insights.vercel.app"
     assert response.headers.get("access-control-allow-credentials") == "true"
+
+def test_toggle_best_answer():
+    # Login student (author of post)
+    res_author = client.post("/auth/google", json={"id_token": "dummy_token"})
+    author_token = res_author.json()["access_token"]
+    author_headers = {"Authorization": f"Bearer {author_token}"}
+
+    # Create post
+    post_res = client.post("/community/posts", json={
+        "type": "qa",
+        "title": "คำถามทดสอบการเลือกคำตอบที่ดีที่สุด",
+        "content": "เนื้อหาคำถามยาวเกินสิบตัวอักษรเพื่อทดสอบคำตอบที่ดีที่สุด"
+    }, headers=author_headers)
+    assert post_res.status_code == 201
+    post_id = post_res.json()["post_id"]
+
+    # Approve post in DB
+    with SessionLocal() as db:
+        p = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+        p.status = "approved"
+        db.commit()
+
+    # Create comment
+    comm_res = client.post(f"/community/posts/{post_id}/comments", json={
+        "content": "ความคิดเห็นที่จะถูกเลือกเป็นคำตอบที่ดีที่สุด"
+    }, headers=author_headers)
+    assert comm_res.status_code == 201
+    comment_id = comm_res.json()["comment_id"]
+
+    # Approve comment in DB
+    with SessionLocal() as db:
+        c = db.query(CommunityComment).filter(CommunityComment.id == comment_id).first()
+        c.status = "approved"
+        db.commit()
+
+    # Author marks comment as best answer
+    patch_res = client.patch(f"/community/comments/{comment_id}/best-answer", headers=author_headers)
+    assert patch_res.status_code == 200
+    assert patch_res.json()["is_best_answer"] is True
+
+    # Author toggles off best answer
+    patch_res2 = client.patch(f"/community/comments/{comment_id}/best-answer", headers=author_headers)
+    assert patch_res2.status_code == 200
+    assert patch_res2.json()["is_best_answer"] is False
+
