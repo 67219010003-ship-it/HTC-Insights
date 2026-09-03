@@ -75,31 +75,39 @@ function InsightsPageContent() {
     setPage(1);
   };
 
+  const handleSelectDept = (dept: string) => {
+    setSelectedDept(dept);
+    setPage(1);
+  };
+
   const handleResetFilters = () => {
     setSelectedDept("");
     setSelectedStars(new Set());
     setSearchQuery("");
+    setPage(1);
     router.push("/insights");
   };
 
   const filteredCompanies = companies.filter((c) => {
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
       const matchName = c.name?.toLowerCase().includes(q);
       const matchAddr = c.address?.toLowerCase().includes(q);
-      if (!matchName && !matchAddr) return false;
+      const matchDept = c.departments?.some((d) =>
+        d.toLowerCase().includes(q)
+      );
+      if (!matchName && !matchAddr && !matchDept) return false;
     }
-    if (selectedDept) {
+    if (selectedDept && selectedDept !== "แผนกวิชาทั้งหมด") {
       if (!c.departments || c.departments.length === 0) {
-        // If company has no reviews yet, don't filter out unless user explicitly set department
-      } else {
-        const cleanSelected = selectedDept.replace("แผนกวิชา", "").trim().toLowerCase();
-        const matchDept = c.departments.some(d => {
-          const cleanD = d.replace("แผนกวิชา", "").trim().toLowerCase();
-          return cleanD.includes(cleanSelected) || cleanSelected.includes(cleanD);
-        });
-        if (!matchDept) return false;
+        return false;
       }
+      const cleanSelected = selectedDept.replace("แผนกวิชา", "").trim().toLowerCase();
+      const matchDept = c.departments.some((d) => {
+        const cleanD = d.replace("แผนกวิชา", "").trim().toLowerCase();
+        return cleanD.includes(cleanSelected) || cleanSelected.includes(cleanD);
+      });
+      if (!matchDept) return false;
     }
     if (selectedStars.size > 0) {
       const score = c.avg_score != null ? Math.round(c.avg_score) : 0;
@@ -112,6 +120,10 @@ function InsightsPageContent() {
   const paginatedCompanies = filteredCompanies.slice(
     (page - 1) * pageSize,
     page * pageSize
+  );
+
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() || selectedDept || selectedStars.size > 0
   );
 
   return (
@@ -140,10 +152,11 @@ function InsightsPageContent() {
         {/* Sidebar Filters */}
         <InsightsSidebarFilter
           selectedDept={selectedDept}
-          onSelectDept={setSelectedDept}
+          onSelectDept={handleSelectDept}
           selectedStars={selectedStars}
           onToggleStar={toggleStarFilter}
           onReset={handleResetFilters}
+          hasActiveFilters={hasActiveFilters}
         />
 
         {/* Right Main Content (75% on Desktop) */}
@@ -157,10 +170,26 @@ function InsightsPageContent() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ค้นหาชื่อบริษัท หรือจังหวัด..."
-                className="w-full pl-10 pr-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm font-body-sm focus:outline-none focus:border-primary transition-all"
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="ค้นหาชื่อบริษัท แผนกวิชา หรือจังหวัด..."
+                className="w-full pl-10 pr-10 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm font-body-sm focus:outline-none focus:border-primary transition-all"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary cursor-pointer p-1"
+                  title="ล้างการค้นหา"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              )}
             </div>
             <div className="text-xs text-on-surface-variant font-medium">
               พบ <strong className="text-primary text-sm">{filteredCompanies.length}</strong> สถานที่ฝึกงาน

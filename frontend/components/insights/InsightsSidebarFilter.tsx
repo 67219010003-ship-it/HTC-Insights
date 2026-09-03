@@ -9,6 +9,7 @@ interface InsightsSidebarFilterProps {
   selectedStars: Set<number>;
   onToggleStar: (star: number) => void;
   onReset: () => void;
+  hasActiveFilters?: boolean;
 }
 
 export default function InsightsSidebarFilter({
@@ -17,7 +18,10 @@ export default function InsightsSidebarFilter({
   selectedStars,
   onToggleStar,
   onReset,
+  hasActiveFilters,
 }: InsightsSidebarFilterProps) {
+  const showReset = hasActiveFilters ?? (Boolean(selectedDept) || selectedStars.size > 0);
+
   return (
     <aside className="w-full lg:w-72 shrink-0 space-y-6">
       <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/30 shadow-sm space-y-6">
@@ -26,8 +30,9 @@ export default function InsightsSidebarFilter({
             <span className="material-symbols-outlined text-[20px]">filter_list</span>
             ตัวกรองค้นหา
           </h3>
-          {(selectedDept || selectedStars.size > 0) && (
+          {showReset && (
             <button
+              type="button"
               onClick={onReset}
               className="text-xs text-secondary hover:underline font-medium cursor-pointer"
             >
@@ -56,17 +61,17 @@ export default function InsightsSidebarFilter({
             {[5, 4, 3, 2, 1].map((star) => {
               const isChecked = selectedStars.has(star);
               return (
-                <label
+                <div
                   key={star}
                   onClick={() => onToggleStar(star)}
-                  className="flex items-center justify-between p-2 rounded-xl hover:bg-surface-container-low cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-2 rounded-xl hover:bg-surface-container-low cursor-pointer transition-colors select-none"
                 >
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={isChecked}
                       onChange={() => {}}
-                      className="rounded text-secondary focus:ring-secondary h-4 w-4"
+                      className="rounded text-secondary focus:ring-secondary h-4 w-4 pointer-events-none cursor-pointer"
                     />
                     <div className="flex items-center text-secondary">
                       {[...Array(star)].map((_, i) => (
@@ -91,7 +96,7 @@ export default function InsightsSidebarFilter({
                   <span className="text-xs text-on-surface-variant font-medium">
                     {star} ดาว
                   </span>
-                </label>
+                </div>
               );
             })}
           </div>

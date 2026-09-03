@@ -23,5 +23,7 @@ class CompanyPublic(BaseModel):
     cover_image_url: Optional[str] = None
     avg_score: Optional[float] = None
     review_count: int = 0
+    avg_daily_allowance: Optional[float] = None
+    departments: list[str] = []
     created_at: Optional[str] = None
     model_config = {"from_attributes": True}

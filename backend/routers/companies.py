@@ -32,16 +32,44 @@ def list_companies(all: bool = False,
         query = query.having(count_expr > 0)
 
     if q and q.strip():
-        query = query.filter(Company.name.ilike(f"%{q.strip()}%"))
+        search_term = q.strip()
+        query = query.filter((Company.name.ilike(f"%{search_term}%")) | (Company.address.ilike(f"%{search_term}%")))
 
     if department and department != "ทั้งหมด" and department.strip():
+        clean_dept = department.replace("แผนกวิชา", "").strip()
         dept_subquery = db.query(Review.company_id).filter(
-            Review.department == department.strip(),
+            (Review.department == department.strip()) | (Review.department.ilike(f"%{clean_dept}%")),
             Review.status == ReviewStatus.approved
         ).distinct()
         query = query.filter(Company.id.in_(dept_subquery))
 
     rows = query.limit(limit).all()
+    company_ids = [c.id for c, _, _ in rows]
+    dept_map: dict[int, list[str]] = {}
+    allowance_map: dict[int, float] = {}
+
+    if company_ids:
+        dept_rows = db.query(Review.company_id, Review.department).filter(
+            Review.company_id.in_(company_ids),
+            Review.status == ReviewStatus.approved,
+            Review.department.isnot(None)
+        ).distinct().all()
+        for cid, d in dept_rows:
+            if d:
+                dept_map.setdefault(cid, []).append(d)
+
+        allowance_rows = db.query(
+            Review.company_id,
+            func.avg(Review.daily_allowance).label("avg_allowance")
+        ).filter(
+            Review.company_id.in_(company_ids),
+            Review.status == ReviewStatus.approved,
+            Review.daily_allowance > 0
+        ).group_by(Review.company_id).all()
+        for cid, avg_a in allowance_rows:
+            if avg_a is not None:
+                allowance_map[cid] = round(float(avg_a), 1)
+
     results = []
     for c, avg_s, rev_c in rows:
         results.append(CompanyPublic(
@@ -56,6 +84,8 @@ def list_companies(all: bool = False,
             cover_image_url=c.cover_image_url,
             avg_score=round(avg_s, 1) if avg_s else None,
             review_count=rev_c or 0,
+            avg_daily_allowance=allowance_map.get(c.id),
+            departments=dept_map.get(c.id, []),
             created_at=c.created_at.strftime("%Y-%m-%d") if c.created_at else None,
         ))
     return results

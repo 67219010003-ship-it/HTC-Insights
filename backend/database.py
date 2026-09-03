@@ -56,7 +56,7 @@ def create_db_engine():
         )
         with eng.connect() as conn:
             pass
-        print(f"✅ Database connected to TiDB/MySQL: {DATABASE_URL.split('@')[-1]}")
+        print(f"[OK] Database connected to TiDB/MySQL: {DATABASE_URL.split('@')[-1]}")
         return eng
     except Exception as e:
         print(f"[Database Error] TiDB/MySQL connection failed: {e}")
