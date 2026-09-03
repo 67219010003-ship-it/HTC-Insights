@@ -8,6 +8,7 @@ import ReportModal from "@/components/ReportModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import Toast from "@/components/Toast";
 import Pagination from "@/components/Pagination";
+import LoadingScreen from "@/components/LoadingScreen";
 
 export default function ThreadDetailPage() {
   const params = useParams();
@@ -165,7 +166,13 @@ export default function ThreadDetailPage() {
   };
 
   if (!post) {
-    return <div className="p-8 text-center text-on-surface-variant">กำลังโหลดกระทู้...</div>;
+    return (
+      <LoadingScreen
+        message="กำลังโหลดกระทู้คอมมูนิตี้..."
+        subMessage="ดึงข้อมูลกระทู้ ความคิดเห็น และการโต้ตอบจากเพื่อนๆ"
+        minHeight="min-h-[60vh]"
+      />
+    );
   }
 
   return (

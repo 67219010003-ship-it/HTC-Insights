@@ -82,3 +82,24 @@ h1, h2, h3, h4 {
   }
 }
 
+/* ================= LOADING PROGRESS BAR ANIMATION ================= */
+@keyframes loading-progress {
+  0% {
+    left: -35%;
+    width: 35%;
+  }
+  50% {
+    left: 25%;
+    width: 55%;
+  }
+  100% {
+    left: 100%;
+    width: 35%;
+  }
+}
+
+.animate-loading-bar {
+  position: absolute;
+  animation: loading-progress 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+

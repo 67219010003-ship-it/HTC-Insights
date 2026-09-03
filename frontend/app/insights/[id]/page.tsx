@@ -10,6 +10,7 @@ import Toast from "@/components/Toast";
 import ReportModal from "@/components/ReportModal";
 import ImageLightboxModal from "@/components/ImageLightboxModal";
 import Pagination from "@/components/Pagination";
+import LoadingScreen from "@/components/LoadingScreen";
 
 export default function CompanyDetailPage() {
   const params = useParams();
@@ -205,7 +206,13 @@ export default function CompanyDetailPage() {
   }, [reviews]);
 
   if (!company) {
-    return <div className="p-8 text-center text-on-surface-variant font-bold">กำลังโหลดข้อมูลสถานประกอบการ...</div>;
+    return (
+      <LoadingScreen
+        message="กำลังโหลดข้อมูลสถานประกอบการ..."
+        subMessage="ดึงข้อมูลสถานที่ฝึกงาน รีวิว และภาพบรรยากาศจากระบบ"
+        minHeight="min-h-[70vh]"
+      />
+    );
   }
 
   const defaultCover = "https://images.unsplash.com/photo-1541888946425-d0fbb186a5b3?auto=format&fit=crop&w=1200&q=80";

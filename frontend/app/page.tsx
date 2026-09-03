@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getToken, getRole, getUser } from "@/lib/auth";
 import StudentHomeView from "@/components/home/StudentHomeView";
 import ExternalHomeView from "@/components/home/ExternalHomeView";
+import LoadingScreen from "@/components/LoadingScreen";
 
 export default function HomePage() {
   const router = useRouter();
@@ -47,9 +48,11 @@ export default function HomePage() {
 
   if (!isReady || !token) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center text-on-surface-variant font-bold">
-        กำลังโหลดระบบ HTC Insights...
-      </div>
+      <LoadingScreen
+        message="กำลังโหลดระบบ HTC Insights..."
+        subMessage="ตรวจสอบสถานะการเข้าสู่ระบบและเตรียมข้อมูลผู้ใช้งาน"
+        minHeight="min-h-[70vh]"
+      />
     );
   }
 

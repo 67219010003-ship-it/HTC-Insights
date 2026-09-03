@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import AdminDashboardCharts from "./AdminDashboardCharts";
 
 interface StatsData {
   users?: {
@@ -143,7 +144,7 @@ export default function AdminDashboardOverview({
         departments: Array.from(data.departments).slice(0, 2).join(", "),
       }))
       .sort((a, b) => parseFloat(b.avgScore) - parseFloat(a.avgScore) || b.count - a.count)
-      .slice(0, 6);
+      .slice(0, 5);
 
     // Community and jobs
     const totalPosts = posts.length;
@@ -221,7 +222,7 @@ export default function AdminDashboardOverview({
             ศูนย์รวมสถิติระบบ HTC Insight
           </div>
           <h2 className="text-xl md:text-2xl font-bold font-headline text-primary">
-            แดชบอร์ดภาพรวมและผลประเมิน (Executive Dashboard)
+            แดชบอร์ดภาพรวมและผลประเมิน
           </h2>
           <p className="text-xs md:text-sm text-on-surface-variant mt-0.5">
             ข้อมูลเชิงลึกสรุปผลคะแนนประเมินสถานประกอบการ การมีส่วนร่วมของนักศึกษา และสถานะระบบ
@@ -229,16 +230,6 @@ export default function AdminDashboardOverview({
         </div>
 
         <div className="flex items-center gap-3 shrink-0 flex-wrap">
-          {onSwitchToScreening && (
-            <button
-              type="button"
-              onClick={onSwitchToScreening}
-              className="px-4 py-2.5 bg-surface-container hover:bg-surface-container-high text-primary font-bold rounded-2xl text-xs border border-outline-variant/40 transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <span className="material-symbols-outlined text-[18px] text-secondary">checklist</span>
-              ไปที่คิวคัดกรอง
-            </button>
-          )}
 
           <button
             type="button"
@@ -434,11 +425,6 @@ export default function AdminDashboardOverview({
               </div>
             </div>
           </div>
-
-          <div className="mt-5 p-3.5 bg-surface-container-low rounded-2xl border border-outline-variant/30 text-xs text-on-surface-variant flex items-center justify-between">
-            <span>เกณฑ์ประเมินสูงสุด: <strong>พี่เลี้ยงและการสอนงาน</strong> ({metrics.avgMentor})</span>
-            <span className="text-[11px] text-primary font-bold">มาตรฐานระดับวิทยาลัย</span>
-          </div>
         </div>
 
         {/* Content Moderation Status Distribution */}
@@ -448,7 +434,7 @@ export default function AdminDashboardOverview({
               <div>
                 <h3 className="text-base font-bold font-headline text-primary flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-[20px]">pie_chart</span>
-                  สถานะการคัดกรองและความปลอดภัย (Moderation Health)
+                  สถานะการคัดกรองและความปลอดภัย
                 </h3>
                 <p className="text-xs text-on-surface-variant mt-0.5">
                   การตรวจสอบความถูกต้องก่อนเผยแพร่สู่สาธารณะ
@@ -523,14 +509,6 @@ export default function AdminDashboardOverview({
               </div>
             </div>
           </div>
-
-          <div className="mt-5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 flex items-center justify-between">
-            <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[16px] text-emerald-600">verified_user</span>
-              มาตรฐานความโปร่งใส: ระบบเปิดเผยชื่อจริงผู้รีวิว 100%
-            </span>
-            <span className="font-bold text-slate-900">เกณฑ์ ปวช. / ปวส.</span>
-          </div>
         </div>
       </div>
 
@@ -540,7 +518,7 @@ export default function AdminDashboardOverview({
           <div>
             <h3 className="text-base font-bold font-headline text-primary flex items-center gap-2">
               <span className="material-symbols-outlined text-secondary text-[20px]">domain</span>
-              สถิติการฝึกงานแยกตามแผนกวิชา (Reviews by Department)
+              สถิติการฝึกงานแยกตามแผนกวิชา
             </h3>
             <p className="text-xs text-on-surface-variant mt-0.5">
               จำนวนรีวิวและคะแนนความพึงพอใจเฉลี่ยของแต่ละสาขาวิชาชีพ
@@ -593,7 +571,7 @@ export default function AdminDashboardOverview({
           <div>
             <h3 className="text-base font-bold font-headline text-primary flex items-center gap-2">
               <span className="material-symbols-outlined text-secondary text-[20px]">corporate_fare</span>
-              สถานประกอบการที่มีผลประเมินโดดเด่น (Top Rated Establishments)
+              สถานประกอบการที่มีผลประเมินโดดเด่น (Top 5)
             </h3>
             <p className="text-xs text-on-surface-variant mt-0.5">
               สถานประกอบการที่ได้รับคะแนนความพึงพอใจสูงจากนักศึกษาฝึกงาน
@@ -660,6 +638,18 @@ export default function AdminDashboardOverview({
           </div>
         )}
       </div>
+
+      {/* ================= SECTION 5: ADVANCED ANALYTICS & VISUAL CHARTS (PIE & RADIAL) ================= */}
+      <AdminDashboardCharts
+        stats={stats}
+        reviews={reviews}
+        avgOverall={metrics.avgOverall}
+        avgWork={metrics.avgWork}
+        avgEnv={metrics.avgEnv}
+        avgMentor={metrics.avgMentor}
+        avgWelfare={metrics.avgWelfare}
+        departmentStats={metrics.departmentStats}
+      />
 
       {/* ================= PRINT-ONLY OFFICIAL SIGNATURE FOOTER ================= */}
       <div className="print-only mt-12 pt-8 border-t border-slate-300 print-avoid-break">

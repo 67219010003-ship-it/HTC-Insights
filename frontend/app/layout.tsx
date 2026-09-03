@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
 import Footer from "@/components/Footer";
+import NavigationProgressBar from "@/components/NavigationProgressBar";
 
 export const metadata = {
   title: "HTC Insights — ประสบการณ์จริง จากรุ่นพี่ตัวจริง",
@@ -16,6 +18,9 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body className="bg-background text-on-surface antialiased min-h-screen">
+        <Suspense fallback={null}>
+          <NavigationProgressBar />
+        </Suspense>
         <Navbar />
         <main className="pt-16 pb-20 md:pb-8 min-h-screen">
           {children}

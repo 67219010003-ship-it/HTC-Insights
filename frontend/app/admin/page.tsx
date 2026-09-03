@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import AdminHeader from "@/components/AdminHeader";
 import AdminDashboardOverview from "@/components/admin/AdminDashboardOverview";
 import { api } from "@/lib/api";
+import LoadingScreen from "@/components/LoadingScreen";
 
 interface StatsData {
   users: { total: number; students: number; external: number; admins: number };
@@ -117,12 +118,13 @@ export default function AdminDashboardPage() {
 
         {/* ================= MAIN DASHBOARD AREA ================= */}
         {loading ? (
-          <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-16 text-center space-y-3 shadow-xs">
-            <span className="material-symbols-outlined text-4xl text-primary animate-spin">
-              progress_activity
-            </span>
-            <p className="text-sm font-bold text-on-surface">กำลังโหลดข้อมูลแดชบอร์ดภาพรวม...</p>
-            <p className="text-xs text-on-surface-variant">โปรดรอสักครู่ ระบบกำลังประมวลผลข้อมูลสถิติ</p>
+          <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-6 shadow-xs">
+            <LoadingScreen
+              message="กำลังโหลดข้อมูลแดชบอร์ดภาพรวม..."
+              subMessage="โปรดรอสักครู่ ระบบกำลังประมวลผลข้อมูลสถิติของวิทยาลัย"
+              minHeight="min-h-[300px]"
+              size="md"
+            />
           </div>
         ) : (
           <AdminDashboardOverview

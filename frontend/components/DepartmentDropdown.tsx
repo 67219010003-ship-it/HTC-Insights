@@ -21,12 +21,14 @@ export const ALL_DEPARTMENTS: DepartmentOption[] = [
   { value: "แผนกวิชาช่างสำรวจ", label: "แผนกวิชาช่างสำรวจ", icon: "square_foot" },
   { value: "แผนกวิชาเครื่องทำความเย็นและปรับอากาศ", label: "แผนกวิชาเครื่องทำความเย็นและปรับอากาศ", icon: "ac_unit" },
   { value: "แผนกวิชาช่างเครื่องเรือนและตกแต่งภายใน", label: "แผนกวิชาช่างเครื่องเรือนและตกแต่งภายใน", icon: "chair" },
-  { value: "แผนกวิชาเมคคาทรอนิกส์และหุ่นยนต์", label: "แผนกวิชาเมคคาทรอนิกส์และหุ่นยนต์", icon: "smart_toy" },
-  { value: "แผนกวิชาเทคนิคพลังงาน", label: "แผนกวิชาเทคนิคพลังงาน", icon: "solar_power" },
-  { value: "แผนกวิชาเทคนิคควบคุมและซ่อมบำรุงระบบขนส่งทางราง", label: "แผนกวิชาเทคนิคซ่อมบำรุงระบบขนส่งทางราง", icon: "train" },
-  { value: "แผนกวิชาเทคโนโลยีเครื่องมือวัดและควบคุมปิโตรเลียม", label: "แผนกวิชาเทคโนโลยีปิโตรเลียม", icon: "oil_barrel" },
+  { value: "แผนกวิชาเทคนิคควบคุมและซ่อมบำรุงระบบขนส่งทางราง", label: "แผนกวิชาเทคนิคควบคุมและซ่อมบำรุงระบบขนส่งทางราง", icon: "train" },
+  { value: "แผนกวิชาเทคโนโลยีเครื่องมือวัดและควบคุมปิโตรเลียม", label: "แผนกวิชาเทคโนโลยีเครื่องมือวัดและควบคุมปิโตรเลียม", icon: "oil_barrel" },
   { value: "แผนกวิชาเทคโนโลยีสารสนเทศ", label: "แผนกวิชาเทคโนโลยีสารสนเทศ", icon: "laptop_chromebook" },
-  { value: "แผนกวิชาการจัดการโลจิสติกส์และซัพลายเชน", label: "แผนกวิชาการจัดการโลจิสติกส์", icon: "local_shipping" },
+  { value: "แผนกวิชาการจัดการโลจิสติกส์และซัพพลายเชน", label: "แผนกวิชาการจัดการโลจิสติกส์และซัพพลายเชน", icon: "local_shipping" },
+  { value: "แผนกวิชาเทคนิคพื้นฐาน", label: "แผนกวิชาเทคนิคพื้นฐาน", icon: "build" },
+  { value: "แผนกวิชาสามัญสัมพันธ์", label: "แผนกวิชาสามัญสัมพันธ์", icon: "menu_book" },
+  { value: "แผนกวิชาเทคนิคพลังงาน", label: "แผนกวิชาเทคนิคพลังงาน", icon: "solar_power" },
+  { value: "แผนกวิชาเมคคาทรอนิกส์และหุ่นยนต์", label: "แผนกวิชาเมคคาทรอนิกส์และหุ่นยนต์", icon: "smart_toy" },
   { value: "แผนกวิชาธุรกิจการบิน", label: "แผนกวิชาธุรกิจการบิน", icon: "flight_takeoff" },
 ];
 
@@ -56,7 +58,13 @@ export default function DepartmentDropdown({ value, onChange, className }: Props
     if (!value) return d.value === "";
     const cleanD = d.value.replace("แผนกวิชา", "").trim().toLowerCase();
     const cleanLabel = d.label.replace("แผนกวิชา", "").trim().toLowerCase();
-    return d.value === value || d.label === value || cleanD === cleanValue || cleanLabel === cleanValue;
+    return (
+      d.value === value ||
+      d.label === value ||
+      cleanD === cleanValue ||
+      cleanLabel === cleanValue ||
+      (cleanValue.length > 3 && (cleanD.includes(cleanValue) || cleanValue.includes(cleanD)))
+    );
   }) || ALL_DEPARTMENTS[0];
 
   const displayIcon = mounted ? selectedDept.icon : ALL_DEPARTMENTS[0].icon;

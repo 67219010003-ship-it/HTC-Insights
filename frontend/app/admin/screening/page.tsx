@@ -10,6 +10,7 @@ import Pagination from "@/components/Pagination";
 import AdminDetailModal from "@/components/AdminDetailModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { api } from "@/lib/api";
+import LoadingScreen from "@/components/LoadingScreen";
 
 interface StatsData {
   users: { total: number; students: number; external: number; admins: number };
@@ -476,12 +477,13 @@ export default function AdminDashboardPage() {
 
         {/* ================= MAIN CONTENT AREA ================= */}
         {loading ? (
-          <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-16 text-center space-y-3 shadow-xs">
-            <span className="material-symbols-outlined text-4xl text-primary animate-spin">
-              progress_activity
-            </span>
-            <p className="text-sm font-bold text-on-surface">กำลังโหลดข้อมูลรายการคัดกรอง...</p>
-            <p className="text-xs text-on-surface-variant">โปรดรอสักครู่ ระบบกำลังดึงข้อมูลล่าสุด</p>
+          <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-6 shadow-xs">
+            <LoadingScreen
+              message="กำลังโหลดข้อมูลรายการคัดกรอง..."
+              subMessage="โปรดรอสักครู่ ระบบกำลังดึงข้อมูลล่าสุดเพื่อรอการตรวจสอบ"
+              minHeight="min-h-[300px]"
+              size="md"
+            />
           </div>
         ) : (
           <div className="space-y-lg">

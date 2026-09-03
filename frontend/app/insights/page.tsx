@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import Pagination from "@/components/Pagination";
 import InsightsSidebarFilter from "@/components/insights/InsightsSidebarFilter";
 import CompanyCard, { CompanyCardData } from "@/components/insights/CompanyCard";
+import LoadingScreen from "@/components/LoadingScreen";
 
 function InsightsPageContent() {
   const searchParams = useSearchParams();
@@ -249,9 +250,12 @@ export default function InsightsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-        </div>
+        <LoadingScreen
+          message="กำลังโหลดข้อมูลสถานประกอบการและรีวิว..."
+          subMessage="HTC Insights ค้นหารีวิวและคะแนนประเมินสถานประกอบการ"
+          minHeight="min-h-[75vh]"
+          size="lg"
+        />
       }
     >
       <InsightsPageContent />
