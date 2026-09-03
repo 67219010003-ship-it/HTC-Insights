@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useState, useMemo } from "react";
+import AdminInteractiveChartCard, { MetricTab } from "./AdminInteractiveChartCard";
 
 interface StatsData {
   users?: {
@@ -74,6 +75,7 @@ interface AdminDashboardOverviewProps {
   reviews: any[];
   posts: any[];
   jobs: any[];
+  users?: any[];
   onSwitchToScreening?: () => void;
 }
 
@@ -82,8 +84,10 @@ export default function AdminDashboardOverview({
   reviews,
   posts,
   jobs,
+  users = [],
   onSwitchToScreening,
 }: AdminDashboardOverviewProps) {
+  const [selectedMetric, setSelectedMetric] = useState<MetricTab>("users");
   // Calculations
   const metrics = useMemo(() => {
     const totalReviews = reviews.length;
@@ -277,331 +281,242 @@ export default function AdminDashboardOverview({
         </div>
       </div>
 
-      {/* ================= 4 PRIMARY KPI CARDS WITH CHARTS ================= */}
+      {/* ================= 1. LARGE INTERACTIVE CHART CARD (FEATURE CHART) ================= */}
+      <AdminInteractiveChartCard
+        activeMetric={selectedMetric}
+        onSelectMetric={setSelectedMetric}
+        stats={stats}
+        reviews={reviews}
+        posts={posts}
+        jobs={jobs}
+        users={users}
+        metrics={metrics}
+      />
+
+      {/* ================= 2. THE 4 PRIMARY KPI SELECTOR CARDS ================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print-avoid-break">
-        {/* Card 1: Total Reviews with Pie/Donut Chart */}
-        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print-border flex flex-col justify-between">
+        {/* Card 1: Total Reviews */}
+        <div
+          onClick={() => setSelectedMetric("reviews")}
+          className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
+            selectedMetric === "reviews"
+              ? "bg-surface-container-high/90 border-primary ring-2 ring-primary/30 shadow-md scale-[1.01]"
+              : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
+          }`}
+        >
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[18px] text-primary">rate_review</span>
+                <span className="material-symbols-outlined text-[20px] text-primary">rate_review</span>
                 รีวิวฝึกงานทั้งหมด
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                อนุมัติ {metrics.approvalRate}%
-              </span>
-            </div>
-
-            <div className="flex items-baseline justify-between mb-2">
-              <div className="text-3xl font-extrabold font-headline text-primary">
-                {metrics.totalReviews.toLocaleString()}
-              </div>
-              <div className="text-right text-[11px] text-on-surface-variant font-medium">
-                <span className="text-emerald-800 font-bold">อนุมัติ {metrics.approvedReviewsCount} รายการ ({metrics.approvalRate}%)</span>
-                {metrics.pendingReviewsCount > 0 && (
-                  <span className="block text-amber-700 font-bold">รอ {metrics.pendingReviewsCount}</span>
+              <div
+                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                  selectedMetric === "reviews"
+                    ? "bg-primary border-primary text-white"
+                    : "border-slate-300"
+                }`}
+              >
+                {selectedMetric === "reviews" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
                 )}
               </div>
             </div>
-
-            {/* Pie / Donut Chart */}
-            <div className="py-2 flex items-center justify-around gap-3 bg-surface-container-low/40 rounded-2xl p-2.5 border border-outline-variant/20">
-              <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
-                  <circle cx="40" cy="40" r="30" fill="transparent" stroke="#e2e8f0" strokeWidth="10" />
-                  {/* Approved Slice */}
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="30"
-                    fill="transparent"
-                    stroke="#10b981"
-                    strokeWidth="10"
-                    strokeDasharray={`${(metrics.approvalRate / 100) * 188.5} 188.5`}
-                    strokeDashoffset="0"
-                  />
-                  {/* Pending Slice */}
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="30"
-                    fill="transparent"
-                    stroke="#f59e0b"
-                    strokeWidth="10"
-                    strokeDasharray={`${((100 - metrics.approvalRate) / 100) * 188.5} 188.5`}
-                    strokeDashoffset={`-${(metrics.approvalRate / 100) * 188.5}`}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-xs font-extrabold font-headline text-primary">{metrics.totalReviews}</span>
-                  <span className="text-[7px] font-bold text-on-surface-variant">รีวิว</span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5 text-[10px] flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-on-surface-variant">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    อนุมัติแล้ว
-                  </span>
-                  <span className="font-bold text-emerald-800">{metrics.approvedReviewsCount} ({metrics.approvalRate}%)</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-on-surface-variant">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    รอคัดกรอง
-                  </span>
-                  <span className="font-bold text-amber-800">{metrics.pendingReviewsCount} ({100 - metrics.approvalRate}%)</span>
-                </div>
-              </div>
+            <div className="text-3xl font-extrabold font-headline text-primary">
+              {metrics.totalReviews.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-2 mt-2 text-xs">
+              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-bold">
+                อนุมัติ {metrics.approvedReviewsCount} รายการ ({metrics.approvalRate}%)
+              </span>
+              {metrics.pendingReviewsCount > 0 && (
+                <span className="text-amber-700 font-medium">รอ {metrics.pendingReviewsCount}</span>
+              )}
             </div>
           </div>
-
-          <div className="pt-2 mt-3 border-t border-outline-variant/20 flex items-center justify-between text-[10px] text-on-surface-variant">
-            <span>Pie Chart: สถานะรีวิว</span>
-            <span className="font-bold text-emerald-700">ตรวจสอบ 100%</span>
+          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+            <span
+              className={
+                selectedMetric === "reviews"
+                  ? "text-primary font-bold flex items-center gap-1"
+                  : "text-on-surface-variant"
+              }
+            >
+              {selectedMetric === "reviews" ? "● กำลังแสดงกราฟ" : "คลิกเพื่อดูกราฟ ↗"}
+            </span>
+            <span className="text-[10px] text-on-surface-variant font-medium">สถิติรีวิว</span>
           </div>
         </div>
 
-        {/* Card 2: Overall Satisfaction with Bar Chart */}
-        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print-border flex flex-col justify-between">
+        {/* Card 2: Overall Satisfaction */}
+        <div
+          onClick={() => setSelectedMetric("ratings")}
+          className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
+            selectedMetric === "ratings"
+              ? "bg-surface-container-high/90 border-primary ring-2 ring-primary/30 shadow-md scale-[1.01]"
+              : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
+          }`}
+        >
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[18px] text-amber-600">stars</span>
+                <span className="material-symbols-outlined text-[20px] text-amber-600">stars</span>
                 คะแนนความพึงพอใจเฉลี่ย
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                เกณฑ์ {parseFloat(metrics.avgOverall) >= 4.0 ? "ดีเยี่ยม" : parseFloat(metrics.avgOverall) >= 3.0 ? "ดี" : "ปานกลาง"}
+              <div
+                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                  selectedMetric === "ratings"
+                    ? "bg-amber-500 border-amber-500 text-white"
+                    : "border-slate-300"
+                }`}
+              >
+                {selectedMetric === "ratings" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                )}
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold font-headline text-amber-800">
+                {metrics.avgOverall}
+              </span>
+              <span className="text-xs font-bold text-on-surface-variant">/ 5.0 ดาว</span>
+            </div>
+            <div className="flex items-center gap-1 mt-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span
+                  key={star}
+                  className={`material-symbols-outlined text-[16px] ${
+                    parseFloat(metrics.avgOverall) >= star
+                      ? "text-amber-600 active-tab"
+                      : parseFloat(metrics.avgOverall) >= star - 0.5
+                      ? "text-amber-600"
+                      : "text-slate-300"
+                  }`}
+                >
+                  star
+                </span>
+              ))}
+              <span className="text-xs text-on-surface-variant ml-1 font-semibold">
+                เกณฑ์{" "}
+                {parseFloat(metrics.avgOverall) >= 4.0
+                  ? "ดีเยี่ยม"
+                  : parseFloat(metrics.avgOverall) >= 3.0
+                  ? "ดี"
+                  : "ปานกลาง"}
               </span>
             </div>
-
-            <div className="flex items-baseline justify-between mb-2">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-3xl font-extrabold font-headline text-amber-800">{metrics.avgOverall}</span>
-                <span className="text-xs font-bold text-on-surface-variant">/ 5.0 ดาว</span>
-              </div>
-              <div className="flex items-center gap-0.5">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <span
-                    key={star}
-                    className={`material-symbols-outlined text-[14px] ${
-                      parseFloat(metrics.avgOverall) >= star
-                        ? "text-amber-600 active-tab"
-                        : parseFloat(metrics.avgOverall) >= star - 0.5
-                        ? "text-amber-600"
-                        : "text-slate-300"
-                    }`}
-                  >
-                    star
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Horizontal Bar Chart (Rating Breakdown) */}
-            <div className="space-y-1.5 py-1.5 px-2 bg-surface-container-low/40 rounded-2xl border border-outline-variant/20">
-              {[
-                { star: 5, count: metrics.ratingDistribution[5] || 0, color: "bg-emerald-500" },
-                { star: 4, count: metrics.ratingDistribution[4] || 0, color: "bg-cyan-500" },
-                { star: 3, count: metrics.ratingDistribution[3] || 0, color: "bg-amber-500" },
-                { star: 2, count: metrics.ratingDistribution[2] || 0, color: "bg-orange-500" },
-                { star: 1, count: metrics.ratingDistribution[1] || 0, color: "bg-rose-500" },
-              ].map((item) => {
-                const pct = metrics.totalReviews > 0 ? Math.round((item.count / metrics.totalReviews) * 100) : 0;
-                return (
-                  <div key={item.star} className="flex items-center gap-1.5 text-[10px]">
-                    <span className="w-4 text-on-surface-variant font-bold text-right shrink-0">{item.star}★</span>
-                    <div className="h-2 flex-1 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${item.color} rounded-full transition-all duration-500`}
-                        style={{ width: `${Math.max(item.count > 0 ? 15 : 0, pct)}%` }}
-                      />
-                    </div>
-                    <span className="w-6 text-on-surface-variant text-right font-semibold shrink-0">
-                      {item.count}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
           </div>
-
-          <div className="pt-2 mt-3 border-t border-outline-variant/20 flex items-center justify-between text-[10px] text-on-surface-variant">
-            <span>Bar Chart: คะแนนดาว</span>
-            <span className="font-bold text-amber-700">เกณฑ์ ดี</span>
+          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+            <span
+              className={
+                selectedMetric === "ratings"
+                  ? "text-amber-700 font-bold flex items-center gap-1"
+                  : "text-on-surface-variant"
+              }
+            >
+              {selectedMetric === "ratings" ? "● กำลังแสดงกราฟ" : "คลิกเพื่อดูกราฟ ↗"}
+            </span>
+            <span className="text-[10px] text-on-surface-variant font-medium">4 มิติสมรรถนะ</span>
           </div>
         </div>
 
-        {/* Card 3: Total Users with Pie/Donut Chart */}
-        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print-border flex flex-col justify-between">
+        {/* Card 3: Total Users */}
+        <div
+          onClick={() => setSelectedMetric("users")}
+          className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
+            selectedMetric === "users"
+              ? "bg-surface-container-high/90 border-primary ring-2 ring-primary/30 shadow-md scale-[1.01]"
+              : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
+          }`}
+        >
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[18px] text-sky-700">groups</span>
+                <span className="material-symbols-outlined text-[20px] text-sky-700">groups</span>
                 ผู้ใช้งานในระบบ
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
-                3 กลุ่มผู้ใช้
-              </span>
-            </div>
-
-            <div className="flex items-baseline justify-between mb-2">
-              <div className="text-3xl font-extrabold font-headline text-primary">
-                {totalUsersCount.toLocaleString()}
-              </div>
-              <div className="text-right text-[11px] text-on-surface-variant font-medium">
-                <span>นักศึกษา: <strong className="text-primary">{userStudentCount}</strong></span>
-                <span className="mx-1">•</span>
-                <span>สถานประกอบการ: <strong className="text-primary">{userExternalCount}</strong></span>
+              <div
+                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                  selectedMetric === "users"
+                    ? "bg-primary border-primary text-white"
+                    : "border-slate-300"
+                }`}
+              >
+                {selectedMetric === "users" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                )}
               </div>
             </div>
-
-            {/* Pie / Donut Chart */}
-            <div className="py-2 flex items-center justify-around gap-3 bg-surface-container-low/40 rounded-2xl p-2.5 border border-outline-variant/20">
-              <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
-                  <circle cx="40" cy="40" r="30" fill="transparent" stroke="#e2e8f0" strokeWidth="10" />
-                  {/* Students: 50% */}
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="30"
-                    fill="transparent"
-                    stroke="#00677c"
-                    strokeWidth="10"
-                    strokeDasharray={`${(userPercents.students / 100) * 188.5} 188.5`}
-                    strokeDashoffset="0"
-                  />
-                  {/* Employers: 40% */}
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="30"
-                    fill="transparent"
-                    stroke="#002045"
-                    strokeWidth="10"
-                    strokeDasharray={`${(userPercents.external / 100) * 188.5} 188.5`}
-                    strokeDashoffset={`-${(userPercents.students / 100) * 188.5}`}
-                  />
-                  {/* Admins: 10% */}
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="30"
-                    fill="transparent"
-                    stroke="#7c3aed"
-                    strokeWidth="10"
-                    strokeDasharray={`${(userPercents.admins / 100) * 188.5} 188.5`}
-                    strokeDashoffset={`-${((userPercents.students + userPercents.external) / 100) * 188.5}`}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-xs font-extrabold font-headline text-primary">{totalUsersCount}</span>
-                  <span className="text-[7px] font-bold text-on-surface-variant">คน</span>
-                </div>
-              </div>
-
-              <div className="space-y-1 text-[10px] flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-on-surface-variant">
-                    <span className="w-2 h-2 rounded-full bg-[#00677c]" />
-                    นักศึกษา
-                  </span>
-                  <span className="font-bold text-primary">{userStudentCount} ({userPercents.students}%)</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-on-surface-variant">
-                    <span className="w-2 h-2 rounded-full bg-[#002045]" />
-                    สถานประกอบการ
-                  </span>
-                  <span className="font-bold text-primary">{userExternalCount} ({userPercents.external}%)</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-on-surface-variant">
-                    <span className="w-2 h-2 rounded-full bg-purple-600" />
-                    ผู้ดูแลระบบ
-                  </span>
-                  <span className="font-bold text-primary">{userAdminCount} ({userPercents.admins}%)</span>
-                </div>
-              </div>
+            <div className="text-3xl font-extrabold font-headline text-primary">
+              {totalUsersCount.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-2 mt-2 text-xs text-on-surface-variant">
+              <span>นักศึกษา: <strong>{userStudentCount}</strong></span>
+              <span>•</span>
+              <span>สถานประกอบการ: <strong>{userExternalCount}</strong></span>
             </div>
           </div>
-
-          <div className="pt-2 mt-3 border-t border-outline-variant/20 flex items-center justify-between text-[10px] text-on-surface-variant">
-            <span>Pie Chart: ผู้ใช้งาน</span>
-            <span className="font-bold text-primary">นักศึกษา 50%</span>
+          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+            <span
+              className={
+                selectedMetric === "users"
+                  ? "text-primary font-bold flex items-center gap-1"
+                  : "text-on-surface-variant"
+              }
+            >
+              {selectedMetric === "users" ? "● กำลังแสดงกราฟเส้น" : "คลิกเพื่อดูกราฟ ↗"}
+            </span>
+            <span className="text-[10px] text-on-surface-variant font-medium">แนวโน้มเติบโต</span>
           </div>
         </div>
 
-        {/* Card 4: Community & Jobs with Bar / Column Chart */}
-        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print-border flex flex-col justify-between">
+        {/* Card 4: Partner Job Openings */}
+        <div
+          onClick={() => setSelectedMetric("community")}
+          className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
+            selectedMetric === "community"
+              ? "bg-surface-container-high/90 border-primary ring-2 ring-primary/30 shadow-md scale-[1.01]"
+              : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
+          }`}
+        >
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[18px] text-purple-700">work</span>
-                โอกาสงาน & ชุมชน
+                <span className="material-symbols-outlined text-[20px] text-purple-700">work</span>
+                พาร์ทเนอร์ที่เปิดรับสมัคร
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
-                กิจกรรมระบบ
-              </span>
-            </div>
-
-            <div className="flex items-baseline justify-between mb-2">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-3xl font-extrabold font-headline text-primary">{metrics.totalJobs}</span>
-                <span className="text-xs font-normal text-on-surface-variant">ตำแหน่ง</span>
-              </div>
-              <div className="text-[11px] text-on-surface-variant font-medium">
-                กระทู้แลกเปลี่ยน: <strong className="text-purple-700">{metrics.totalPosts}</strong> โพสต์
+              <div
+                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                  selectedMetric === "community"
+                    ? "bg-purple-600 border-purple-600 text-white"
+                    : "border-slate-300"
+                }`}
+              >
+                {selectedMetric === "community" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                )}
               </div>
             </div>
-
-            {/* Bar / Column Chart */}
-            <div className="py-2 px-1 bg-surface-container-low/40 rounded-2xl border border-outline-variant/20">
-              <div className="h-20 flex items-end justify-around gap-2 px-2 pt-1 pb-1">
-                {/* Bar 1: Jobs */}
-                <div className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                  <span className="text-[10px] font-extrabold text-indigo-700">{metrics.totalJobs}</span>
-                  <div className="w-full max-w-[26px] bg-indigo-100 rounded-t-md overflow-hidden h-12 flex items-end">
-                    <div
-                      className="w-full bg-indigo-600 rounded-t-md transition-all duration-500"
-                      style={{ height: `${Math.max(10, (metrics.totalJobs / (maxActivity || 1)) * 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-[9px] font-bold text-on-surface-variant text-center truncate">งาน</span>
-                </div>
-
-                {/* Bar 2: Posts */}
-                <div className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                  <span className="text-[10px] font-extrabold text-purple-700">{metrics.totalPosts}</span>
-                  <div className="w-full max-w-[26px] bg-purple-100 rounded-t-md overflow-hidden h-12 flex items-end">
-                    <div
-                      className="w-full bg-purple-600 rounded-t-md transition-all duration-500"
-                      style={{ height: `${Math.max(10, (metrics.totalPosts / (maxActivity || 1)) * 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-[9px] font-bold text-on-surface-variant text-center truncate">กระทู้</span>
-                </div>
-
-                {/* Bar 3: Comments */}
-                <div className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                  <span className="text-[10px] font-extrabold text-cyan-700">{metrics.totalComments || 0}</span>
-                  <div className="w-full max-w-[26px] bg-cyan-100 rounded-t-md overflow-hidden h-12 flex items-end">
-                    <div
-                      className="w-full bg-cyan-600 rounded-t-md transition-all duration-500"
-                      style={{ height: `${Math.max(10, ((metrics.totalComments || 0) / (maxActivity || 1)) * 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-[9px] font-bold text-on-surface-variant text-center truncate">ตอบกลับ</span>
-                </div>
-              </div>
+            <div className="text-3xl font-extrabold font-headline text-primary">
+              {metrics.totalJobs} <span className="text-sm font-normal text-on-surface-variant">ตำแหน่ง</span>
+            </div>
+            <div className="flex items-center gap-2 mt-2 text-xs text-on-surface-variant">
+              <span>เปิดรับสมัคร: <strong>{metrics.totalJobs}</strong> อัตรา</span>
+              <span>•</span>
+              <span>รอคัดกรอง: <strong>{metrics.pendingJobs}</strong></span>
             </div>
           </div>
-
-          <div className="pt-2 mt-3 border-t border-outline-variant/20 flex items-center justify-between text-[10px] text-on-surface-variant">
-            <span>Bar Chart: กิจกรรม</span>
-            <span className="font-bold text-purple-700">{metrics.totalPosts} โพสต์</span>
+          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
+            <span
+              className={
+                selectedMetric === "community"
+                  ? "text-purple-700 font-bold flex items-center gap-1"
+                  : "text-on-surface-variant"
+              }
+            >
+              {selectedMetric === "community" ? "● กำลังแสดงกราฟ" : "คลิกเพื่อดูกราฟ ↗"}
+            </span>
+            <span className="text-[10px] text-on-surface-variant font-medium">ตำแหน่งเปิดรับ</span>
           </div>
         </div>
       </div>

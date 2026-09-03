@@ -24,6 +24,7 @@ export default function AdminDashboardPage() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [totalPending, setTotalPending] = useState(0);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
@@ -31,7 +32,7 @@ export default function AdminDashboardPage() {
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, revRes, postRes, jobRes, upgRes, repRes, comRes] = await Promise.all([
+      const [statsRes, revRes, postRes, jobRes, upgRes, repRes, comRes, usersRes] = await Promise.all([
         api.get("/admin/stats"),
         api.get("/admin/reviews?status=all"),
         api.get("/admin/posts"),
@@ -39,6 +40,7 @@ export default function AdminDashboardPage() {
         api.get("/admin/upgrades?status=pending"),
         api.get("/admin/reports?status=pending"),
         api.get("/admin/comments"),
+        api.get("/admin/users"),
       ]);
 
       const sData = statsRes.data;
@@ -46,6 +48,7 @@ export default function AdminDashboardPage() {
       setReviews(revRes.data || []);
       setPosts(postRes.data || []);
       setJobs(jobRes.data || []);
+      setUsers(usersRes.data || []);
 
       const pendingRevs = (revRes.data || []).filter((r: any) => r.status === "pending").length;
       const pendingPosts = (postRes.data || []).filter((p: any) => p.status === "pending").length;
@@ -132,6 +135,7 @@ export default function AdminDashboardPage() {
             reviews={reviews}
             posts={posts}
             jobs={jobs}
+            users={users}
             onSwitchToScreening={() => router.push("/admin/screening")}
           />
         )}
