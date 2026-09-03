@@ -84,7 +84,7 @@ export default function AdminDashboardPage() {
   if (!mounted || !authorized) return null;
 
   return (
-    <div className="min-h-screen bg-background text-on-surface pb-xl">
+    <div className="min-h-screen bg-background text-on-surface pb-xl print:pb-0 print:bg-white">
       {/* Top Admin Navigation Suite Header */}
       <AdminHeader
         title="แดชบอร์ดภาพรวมระบบหลังบ้าน"
@@ -94,11 +94,11 @@ export default function AdminDashboardPage() {
         refreshing={loading}
       />
 
-      <div className="max-w-container-max mx-auto px-margin-mobile space-y-lg">
+      <div className="max-w-container-max mx-auto px-margin-mobile space-y-lg print:p-0 print:m-0 print:space-y-3 print:max-w-none">
         {/* Flash Message Banner */}
         {msg && (
           <div
-            className={`p-4 rounded-2xl text-xs md:text-sm font-semibold flex items-center justify-between shadow-xs border transition-all ${
+            className={`no-print p-4 rounded-2xl text-xs md:text-sm font-semibold flex items-center justify-between shadow-xs border transition-all ${
               msg.isError
                 ? "bg-rose-50 text-rose-900 border-rose-200"
                 : "bg-emerald-50 text-emerald-900 border-emerald-200"

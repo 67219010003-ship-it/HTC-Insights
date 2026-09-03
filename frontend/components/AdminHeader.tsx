@@ -40,7 +40,7 @@ export default function AdminHeader({
   ];
 
   return (
-    <div className="bg-surface-container-lowest border-b border-outline-variant/50 shadow-xs mb-lg">
+    <div className="no-print bg-surface-container-lowest border-b border-outline-variant/50 shadow-xs mb-lg">
       <div className="max-w-container-max mx-auto px-margin-mobile py-6">
         {/* Top Meta Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-outline-variant/30">

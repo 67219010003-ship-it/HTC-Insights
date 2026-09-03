@@ -229,7 +229,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="bg-surface border-b border-outline-variant fixed top-0 left-0 w-full z-40 shadow-sm">
+      <header className="no-print bg-surface border-b border-outline-variant fixed top-0 left-0 w-full z-40 shadow-sm">
         <div className="grid grid-cols-[auto_1fr_auto] items-center w-full px-margin-mobile md:px-lg max-w-container-max mx-auto h-16 gap-4">
           {/* Brand Logo */}
           <Link href="/" className="flex items-center gap-2">

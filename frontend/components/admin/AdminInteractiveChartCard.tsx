@@ -27,18 +27,6 @@ export default function AdminInteractiveChartCard({
 }: AdminInteractiveChartCardProps) {
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
 
-  // Line visibility toggles
-  const [visibleLines, setVisibleLines] = useState({
-    users: true,
-    reviews: true,
-    jobs: true,
-    community: true,
-  });
-
-  const toggleLine = (key: keyof typeof visibleLines) => {
-    setVisibleLines((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   // 6 Timeline Points covering the academic term
   const timelineData = useMemo(() => {
     const totalUsers = stats?.users?.total || 30;
@@ -191,26 +179,25 @@ export default function AdminInteractiveChartCard({
 
   // Helper to determine line opacity based on activeMetric
   const getLineOpacity = (lineKey: string) => {
-    if (!visibleLines[lineKey as keyof typeof visibleLines]) return 0;
     if (!activeMetric || activeMetric === "all") return 1;
-    return activeMetric === lineKey ? 1 : 0.25;
+    return activeMetric === lineKey ? 1 : 0.22;
   };
 
   const getStrokeWidth = (lineKey: string) => {
-    if (activeMetric === lineKey) return 4;
+    if (activeMetric === lineKey) return 4.5;
     return 2.5;
   };
 
   return (
-    <div className="bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant/30 shadow-sm print-avoid-break space-y-4">
-      {/* Header with Title and Line Toggle Pills */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-outline-variant/20 pb-4">
+    <div className="bg-surface-container-lowest p-5 md:p-6 rounded-3xl border border-outline-variant/30 shadow-sm print:p-4 print:rounded-2xl print:border-slate-300 print:shadow-none print-avoid-break space-y-3">
+      {/* Header with Title (Cleaned up: No redundant buttons) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-outline-variant/20 pb-3">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-secondary/10 text-secondary rounded-full text-xs font-bold mb-1.5">
-            <span className="material-symbols-outlined text-[16px]">show_chart</span>
-            กราฟเส้นเดียวเปรียบเทียบแนวโน้ม (Multi-Line Graph)
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-secondary/10 text-secondary rounded-full text-xs font-bold mb-1">
+            <span className="material-symbols-outlined text-[15px]">show_chart</span>
+            กราฟเส้นเดียวเปรียบเทียบแนวโน้ม
           </div>
-          <h3 className="text-xl md:text-2xl font-bold font-headline text-primary flex items-center gap-2">
+          <h3 className="text-lg md:text-xl font-bold font-headline text-primary">
             แนวโน้มการเติบโตของระบบ HTC Insight
           </h3>
           <p className="text-xs text-on-surface-variant mt-0.5">
@@ -218,58 +205,48 @@ export default function AdminInteractiveChartCard({
           </p>
         </div>
 
-        {/* Legend / Line Toggles */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {lines.map((line) => {
-            const isVisible = visibleLines[line.key];
-            const isFocused = activeMetric === line.key;
-
-            return (
-              <button
-                key={line.key}
-                type="button"
-                onClick={() => {
-                  if (activeMetric === line.key) {
-                    onSelectMetric("all");
-                  } else {
-                    onSelectMetric(line.key);
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border ${
-                  isFocused
-                    ? "bg-slate-900 text-white shadow-xs border-transparent scale-102"
-                    : isVisible
-                    ? "bg-surface-container-low text-on-surface border-outline-variant/30 hover:bg-surface-container"
-                    : "bg-surface-container-lowest text-on-surface-variant/50 border-dashed border-outline-variant/40"
-                }`}
-                title={`คลิกเพื่อเน้นหรือดูเฉพาะ ${line.label}`}
-              >
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: line.color }}
-                />
-                <span className="truncate">{line.label}</span>
-                <span
-                  className={`text-[11px] font-extrabold px-1.5 py-0.2 rounded-md ${
-                    isFocused ? "bg-white/20 text-white" : "bg-black/5 text-primary"
-                  }`}
-                >
-                  {line.currentVal}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Dynamic Hover Tooltip / Status Badge */}
+        {hoveredPointIndex !== null ? (
+          <div className="flex items-center gap-2.5 bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xs font-medium self-start sm:self-center animate-fade-in shadow-xs flex-wrap">
+            <span className="font-bold text-amber-300">
+              {timelineData[hoveredPointIndex].label}:
+            </span>
+            <span className="flex items-center gap-1 text-cyan-300">
+              <span className="w-2 h-2 rounded-full bg-[#00677c]" />
+              ผู้ใช้ {timelineData[hoveredPointIndex].users}
+            </span>
+            <span className="flex items-center gap-1 text-emerald-300">
+              <span className="w-2 h-2 rounded-full bg-[#10b981]" />
+              รีวิว {timelineData[hoveredPointIndex].reviews}
+            </span>
+            <span className="flex items-center gap-1 text-amber-300">
+              <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
+              เปิดรับ {timelineData[hoveredPointIndex].jobs}
+            </span>
+            <span className="flex items-center gap-1 text-purple-300">
+              <span className="w-2 h-2 rounded-full bg-[#8b5cf6]" />
+              คอมมู้ {timelineData[hoveredPointIndex].community}
+            </span>
+          </div>
+        ) : activeMetric && activeMetric !== "all" ? (
+          <button
+            type="button"
+            onClick={() => onSelectMetric("all")}
+            className="no-print self-start sm:self-center px-3 py-1 bg-surface-container text-xs font-semibold text-primary hover:bg-surface-container-high rounded-xl border border-outline-variant/30 flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <span>แสดงทั้งหมด</span>
+            <span className="text-[10px]">✕</span>
+          </button>
+        ) : null}
       </div>
 
       {/* SVG Multi-Line Chart Canvas */}
       <div className="relative w-full overflow-x-auto hide-scrollbar bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-2">
         <svg
-          className="w-full h-auto min-w-[580px] max-h-[260px]"
+          className="w-full h-auto min-w-[580px] max-h-[250px]"
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
         >
           <defs>
-            {/* Soft Drop Shadow for active markers */}
             <filter id="pointShadow" x="-20%" y="-20%" width="140%" height="140%">
               <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.25" />
             </filter>
@@ -327,7 +304,6 @@ export default function AdminInteractiveChartCard({
           {/* Render the 4 Lines */}
           {lines.map((line) => {
             const opacity = getLineOpacity(line.key);
-            if (opacity === 0) return null;
 
             return (
               <path
@@ -368,7 +344,6 @@ export default function AdminInteractiveChartCard({
                 {lines.map((line) => {
                   const pt = line.pts[idx];
                   const opacity = getLineOpacity(line.key);
-                  if (opacity === 0) return null;
 
                   return (
                     <circle
@@ -401,44 +376,6 @@ export default function AdminInteractiveChartCard({
             );
           })}
         </svg>
-      </div>
-
-      {/* Floating / Interactive Snapshot on Hover or Latest */}
-      <div className="bg-surface-container-low/60 rounded-2xl p-3 border border-outline-variant/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="text-xs font-bold text-primary flex items-center gap-2">
-          <span className="material-symbols-outlined text-[18px] text-secondary">insights</span>
-          <span>
-            {hoveredPointIndex !== null
-              ? `ข้อมูล ณ วันที่: ${timelineData[hoveredPointIndex].label} (${timelineData[hoveredPointIndex].sub})`
-              : `สรุปสถิติล่าสุด (ปัจจุบัน)`}
-          </span>
-        </div>
-
-        {/* 4 Stat Pills side-by-side */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 text-xs">
-          {lines.map((line) => {
-            const val =
-              hoveredPointIndex !== null
-                ? (timelineData[hoveredPointIndex] as any)[line.key === "jobs" ? "jobs" : line.key === "community" ? "community" : line.key]
-                : line.currentVal;
-
-            return (
-              <div
-                key={line.key}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-xl border border-outline-variant/30 shadow-2xs"
-              >
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: line.color }}
-                />
-                <span className="text-on-surface-variant text-[11px]">{line.shortLabel}:</span>
-                <span className="font-extrabold text-primary">
-                  {val} <span className="text-[10px] font-normal text-on-surface-variant">{line.unit}</span>
-                </span>
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );

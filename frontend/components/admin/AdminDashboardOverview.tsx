@@ -234,9 +234,9 @@ export default function AdminDashboardOverview({
   }, [metrics.totalJobs, metrics.totalPosts, metrics.totalComments]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 print:space-y-3">
       {/* ================= PRINT-ONLY OFFICIAL HEADER ================= */}
-      <div className="print-only mb-6 border-b-2 border-slate-900 pb-4">
+      <div className="print-only mb-3 border-b-2 border-slate-900 pb-2">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-xl font-bold tracking-tight text-slate-900">
@@ -294,11 +294,11 @@ export default function AdminDashboardOverview({
       />
 
       {/* ================= 2. THE 4 PRIMARY KPI SELECTOR CARDS ================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print-avoid-break">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2 print-avoid-break">
         {/* Card 1: Total Reviews */}
         <div
           onClick={() => setSelectedMetric(selectedMetric === "reviews" ? "all" : "reviews")}
-          className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
+          className={`p-5 rounded-3xl border shadow-xs print:p-3 print:rounded-xl print-border transition-all cursor-pointer flex flex-col justify-between ${
             selectedMetric === "reviews"
               ? "bg-surface-container-high/90 border-emerald-600 ring-2 ring-emerald-500/30 shadow-md scale-[1.01]"
               : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
@@ -350,7 +350,7 @@ export default function AdminDashboardOverview({
 
         {/* Card 2: Overall Satisfaction */}
         <div
-          className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print-border flex flex-col justify-between"
+          className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -404,7 +404,7 @@ export default function AdminDashboardOverview({
         {/* Card 3: Total Users */}
         <div
           onClick={() => setSelectedMetric(selectedMetric === "users" ? "all" : "users")}
-          className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
+          className={`p-5 rounded-3xl border shadow-xs print:p-3 print:rounded-xl print-border transition-all cursor-pointer flex flex-col justify-between ${
             selectedMetric === "users"
               ? "bg-surface-container-high/90 border-[#00677c] ring-2 ring-[#00677c]/30 shadow-md scale-[1.01]"
               : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
@@ -454,7 +454,7 @@ export default function AdminDashboardOverview({
         {/* Card 4: Partner Job Openings */}
         <div
           onClick={() => setSelectedMetric(selectedMetric === "jobs" ? "all" : "jobs")}
-          className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
+          className={`p-5 rounded-3xl border shadow-xs print:p-3 print:rounded-xl print-border transition-all cursor-pointer flex flex-col justify-between ${
             selectedMetric === "jobs"
               ? "bg-surface-container-high/90 border-amber-600 ring-2 ring-amber-500/30 shadow-md scale-[1.01]"
               : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
