@@ -87,7 +87,7 @@ export default function AdminDashboardOverview({
   users = [],
   onSwitchToScreening,
 }: AdminDashboardOverviewProps) {
-  const [selectedMetric, setSelectedMetric] = useState<MetricTab>("users");
+  const [selectedMetric, setSelectedMetric] = useState<MetricTab>("all");
   // Calculations
   const metrics = useMemo(() => {
     const totalReviews = reviews.length;
@@ -297,23 +297,23 @@ export default function AdminDashboardOverview({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print-avoid-break">
         {/* Card 1: Total Reviews */}
         <div
-          onClick={() => setSelectedMetric("reviews")}
+          onClick={() => setSelectedMetric(selectedMetric === "reviews" ? "all" : "reviews")}
           className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
             selectedMetric === "reviews"
-              ? "bg-surface-container-high/90 border-primary ring-2 ring-primary/30 shadow-md scale-[1.01]"
+              ? "bg-surface-container-high/90 border-emerald-600 ring-2 ring-emerald-500/30 shadow-md scale-[1.01]"
               : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
           }`}
         >
           <div>
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[20px] text-primary">rate_review</span>
+                <span className="material-symbols-outlined text-[20px] text-emerald-600">rate_review</span>
                 รีวิวฝึกงานทั้งหมด
               </span>
               <div
                 className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
                   selectedMetric === "reviews"
-                    ? "bg-primary border-primary text-white"
+                    ? "bg-emerald-600 border-emerald-600 text-white"
                     : "border-slate-300"
                 }`}
               >
@@ -338,11 +338,11 @@ export default function AdminDashboardOverview({
             <span
               className={
                 selectedMetric === "reviews"
-                  ? "text-primary font-bold flex items-center gap-1"
+                  ? "text-emerald-700 font-bold flex items-center gap-1"
                   : "text-on-surface-variant"
               }
             >
-              {selectedMetric === "reviews" ? "● กำลังแสดงกราฟ" : "คลิกเพื่อดูกราฟ ↗"}
+              {selectedMetric === "reviews" ? "● เน้นเส้นรีวิวบนกราฟ" : "คลิกเพื่อเน้นเส้นรีวิว ↗"}
             </span>
             <span className="text-[10px] text-on-surface-variant font-medium">สถิติรีวิว</span>
           </div>
@@ -350,12 +350,7 @@ export default function AdminDashboardOverview({
 
         {/* Card 2: Overall Satisfaction */}
         <div
-          onClick={() => setSelectedMetric("ratings")}
-          className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
-            selectedMetric === "ratings"
-              ? "bg-surface-container-high/90 border-primary ring-2 ring-primary/30 shadow-md scale-[1.01]"
-              : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
-          }`}
+          className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print-border flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -363,17 +358,9 @@ export default function AdminDashboardOverview({
                 <span className="material-symbols-outlined text-[20px] text-amber-600">stars</span>
                 คะแนนความพึงพอใจเฉลี่ย
               </span>
-              <div
-                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
-                  selectedMetric === "ratings"
-                    ? "bg-amber-500 border-amber-500 text-white"
-                    : "border-slate-300"
-                }`}
-              >
-                {selectedMetric === "ratings" && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                )}
-              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                เกณฑ์ {parseFloat(metrics.avgOverall) >= 4.0 ? "ดีเยี่ยม" : parseFloat(metrics.avgOverall) >= 3.0 ? "ดี" : "ปานกลาง"}
+              </span>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-extrabold font-headline text-amber-800">
@@ -407,25 +394,19 @@ export default function AdminDashboardOverview({
             </div>
           </div>
           <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
-            <span
-              className={
-                selectedMetric === "ratings"
-                  ? "text-amber-700 font-bold flex items-center gap-1"
-                  : "text-on-surface-variant"
-              }
-            >
-              {selectedMetric === "ratings" ? "● กำลังแสดงกราฟ" : "คลิกเพื่อดูกราฟ ↗"}
+            <span className="text-on-surface-variant">
+              เกณฑ์การประเมิน 4 มิติ
             </span>
-            <span className="text-[10px] text-on-surface-variant font-medium">4 มิติสมรรถนะ</span>
+            <span className="text-[10px] text-amber-700 font-bold">สูงสุด: พี่เลี้ยง (4.8★)</span>
           </div>
         </div>
 
         {/* Card 3: Total Users */}
         <div
-          onClick={() => setSelectedMetric("users")}
+          onClick={() => setSelectedMetric(selectedMetric === "users" ? "all" : "users")}
           className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
             selectedMetric === "users"
-              ? "bg-surface-container-high/90 border-primary ring-2 ring-primary/30 shadow-md scale-[1.01]"
+              ? "bg-surface-container-high/90 border-[#00677c] ring-2 ring-[#00677c]/30 shadow-md scale-[1.01]"
               : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
           }`}
         >
@@ -438,7 +419,7 @@ export default function AdminDashboardOverview({
               <div
                 className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
                   selectedMetric === "users"
-                    ? "bg-primary border-primary text-white"
+                    ? "bg-[#00677c] border-[#00677c] text-white"
                     : "border-slate-300"
                 }`}
               >
@@ -460,11 +441,11 @@ export default function AdminDashboardOverview({
             <span
               className={
                 selectedMetric === "users"
-                  ? "text-primary font-bold flex items-center gap-1"
+                  ? "text-[#00677c] font-bold flex items-center gap-1"
                   : "text-on-surface-variant"
               }
             >
-              {selectedMetric === "users" ? "● กำลังแสดงกราฟเส้น" : "คลิกเพื่อดูกราฟ ↗"}
+              {selectedMetric === "users" ? "● เน้นเส้นผู้ใช้บนกราฟ" : "คลิกเพื่อเน้นเส้นผู้ใช้ ↗"}
             </span>
             <span className="text-[10px] text-on-surface-variant font-medium">แนวโน้มเติบโต</span>
           </div>
@@ -472,27 +453,27 @@ export default function AdminDashboardOverview({
 
         {/* Card 4: Partner Job Openings */}
         <div
-          onClick={() => setSelectedMetric("community")}
+          onClick={() => setSelectedMetric(selectedMetric === "jobs" ? "all" : "jobs")}
           className={`p-5 rounded-3xl border shadow-xs print-border transition-all cursor-pointer flex flex-col justify-between ${
-            selectedMetric === "community"
-              ? "bg-surface-container-high/90 border-primary ring-2 ring-primary/30 shadow-md scale-[1.01]"
+            selectedMetric === "jobs"
+              ? "bg-surface-container-high/90 border-amber-600 ring-2 ring-amber-500/30 shadow-md scale-[1.01]"
               : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
           }`}
         >
           <div>
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[20px] text-purple-700">work</span>
+                <span className="material-symbols-outlined text-[20px] text-amber-600">work</span>
                 พาร์ทเนอร์ที่เปิดรับสมัคร
               </span>
               <div
                 className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
-                  selectedMetric === "community"
-                    ? "bg-purple-600 border-purple-600 text-white"
+                  selectedMetric === "jobs"
+                    ? "bg-amber-600 border-amber-600 text-white"
                     : "border-slate-300"
                 }`}
               >
-                {selectedMetric === "community" && (
+                {selectedMetric === "jobs" && (
                   <span className="w-1.5 h-1.5 rounded-full bg-white" />
                 )}
               </div>
@@ -509,12 +490,12 @@ export default function AdminDashboardOverview({
           <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
             <span
               className={
-                selectedMetric === "community"
-                  ? "text-purple-700 font-bold flex items-center gap-1"
+                selectedMetric === "jobs"
+                  ? "text-amber-700 font-bold flex items-center gap-1"
                   : "text-on-surface-variant"
               }
             >
-              {selectedMetric === "community" ? "● กำลังแสดงกราฟ" : "คลิกเพื่อดูกราฟ ↗"}
+              {selectedMetric === "jobs" ? "● เน้นเส้นเปิดรับสมัคร" : "คลิกเพื่อเน้นเส้นงาน ↗"}
             </span>
             <span className="text-[10px] text-on-surface-variant font-medium">ตำแหน่งเปิดรับ</span>
           </div>
@@ -530,7 +511,7 @@ export default function AdminDashboardOverview({
               <div>
                 <h3 className="text-base font-bold font-headline text-primary flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-[20px]">bar_chart</span>
-                  คะแนนประเมินรายมิติ (Aspect Evaluation)
+                  คะแนนประเมินรายมิติ
                 </h3>
                 <p className="text-xs text-on-surface-variant mt-0.5">
                   ค่าเฉลี่ย 4 มิติสำคัญของการฝึกประสบการณ์วิชาชีพ
