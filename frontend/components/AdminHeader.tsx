@@ -23,14 +23,19 @@ export default function AdminHeader({
   const navLinks = [
     {
       href: "/admin",
-      label: "แดชบอร์ด & คัดกรอง",
-      icon: "dashboard",
-      badge: pendingCount && pendingCount > 0 ? pendingCount : undefined,
+      label: "แดชบอร์ด",
+      icon: "analytics",
     },
     {
       href: "/admin/users",
       label: "จัดการผู้ใช้ & สิทธิ์",
       icon: "group",
+    },
+    {
+      href: "/admin/screening",
+      label: "คัดกรอง",
+      icon: "fact_check",
+      badge: pendingCount && pendingCount > 0 ? pendingCount : undefined,
     },
   ];
 
