@@ -432,8 +432,6 @@ export default function ThreadDetailPage() {
                   .slice((currentPage - 1) * pageSize, currentPage * pageSize)
                   .map((c: any) => {
                     const isOwner = Boolean(currentUser?.id && c.user_id === currentUser.id);
-                    const isAdm = isAdmin();
-                    const canDelete = Boolean(isOwner || isAdm);
                     const isEditingThis = editingCommentId === c.id;
 
                     return (
@@ -466,7 +464,7 @@ export default function ThreadDetailPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span>{c.created_at}</span>
 
-                            {(isPostAuthor || isAdm) && (
+                            {isPostAuthor && (
                               <button
                                 type="button"
                                 disabled={bestAnswerLoading === c.id}
@@ -485,50 +483,45 @@ export default function ThreadDetailPage() {
                               </button>
                             )}
 
-                            {(isOwner || canDelete) && (
+                            {isOwner && (
                               <div className="flex items-center gap-1.5 border-l border-outline-variant/30 pl-2">
-                                {isOwner && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleStartEditComment(c)}
-                                    className="text-secondary hover:underline flex items-center gap-0.5 text-[11px] font-bold cursor-pointer"
-                                    title="แก้ไขความคิดเห็นของคุณ"
-                                  >
-                                    <span className="material-symbols-outlined text-[13px]">edit</span>
-                                    แก้ไข
-                                  </button>
-                                )}
-                                {canDelete && (
-                                  <button
-                                    type="button"
-                                    onClick={() => promptDeleteComment(c.id)}
-                                    className="text-rose-600 hover:underline flex items-center gap-0.5 text-[11px] font-bold cursor-pointer"
-                                    title={isAdm && !isOwner ? "ลบความคิดเห็นในฐานะผู้ดูแลระบบ" : "ลบความคิดเห็นของคุณ"}
-                                  >
-                                    <span className="material-symbols-outlined text-[13px]">delete</span>
-                                    ลบ
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditComment(c)}
+                                  className="text-secondary hover:underline flex items-center gap-0.5 text-[11px] font-bold cursor-pointer"
+                                  title="แก้ไขความคิดเห็นของคุณ"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">edit</span>
+                                  แก้ไข
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => promptDeleteComment(c.id)}
+                                  className="text-rose-600 hover:underline flex items-center gap-0.5 text-[11px] font-bold cursor-pointer"
+                                  title="ลบความคิดเห็นของคุณ"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">delete</span>
+                                  ลบ
+                                </button>
                               </div>
                             )}
-                            {!isOwner && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setReportModal({
-                                    isOpen: true,
-                                    targetType: "comment",
-                                    targetId: c.id,
-                                    title: "รายงานความคิดเห็น",
-                                  })
-                                }
-                                className="text-slate-400 hover:text-amber-600 flex items-center gap-0.5 text-[11px] font-medium transition-colors cursor-pointer"
-                                title="รายงานความคิดเห็นนี้"
-                              >
-                                <span className="material-symbols-outlined text-[14px]">flag</span>
-                                รายงาน
-                              </button>
-                            )}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setReportModal({
+                                  isOpen: true,
+                                  targetType: "comment",
+                                  targetId: c.id,
+                                  title: "รายงานความคิดเห็น",
+                                })
+                              }
+                              className="text-slate-500 hover:text-amber-700 flex items-center gap-1 text-[11px] font-medium transition-colors cursor-pointer border-l border-outline-variant/30 pl-2 hover:bg-amber-50 px-1.5 py-0.5 rounded-md"
+                              title="รายงานความคิดเห็นนี้"
+                            >
+                              <span className="material-symbols-outlined text-[15px] text-amber-600">flag</span>
+                              <span>รายงาน</span>
+                            </button>
                           </div>
                         </div>
 

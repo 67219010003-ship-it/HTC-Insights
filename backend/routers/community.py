@@ -223,12 +223,12 @@ def update_comment(comment_id: int, data: CommentUpdate,
 def delete_comment(comment_id: int,
                    current_user: User = Depends(require_student),
                    db: Session = Depends(get_db)):
-    """ ลบความคิดเห็นของตนเอง หรือ Admin ลบความคิดเห็นเพื่อการดูแลระบบ """
+    """ ลบความคิดเห็นของตนเอง (เฉพาะเจ้าของความคิดเห็นเท่านั้น สำหรับแอดมินให้จัดการผ่านศูนย์คัดกรอง) """
     comment = db.query(CommunityComment).filter(CommunityComment.id == comment_id).first()
     if not comment:
         raise HTTPException(status_code=404, detail="ไม่พบความคิดเห็น")
-    if comment.user_id != current_user.id and current_user.role != UserRole.admin and not current_user.is_super_admin:
-        raise HTTPException(status_code=403, detail="คุณไม่มีสิทธิ์ลบความคิดเห็นนี้")
+    if comment.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="คุณสามารถลบได้เฉพาะความคิดเห็นของตนเองเท่านั้น (หากเป็นแอดมินกรุณาจัดการผ่านศูนย์คัดกรอง)")
     
     # ลบไลก์และรายงานที่เกี่ยวข้องกับคอมเมนต์นี้
     db.query(CommunityLike).filter(CommunityLike.comment_id == comment_id).delete()
