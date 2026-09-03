@@ -293,135 +293,111 @@ export default function AdminDashboardOverview({
       {/* ================= 2. THE 4 PRIMARY KPI CARDS (STATIC SNAPSHOT) ================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2 print-avoid-break">
         {/* Card 1: Total Reviews */}
-        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[20px] text-emerald-600">rate_review</span>
-                รีวิวฝึกงานทั้งหมด
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                อนุมัติ {metrics.approvalRate}%
-              </span>
-            </div>
-            <div className="text-3xl font-extrabold font-headline text-primary">
-              {metrics.totalReviews.toLocaleString()}
-            </div>
-            <div className="flex items-center gap-2 mt-2 text-xs">
-              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-bold">
-                อนุมัติ {metrics.approvedReviewsCount} รายการ ({metrics.approvalRate}%)
-              </span>
-              {metrics.pendingReviewsCount > 0 && (
-                <span className="text-amber-700 font-medium">รอ {metrics.pendingReviewsCount}</span>
-              )}
-            </div>
+        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[20px] text-emerald-600">rate_review</span>
+              รีวิวฝึกงานทั้งหมด
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+              อนุมัติ {metrics.approvalRate}%
+            </span>
           </div>
-          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
-            <span>สถานะรีวิว</span>
-            <span className="text-[10px] font-bold text-emerald-700">ตรวจสอบ 100%</span>
+          <div className="text-3xl font-extrabold font-headline text-primary">
+            {metrics.totalReviews.toLocaleString()}
+          </div>
+          <div className="flex items-center gap-2 mt-2 text-xs">
+            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-bold">
+              อนุมัติ {metrics.approvedReviewsCount} รายการ ({metrics.approvalRate}%)
+            </span>
+            {metrics.pendingReviewsCount > 0 && (
+              <span className="text-amber-700 font-medium">รอ {metrics.pendingReviewsCount}</span>
+            )}
           </div>
         </div>
 
         {/* Card 2: Overall Satisfaction */}
-        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[20px] text-amber-600">stars</span>
-                คะแนนความพึงพอใจเฉลี่ย
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                เกณฑ์ {parseFloat(metrics.avgOverall) >= 4.0 ? "ดีเยี่ยม" : parseFloat(metrics.avgOverall) >= 3.0 ? "ดี" : "ปานกลาง"}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold font-headline text-amber-800">
-                {metrics.avgOverall}
-              </span>
-              <span className="text-xs font-bold text-on-surface-variant">/ 5.0 ดาว</span>
-            </div>
-            <div className="flex items-center gap-1 mt-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span
-                  key={star}
-                  className={`material-symbols-outlined text-[16px] ${
-                    parseFloat(metrics.avgOverall) >= star
-                      ? "text-amber-600 active-tab"
-                      : parseFloat(metrics.avgOverall) >= star - 0.5
-                      ? "text-amber-600"
-                      : "text-slate-300"
-                  }`}
-                >
-                  star
-                </span>
-              ))}
-              <span className="text-xs text-on-surface-variant ml-1 font-semibold">
-                เกณฑ์{" "}
-                {parseFloat(metrics.avgOverall) >= 4.0
-                  ? "ดีเยี่ยม"
-                  : parseFloat(metrics.avgOverall) >= 3.0
-                  ? "ดี"
-                  : "ปานกลาง"}
-              </span>
-            </div>
+        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[20px] text-amber-600">stars</span>
+              คะแนนความพึงพอใจเฉลี่ย
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+              เกณฑ์ {parseFloat(metrics.avgOverall) >= 4.0 ? "ดีเยี่ยม" : parseFloat(metrics.avgOverall) >= 3.0 ? "ดี" : "ปานกลาง"}
+            </span>
           </div>
-          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
-            <span>เกณฑ์การประเมิน 4 มิติ</span>
-            <span className="text-[10px] text-amber-700 font-bold">สูงสุด: พี่เลี้ยง ({metrics.avgMentor}★)</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold font-headline text-amber-800">
+              {metrics.avgOverall}
+            </span>
+            <span className="text-xs font-bold text-on-surface-variant">/ 5.0 ดาว</span>
+          </div>
+          <div className="flex items-center gap-1 mt-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <span
+                key={star}
+                className={`material-symbols-outlined text-[16px] ${
+                  parseFloat(metrics.avgOverall) >= star
+                    ? "text-amber-600 active-tab"
+                    : parseFloat(metrics.avgOverall) >= star - 0.5
+                    ? "text-amber-600"
+                    : "text-slate-300"
+                }`}
+              >
+                star
+              </span>
+            ))}
+            <span className="text-xs text-on-surface-variant ml-1 font-semibold">
+              เกณฑ์{" "}
+              {parseFloat(metrics.avgOverall) >= 4.0
+                ? "ดีเยี่ยม"
+                : parseFloat(metrics.avgOverall) >= 3.0
+                ? "ดี"
+                : "ปานกลาง"}
+            </span>
           </div>
         </div>
 
         {/* Card 3: Total Users */}
-        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[20px] text-sky-700">groups</span>
-                ผู้ใช้งานในระบบ
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
-                3 กลุ่มผู้ใช้
-              </span>
-            </div>
-            <div className="text-3xl font-extrabold font-headline text-primary">
-              {totalUsersCount.toLocaleString()}
-            </div>
-            <div className="flex items-center gap-2 mt-2 text-xs text-on-surface-variant">
-              <span>นักศึกษา: <strong>{userStudentCount}</strong></span>
-              <span>•</span>
-              <span>สถานประกอบการ: <strong>{userExternalCount}</strong></span>
-            </div>
+        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[20px] text-sky-700">groups</span>
+              ผู้ใช้งานในระบบ
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
+              3 กลุ่มผู้ใช้
+            </span>
           </div>
-          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
-            <span>สัดส่วนผู้ใช้</span>
-            <span className="text-[10px] text-primary font-bold">นักศึกษา {userPercents.students}%</span>
+          <div className="text-3xl font-extrabold font-headline text-primary">
+            {totalUsersCount.toLocaleString()}
+          </div>
+          <div className="flex items-center gap-2 mt-2 text-xs text-on-surface-variant">
+            <span>นักศึกษา: <strong>{userStudentCount}</strong></span>
+            <span>•</span>
+            <span>สถานประกอบการ: <strong>{userExternalCount}</strong></span>
           </div>
         </div>
 
         {/* Card 4: Partner Job Openings */}
-        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[20px] text-amber-600">work</span>
-                พาร์ทเนอร์ที่เปิดรับสมัคร
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
-                ตำแหน่งงาน
-              </span>
-            </div>
-            <div className="text-3xl font-extrabold font-headline text-primary">
-              {metrics.totalJobs} <span className="text-sm font-normal text-on-surface-variant">ตำแหน่ง</span>
-            </div>
-            <div className="flex items-center gap-2 mt-2 text-xs text-on-surface-variant">
-              <span>เปิดรับสมัคร: <strong>{metrics.totalJobs}</strong> อัตรา</span>
-              <span>•</span>
-              <span>รอคัดกรอง: <strong>{metrics.pendingJobs}</strong></span>
-            </div>
+        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[20px] text-amber-600">work</span>
+              พาร์ทเนอร์ที่เปิดรับสมัคร
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
+              ตำแหน่งงาน
+            </span>
           </div>
-          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
-            <span>สถานะการเปิดรับ</span>
-            <span className="text-[10px] text-primary font-bold">12 สถานประกอบการ</span>
+          <div className="text-3xl font-extrabold font-headline text-primary">
+            {metrics.totalJobs} <span className="text-sm font-normal text-on-surface-variant">ตำแหน่ง</span>
+          </div>
+          <div className="flex items-center gap-2 mt-2 text-xs text-on-surface-variant">
+            <span>เปิดรับสมัคร: <strong>{metrics.totalJobs}</strong> อัตรา</span>
+            <span>•</span>
+            <span>รอคัดกรอง: <strong>{metrics.pendingJobs}</strong></span>
           </div>
         </div>
       </div>
