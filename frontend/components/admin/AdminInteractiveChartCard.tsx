@@ -2,11 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 
-export type MetricTab = "all" | "users" | "reviews" | "jobs" | "community";
-
 interface AdminInteractiveChartCardProps {
-  activeMetric: string;
-  onSelectMetric: (metric: any) => void;
   stats: any;
   reviews: any[];
   posts: any[];
@@ -16,8 +12,6 @@ interface AdminInteractiveChartCardProps {
 }
 
 export default function AdminInteractiveChartCard({
-  activeMetric,
-  onSelectMetric,
   stats,
   reviews,
   posts,
@@ -125,73 +119,54 @@ export default function AdminInteractiveChartCard({
   const jobPath = createCurvedPath(jobPts);
   const communityPath = createCurvedPath(communityPts);
 
-  // Line Configurations
+  // 4 Lines Configuration
   const lines = [
     {
       key: "users" as const,
-      label: "เส้นผู้ใช้งานในระบบ",
-      shortLabel: "ผู้ใช้งาน",
+      label: "ผู้ใช้งาน:",
       color: "#00677c",
-      stroke: "#00677c",
       currentVal: stats?.users?.total || 30,
       unit: "คน",
       path: userPath,
       pts: userPts,
-      icon: "groups",
+      strokeWidth: 2.8,
     },
     {
       key: "reviews" as const,
-      label: "เส้นรีวิวในระบบ",
-      shortLabel: "รีวิว",
+      label: "รีวิว:",
       color: "#10b981",
-      stroke: "#10b981",
       currentVal: metrics.totalReviews || 9,
       unit: "รายการ",
       path: reviewPath,
       pts: reviewPts,
-      icon: "rate_review",
+      strokeWidth: 2.5,
     },
     {
       key: "jobs" as const,
-      label: "เส้นเปิดรับสมัครในระบบ",
-      shortLabel: "เปิดรับสมัคร",
+      label: "เปิดรับสมัคร:",
       color: "#f59e0b",
-      stroke: "#f59e0b",
       currentVal: metrics.totalJobs || 0,
       unit: "ตำแหน่ง",
       path: jobPath,
       pts: jobPts,
-      icon: "work",
+      strokeWidth: 2.5,
     },
     {
       key: "community" as const,
-      label: "เส้นคอมมู้ในระบบ",
-      shortLabel: "คอมมู้",
+      label: "คอมมู้:",
       color: "#8b5cf6",
-      stroke: "#8b5cf6",
       currentVal: metrics.totalPosts || 6,
       unit: "โพสต์",
       path: communityPath,
       pts: communityPts,
-      icon: "forum",
+      strokeWidth: 2.5,
     },
   ];
 
-  // Helper to determine line opacity based on activeMetric
-  const getLineOpacity = (lineKey: string) => {
-    if (!activeMetric || activeMetric === "all") return 1;
-    return activeMetric === lineKey ? 1 : 0.22;
-  };
-
-  const getStrokeWidth = (lineKey: string) => {
-    if (activeMetric === lineKey) return 4.5;
-    return 2.5;
-  };
-
   return (
     <div className="bg-surface-container-lowest p-5 md:p-6 rounded-3xl border border-outline-variant/30 shadow-sm print:p-4 print:rounded-2xl print:border-slate-300 print:shadow-none print-avoid-break space-y-3">
-      {/* Header with Title (Cleaned up: No redundant buttons) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-outline-variant/20 pb-3">
+      {/* Top Header with Title and the 4 Capsule Pills (as in Image 3) */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-outline-variant/20 pb-3">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-secondary/10 text-secondary rounded-full text-xs font-bold mb-1">
             <span className="material-symbols-outlined text-[15px]">show_chart</span>
@@ -205,42 +180,45 @@ export default function AdminInteractiveChartCard({
           </p>
         </div>
 
-        {/* Dynamic Hover Tooltip / Status Badge */}
-        {hoveredPointIndex !== null ? (
-          <div className="flex items-center gap-2.5 bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xs font-medium self-start sm:self-center animate-fade-in shadow-xs flex-wrap">
-            <span className="font-bold text-amber-300">
-              {timelineData[hoveredPointIndex].label}:
-            </span>
-            <span className="flex items-center gap-1 text-cyan-300">
-              <span className="w-2 h-2 rounded-full bg-[#00677c]" />
-              ผู้ใช้ {timelineData[hoveredPointIndex].users}
-            </span>
-            <span className="flex items-center gap-1 text-emerald-300">
-              <span className="w-2 h-2 rounded-full bg-[#10b981]" />
-              รีวิว {timelineData[hoveredPointIndex].reviews}
-            </span>
-            <span className="flex items-center gap-1 text-amber-300">
-              <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
-              เปิดรับ {timelineData[hoveredPointIndex].jobs}
-            </span>
-            <span className="flex items-center gap-1 text-purple-300">
-              <span className="w-2 h-2 rounded-full bg-[#8b5cf6]" />
-              คอมมู้ {timelineData[hoveredPointIndex].community}
-            </span>
-          </div>
-        ) : activeMetric && activeMetric !== "all" ? (
-          <button
-            type="button"
-            onClick={() => onSelectMetric("all")}
-            className="no-print self-start sm:self-center px-3 py-1 bg-surface-container text-xs font-semibold text-primary hover:bg-surface-container-high rounded-xl border border-outline-variant/30 flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <span>แสดงทั้งหมด</span>
-            <span className="text-[10px]">✕</span>
-          </button>
-        ) : null}
+        {/* Legend Pills (Exactly like Image 3: White capsules with colored dots and values) */}
+        <div className="flex items-center gap-2 flex-wrap self-start lg:self-center">
+          {lines.map((line) => {
+            const val =
+              hoveredPointIndex !== null
+                ? (timelineData[hoveredPointIndex] as any)[
+                    line.key === "jobs"
+                      ? "jobs"
+                      : line.key === "community"
+                      ? "community"
+                      : line.key
+                  ]
+                : line.currentVal;
+
+            return (
+              <div
+                key={line.key}
+                className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-outline-variant/40 shadow-xs text-xs"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: line.color }}
+                />
+                <span className="text-on-surface-variant font-medium">
+                  {line.label}
+                </span>
+                <span className="font-extrabold text-primary">
+                  {val}
+                </span>
+                <span className="text-[11px] text-on-surface-variant">
+                  {line.unit}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* SVG Multi-Line Chart Canvas */}
+      {/* SVG Multi-Line Chart Canvas (All 4 lines always visible at 100% opacity) */}
       <div className="relative w-full overflow-x-auto hide-scrollbar bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-2">
         <svg
           className="w-full h-auto min-w-[580px] max-h-[250px]"
@@ -301,24 +279,19 @@ export default function AdminInteractiveChartCard({
             />
           )}
 
-          {/* Render the 4 Lines */}
-          {lines.map((line) => {
-            const opacity = getLineOpacity(line.key);
-
-            return (
-              <path
-                key={line.key}
-                d={line.path}
-                fill="none"
-                stroke={line.stroke}
-                strokeWidth={getStrokeWidth(line.key)}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity={opacity}
-                className="transition-all duration-300"
-              />
-            );
-          })}
+          {/* Render all 4 Lines with full crisp opacity */}
+          {lines.map((line) => (
+            <path
+              key={line.key}
+              d={line.path}
+              fill="none"
+              stroke={line.color}
+              strokeWidth={line.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="transition-all duration-200"
+            />
+          ))}
 
           {/* Interactive Nodes & Hover Targets */}
           {timelineData.map((d, idx) => {
@@ -343,7 +316,6 @@ export default function AdminInteractiveChartCard({
                 {/* Nodes for all 4 lines at this date */}
                 {lines.map((line) => {
                   const pt = line.pts[idx];
-                  const opacity = getLineOpacity(line.key);
 
                   return (
                     <circle
@@ -352,9 +324,8 @@ export default function AdminInteractiveChartCard({
                       cy={pt.y}
                       r={isHovered ? "5.5" : "4"}
                       fill="#ffffff"
-                      stroke={line.stroke}
+                      stroke={line.color}
                       strokeWidth={isHovered ? "3" : "2"}
-                      opacity={opacity}
                       filter={isHovered ? "url(#pointShadow)" : undefined}
                       className="transition-all duration-200"
                     />

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import AdminInteractiveChartCard, { MetricTab } from "./AdminInteractiveChartCard";
+import React, { useMemo } from "react";
+import AdminInteractiveChartCard from "./AdminInteractiveChartCard";
 
 interface StatsData {
   users?: {
@@ -87,7 +87,6 @@ export default function AdminDashboardOverview({
   users = [],
   onSwitchToScreening,
 }: AdminDashboardOverviewProps) {
-  const [selectedMetric, setSelectedMetric] = useState<MetricTab>("all");
   // Calculations
   const metrics = useMemo(() => {
     const totalReviews = reviews.length;
@@ -281,10 +280,8 @@ export default function AdminDashboardOverview({
         </div>
       </div>
 
-      {/* ================= 1. LARGE INTERACTIVE CHART CARD (FEATURE CHART) ================= */}
+      {/* ================= 1. LARGE MULTI-LINE CHART CARD ================= */}
       <AdminInteractiveChartCard
-        activeMetric={selectedMetric}
-        onSelectMetric={setSelectedMetric}
         stats={stats}
         reviews={reviews}
         posts={posts}
@@ -293,34 +290,19 @@ export default function AdminDashboardOverview({
         metrics={metrics}
       />
 
-      {/* ================= 2. THE 4 PRIMARY KPI SELECTOR CARDS ================= */}
+      {/* ================= 2. THE 4 PRIMARY KPI CARDS (STATIC SNAPSHOT) ================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2 print-avoid-break">
         {/* Card 1: Total Reviews */}
-        <div
-          onClick={() => setSelectedMetric(selectedMetric === "reviews" ? "all" : "reviews")}
-          className={`p-5 rounded-3xl border shadow-xs print:p-3 print:rounded-xl print-border transition-all cursor-pointer flex flex-col justify-between ${
-            selectedMetric === "reviews"
-              ? "bg-surface-container-high/90 border-emerald-600 ring-2 ring-emerald-500/30 shadow-md scale-[1.01]"
-              : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
-          }`}
-        >
+        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[20px] text-emerald-600">rate_review</span>
                 รีวิวฝึกงานทั้งหมด
               </span>
-              <div
-                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
-                  selectedMetric === "reviews"
-                    ? "bg-emerald-600 border-emerald-600 text-white"
-                    : "border-slate-300"
-                }`}
-              >
-                {selectedMetric === "reviews" && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                )}
-              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                อนุมัติ {metrics.approvalRate}%
+              </span>
             </div>
             <div className="text-3xl font-extrabold font-headline text-primary">
               {metrics.totalReviews.toLocaleString()}
@@ -334,24 +316,14 @@ export default function AdminDashboardOverview({
               )}
             </div>
           </div>
-          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
-            <span
-              className={
-                selectedMetric === "reviews"
-                  ? "text-emerald-700 font-bold flex items-center gap-1"
-                  : "text-on-surface-variant"
-              }
-            >
-              {selectedMetric === "reviews" ? "● เน้นเส้นรีวิวบนกราฟ" : "คลิกเพื่อเน้นเส้นรีวิว ↗"}
-            </span>
-            <span className="text-[10px] text-on-surface-variant font-medium">สถิติรีวิว</span>
+          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
+            <span>สถานะรีวิว</span>
+            <span className="text-[10px] font-bold text-emerald-700">ตรวจสอบ 100%</span>
           </div>
         </div>
 
         {/* Card 2: Overall Satisfaction */}
-        <div
-          className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border flex flex-col justify-between"
-        >
+        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
@@ -393,40 +365,23 @@ export default function AdminDashboardOverview({
               </span>
             </div>
           </div>
-          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
-            <span className="text-on-surface-variant">
-              เกณฑ์การประเมิน 4 มิติ
-            </span>
-            <span className="text-[10px] text-amber-700 font-bold">สูงสุด: พี่เลี้ยง (4.8★)</span>
+          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
+            <span>เกณฑ์การประเมิน 4 มิติ</span>
+            <span className="text-[10px] text-amber-700 font-bold">สูงสุด: พี่เลี้ยง ({metrics.avgMentor}★)</span>
           </div>
         </div>
 
         {/* Card 3: Total Users */}
-        <div
-          onClick={() => setSelectedMetric(selectedMetric === "users" ? "all" : "users")}
-          className={`p-5 rounded-3xl border shadow-xs print:p-3 print:rounded-xl print-border transition-all cursor-pointer flex flex-col justify-between ${
-            selectedMetric === "users"
-              ? "bg-surface-container-high/90 border-[#00677c] ring-2 ring-[#00677c]/30 shadow-md scale-[1.01]"
-              : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
-          }`}
-        >
+        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[20px] text-sky-700">groups</span>
                 ผู้ใช้งานในระบบ
               </span>
-              <div
-                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
-                  selectedMetric === "users"
-                    ? "bg-[#00677c] border-[#00677c] text-white"
-                    : "border-slate-300"
-                }`}
-              >
-                {selectedMetric === "users" && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                )}
-              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
+                3 กลุ่มผู้ใช้
+              </span>
             </div>
             <div className="text-3xl font-extrabold font-headline text-primary">
               {totalUsersCount.toLocaleString()}
@@ -437,46 +392,23 @@ export default function AdminDashboardOverview({
               <span>สถานประกอบการ: <strong>{userExternalCount}</strong></span>
             </div>
           </div>
-          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
-            <span
-              className={
-                selectedMetric === "users"
-                  ? "text-[#00677c] font-bold flex items-center gap-1"
-                  : "text-on-surface-variant"
-              }
-            >
-              {selectedMetric === "users" ? "● เน้นเส้นผู้ใช้บนกราฟ" : "คลิกเพื่อเน้นเส้นผู้ใช้ ↗"}
-            </span>
-            <span className="text-[10px] text-on-surface-variant font-medium">แนวโน้มเติบโต</span>
+          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
+            <span>สัดส่วนผู้ใช้</span>
+            <span className="text-[10px] text-primary font-bold">นักศึกษา {userPercents.students}%</span>
           </div>
         </div>
 
         {/* Card 4: Partner Job Openings */}
-        <div
-          onClick={() => setSelectedMetric(selectedMetric === "jobs" ? "all" : "jobs")}
-          className={`p-5 rounded-3xl border shadow-xs print:p-3 print:rounded-xl print-border transition-all cursor-pointer flex flex-col justify-between ${
-            selectedMetric === "jobs"
-              ? "bg-surface-container-high/90 border-amber-600 ring-2 ring-amber-500/30 shadow-md scale-[1.01]"
-              : "bg-surface-container-lowest border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container-low"
-          }`}
-        >
+        <div className="bg-surface-container-lowest p-5 rounded-3xl border border-outline-variant/30 shadow-xs print:p-3 print:rounded-xl print-border flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[20px] text-amber-600">work</span>
                 พาร์ทเนอร์ที่เปิดรับสมัคร
               </span>
-              <div
-                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
-                  selectedMetric === "jobs"
-                    ? "bg-amber-600 border-amber-600 text-white"
-                    : "border-slate-300"
-                }`}
-              >
-                {selectedMetric === "jobs" && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                )}
-              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
+                ตำแหน่งงาน
+              </span>
             </div>
             <div className="text-3xl font-extrabold font-headline text-primary">
               {metrics.totalJobs} <span className="text-sm font-normal text-on-surface-variant">ตำแหน่ง</span>
@@ -487,17 +419,9 @@ export default function AdminDashboardOverview({
               <span>รอคัดกรอง: <strong>{metrics.pendingJobs}</strong></span>
             </div>
           </div>
-          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px]">
-            <span
-              className={
-                selectedMetric === "jobs"
-                  ? "text-amber-700 font-bold flex items-center gap-1"
-                  : "text-on-surface-variant"
-              }
-            >
-              {selectedMetric === "jobs" ? "● เน้นเส้นเปิดรับสมัคร" : "คลิกเพื่อเน้นเส้นงาน ↗"}
-            </span>
-            <span className="text-[10px] text-on-surface-variant font-medium">ตำแหน่งเปิดรับ</span>
+          <div className="pt-3 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
+            <span>สถานะการเปิดรับ</span>
+            <span className="text-[10px] text-primary font-bold">12 สถานประกอบการ</span>
           </div>
         </div>
       </div>
