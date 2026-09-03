@@ -45,7 +45,6 @@ interface MyReview {
   text_pros?: string;
   text_cons?: string;
   text_advice?: string;
-  is_anonymous?: boolean;
   photo_urls?: string[];
   status: string;
   rejection_reason?: string;
@@ -58,7 +57,6 @@ interface MyPost {
   type: string;
   department?: string;
   content: string;
-  is_anonymous?: boolean;
   like_count: number;
   comment_count: number;
   status: string;
@@ -71,7 +69,6 @@ interface MyComment {
   post_id: number;
   post_title?: string;
   content: string;
-  is_anonymous?: boolean;
   status: string;
   rejection_reason?: string;
   like_count: number;

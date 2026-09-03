@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from main import app
 from database import Base, engine, SessionLocal
-from auth import create_access_token, encrypt_identity, decrypt_identity
+from auth import create_access_token
 from models import User, UserRole, CommunityPost, CommunityComment, Company, Review
 
 client = TestClient(app)
@@ -17,13 +17,6 @@ def setup_db():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
-
-def test_anonymous_encryption():
-    user_id = 12345
-    encrypted = encrypt_identity(user_id)
-    assert encrypted != str(user_id)
-    decrypted = decrypt_identity(encrypted)
-    assert decrypted == user_id
 
 def test_google_auth_success():
     response = client.post("/auth/google", json={"id_token": "dummy_token"})

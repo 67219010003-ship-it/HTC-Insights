@@ -27,7 +27,6 @@ export interface AdminReview {
   user_id?: number;
   real_author: string;
   real_email: string;
-  is_anonymous?: boolean;
   score_overall: number;
   score_work?: number | null;
   score_env?: number | null;
@@ -47,7 +46,6 @@ interface AdminPost {
   author_name: string;
   author_email?: string;
   author_department?: string;
-  is_anonymous?: boolean;
   type: string;
   department?: string;
   title: string;
@@ -66,7 +64,6 @@ interface AdminComment {
   author_email?: string;
   author_department?: string;
   content: string;
-  is_anonymous?: boolean;
   status: string;
   rejection_reason?: string;
   created_at: string;
@@ -114,7 +111,6 @@ interface PendingReport {
   target_id?: number;
   target_title?: string;
   target_content?: string;
-  is_anonymous?: boolean;
   post_id?: number | null;
   post_title?: string;
   review_id?: number | null;

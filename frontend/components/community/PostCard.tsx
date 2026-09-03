@@ -11,7 +11,6 @@ export interface PostData {
   department: string | null;
   title: string;
   content: string;
-  is_anonymous?: boolean;
   author_name?: string | null;
   author_department?: string | null;
   like_count: number;

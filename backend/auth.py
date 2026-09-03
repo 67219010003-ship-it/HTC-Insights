@@ -1,12 +1,9 @@
 import os
-import base64
-import hashlib
 from datetime import datetime, timedelta
 from typing import Optional
 from dotenv import load_dotenv
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-from cryptography.fernet import Fernet
 
 load_dotenv()
 
@@ -37,22 +34,3 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def decode_token(token: str) -> dict:
     secret = os.getenv("SECRET_KEY", SECRET_KEY)
     return jwt.decode(token, secret, algorithms=[ALGORITHM])
-
-def _get_fernet() -> Fernet:
-    secret = os.getenv("SECRET_KEY", SECRET_KEY)
-    key = base64.urlsafe_b64encode(hashlib.sha256(secret.encode()).digest())
-    return Fernet(key)
-
-def encrypt_identity(user_id: int) -> str:
-    f = _get_fernet()
-    return f.encrypt(str(user_id).encode()).decode()
-
-def decrypt_identity(token: Optional[str]) -> Optional[int]:
-    """ถอดรหัส anon_identity_enc คืนค่า user_id (int) หรือ None เมื่อไม่สามารถถอดรหัสได้"""
-    if not token:
-        return None
-    try:
-        f = _get_fernet()
-        return int(f.decrypt(token.encode()).decode())
-    except Exception:
-        return None
