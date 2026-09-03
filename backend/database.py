@@ -6,6 +6,7 @@ import os
 import ssl
 import re
 
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 load_dotenv()
 
 raw_db_url = os.getenv("DATABASE_URL", "mysql+pymysql://root:@localhost:3306/htc_insights")
@@ -46,6 +47,8 @@ def create_db_engine():
         ssl_ctx.check_hostname = False
         ssl_ctx.verify_mode = ssl.CERT_NONE
         connect_args["ssl"] = ssl_ctx
+
+    connect_args["charset"] = "utf8mb4"
 
     try:
         eng = create_engine(

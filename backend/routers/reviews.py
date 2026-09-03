@@ -6,7 +6,6 @@ from database import get_db
 from models import Review, ReviewPhoto, Company, User, ReviewStatus, Gender, UserRole
 from schemas.reviews import ReviewCreate, ReviewPublic
 from dependencies import require_student, get_current_user
-from auth import encrypt_identity
 from services.cloudinary_service import upload_review_photo
 from routers.notifications import create_notification
 
@@ -30,7 +29,7 @@ def get_all_reviews(skip: int = 0, limit: int = 20, db: Session = Depends(get_db
 
     result = []
     for r in reviews:
-        author_name = None if r.is_anonymous else (r.user.name if r.user else "นักศึกษา HTC")
+        author_name = r.user.name if r.user else "นักศึกษา HTC"
         photo_urls = [p.url for p in r.photos]
         result.append(ReviewPublic(
             id=r.id, company_id=r.company_id, user_id=r.user_id,
@@ -44,9 +43,8 @@ def get_all_reviews(skip: int = 0, limit: int = 20, db: Session = Depends(get_db
             score_welfare=r.score_welfare,
             text_work=r.text_work, text_pros=r.text_pros,
             text_cons=r.text_cons, text_advice=r.text_advice,
-            is_anonymous=r.is_anonymous,
             author_name=author_name,
-            author_department=None if r.is_anonymous else r.department,
+            author_department=r.department,
             photo_urls=photo_urls,
             status=r.status.value if r.status else "approved",
             created_at=to_thai_date(r.created_at),
@@ -76,7 +74,6 @@ def create_review(data: ReviewCreate,
         raise HTTPException(400, "คุณได้ส่งรีวิวสถานประกอบการในระบบแล้ว (จำกัด 1 ผู้ใช้ ต่อ 1 รีวิว)")
 
     gender_enum = Gender(data.gender) if data.gender in Gender.__members__ else Gender.prefer_not
-    anon_enc = encrypt_identity(current_user.id) if data.is_anonymous else None
 
     sub_scores = [s for s in [data.score_work, data.score_env, data.score_mentor, data.score_welfare] if s is not None]
     computed_overall = round(sum(sub_scores) / len(sub_scores), 1) if sub_scores else (data.score_overall or 5.0)
@@ -100,8 +97,6 @@ def create_review(data: ReviewCreate,
         text_pros=data.text_pros,
         text_cons=data.text_cons,
         text_advice=data.text_advice,
-        is_anonymous=data.is_anonymous,
-        anon_identity_enc=anon_enc,
         status=ReviewStatus.approved if is_auto_approve() else ReviewStatus.pending,
     )
     db.add(review)
@@ -190,7 +185,7 @@ def get_my_reviews(current_user: User = Depends(get_current_user),
     
     result = []
     for r in reviews:
-        author_name = None if r.is_anonymous else current_user.name
+        author_name = current_user.name
         photo_urls = [p.url for p in r.photos]
         result.append({
             "id": r.id,
@@ -212,9 +207,8 @@ def get_my_reviews(current_user: User = Depends(get_current_user),
             "text_pros": r.text_pros,
             "text_cons": r.text_cons,
             "text_advice": r.text_advice,
-            "is_anonymous": r.is_anonymous,
             "author_name": author_name,
-            "author_department": None if r.is_anonymous else r.department,
+            "author_department": r.department,
             "photo_urls": photo_urls,
             "status": r.status.value if r.status else "pending",
             "rejection_reason": r.rejection_reason,
@@ -241,7 +235,6 @@ def update_review(review_id: int,
         raise HTTPException(400, "กรุณาระบุข้อควรปรับปรุง")
 
     gender_enum = Gender(data.gender) if data.gender in Gender.__members__ else Gender.prefer_not
-    anon_enc = encrypt_identity(current_user.id) if data.is_anonymous else None
 
     sub_scores = [s for s in [data.score_work, data.score_env, data.score_mentor, data.score_welfare] if s is not None]
     computed_overall = round(sum(sub_scores) / len(sub_scores), 1) if sub_scores else (data.score_overall or 5.0)
@@ -263,8 +256,6 @@ def update_review(review_id: int,
     review.text_pros = data.text_pros
     review.text_cons = data.text_cons
     review.text_advice = data.text_advice
-    review.is_anonymous = data.is_anonymous
-    review.anon_identity_enc = anon_enc
     review.status = ReviewStatus.approved if is_auto_approve() else ReviewStatus.pending
     review.rejection_reason = None
 

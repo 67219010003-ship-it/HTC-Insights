@@ -10,14 +10,12 @@ export interface AdminDetailModalProps {
     title?: string;
     data: any;
   } | null;
-  onRevealAnonymous?: (reviewId: number) => void;
 }
 
 export default function AdminDetailModal({
   isOpen,
   onClose,
   item,
-  onRevealAnonymous,
 }: AdminDetailModalProps) {
   const [previewImage, setPreviewImage] = React.useState<string | null>(null);
 
@@ -94,29 +92,12 @@ export default function AdminDetailModal({
 
               <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                 <div className="font-bold text-primary text-xs">ข้อมูลผู้เขียนและช่วงเวลาฝึกงาน:</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-on-surface-variant">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span>ผู้เขียน:</span>
-                    {data.is_anonymous ? (
-                      <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-[11px]">
-                        <span className="material-symbols-outlined text-[13px]">lock</span>
-                        ไม่ระบุตัวตน
-                      </span>
-                    ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-on-surface-variant">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span>ผู้เขียน:</span>
                       <strong className="text-primary">{data.real_author || "นักศึกษา"}</strong>
-                    )}
-                    {data.is_anonymous && onRevealAnonymous && (
-                      <button
-                        type="button"
-                        onClick={() => onRevealAnonymous(data.id)}
-                        className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold rounded-lg text-[10px] transition-colors cursor-pointer inline-flex items-center gap-0.5"
-                      >
-                        <span className="material-symbols-outlined text-[12px]">lock_open</span>
-                        ถอดรหัสตัวตนจริง
-                      </button>
-                    )}
-                  </div>
-                  <div>อีเมล: {data.is_anonymous ? "(ถูกปิดบังโดยระบบ)" : (data.real_email || "-")}</div>
+                    </div>
+                    <div>อีเมล: {data.real_email || "-"}</div>
                   <div>แผนกวิชา: {data.department || "-"}</div>
                   <div>ช่วงเวลาฝึกงาน: {data.period_start || "-"} ถึง {data.period_end || "-"}</div>
                   <div>เบี้ยเลี้ยง: {data.daily_allowance ? `${data.daily_allowance} บาท/วัน` : "ไม่มีเบี้ยเลี้ยง"}</div>
@@ -324,23 +305,6 @@ export default function AdminDetailModal({
                   <div>สถานะปัจจุบัน: <span className="font-bold uppercase text-secondary">{data.status || "pending"}</span></div>
                 </div>
               </div>
-
-              {data.is_anonymous && data.review_id && onRevealAnonymous && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-2">
-                  <span className="text-xs text-amber-900 font-semibold flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[16px] text-amber-700">lock</span>
-                    เนื้อหานี้โพสต์แบบไม่ระบุตัวตน (Anonymous)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onRevealAnonymous(data.review_id)}
-                    className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">lock_open</span>
-                    ถอดรหัสตัวตนจริง
-                  </button>
-                </div>
-              )}
 
               <div className="space-y-1.5">
                 <h4 className="font-bold text-rose-800 text-xs">เหตุผลในการรายงาน:</h4>

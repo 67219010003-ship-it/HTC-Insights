@@ -40,17 +40,9 @@ interface Props {
   value: string;
   onChange: (val: string) => void;
   className?: string;
-  departmentCounts?: Record<string, number>;
-  onlyAvailable?: boolean;
 }
 
-export default function DepartmentDropdown({
-  value,
-  onChange,
-  className,
-  departmentCounts,
-  onlyAvailable = false,
-}: Props) {
+export default function DepartmentDropdown({ value, onChange, className }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -59,57 +51,16 @@ export default function DepartmentDropdown({
     setMounted(true);
   }, []);
 
-  const getDeptCount = (deptVal: string): number | undefined => {
-    if (!departmentCounts) return undefined;
-    if (!deptVal) {
-      return Object.values(departmentCounts).reduce((sum, n) => sum + n, 0);
-    }
-    const clean = deptVal.replace("แผนกวิชา", "").trim().toLowerCase();
-    for (const [k, count] of Object.entries(departmentCounts)) {
-      const cleanK = k.replace("แผนกวิชา", "").trim().toLowerCase();
-      if (k === deptVal || cleanK === clean || cleanK.includes(clean) || clean.includes(cleanK)) {
-        return count;
-      }
-    }
-    return 0;
-  };
-
-  // Discover any custom departments from data that aren't in static list
-  const extraDepts: DepartmentOption[] = Object.keys(departmentCounts || {})
-    .filter((k) => {
-      if (!k) return false;
-      const cleanK = k.replace("แผนกวิชา", "").trim().toLowerCase();
-      return !ALL_DEPARTMENTS.some((d) => {
-        const cleanD = d.value.replace("แผนกวิชา", "").trim().toLowerCase();
-        return d.value === k || cleanD === cleanK;
-      });
-    })
-    .map((k) => ({
-      value: k,
-      label: k.startsWith("แผนกวิชา") ? k : `แผนกวิชา${k}`,
-      icon: "school",
-    }));
-
-  const allAvailableOptions: DepartmentOption[] = [...ALL_DEPARTMENTS, ...extraDepts];
-
-  const displayedOptions = onlyAvailable && departmentCounts
-    ? allAvailableOptions.filter((d) => d.value === "" || (getDeptCount(d.value) ?? 0) > 0)
-    : allAvailableOptions;
-
   const cleanValue = value ? value.replace("แผนกวิชา", "").trim().toLowerCase() : "";
-  const selectedDept = allAvailableOptions.find((d) => {
+  const selectedDept = ALL_DEPARTMENTS.find((d) => {
     if (!value) return d.value === "";
     const cleanD = d.value.replace("แผนกวิชา", "").trim().toLowerCase();
     const cleanLabel = d.label.replace("แผนกวิชา", "").trim().toLowerCase();
     return d.value === value || d.label === value || cleanD === cleanValue || cleanLabel === cleanValue;
-  }) || allAvailableOptions[0];
+  }) || ALL_DEPARTMENTS[0];
 
-  const selectedCount = getDeptCount(selectedDept.value);
   const displayIcon = mounted ? selectedDept.icon : ALL_DEPARTMENTS[0].icon;
-  const baseLabel = mounted ? selectedDept.label.replace("แผนกวิชา", "").trim() : ALL_DEPARTMENTS[0].label;
-  const displayLabel = selectedCount !== undefined && selectedDept.value !== ""
-    ? `${baseLabel} (${selectedCount} แห่ง)`
-    : baseLabel;
+  const displayLabel = mounted ? selectedDept.label.replace("แผนกวิชา", "").trim() : ALL_DEPARTMENTS[0].label;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -148,15 +99,11 @@ export default function DepartmentDropdown({
       {isOpen && (
         <div className="absolute left-0 right-0 top-14 bg-white border border-outline-variant rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto">
           <div className="px-3 py-2 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/50 mb-1 flex items-center justify-between">
-            <span>
-              {onlyAvailable && departmentCounts ? "แผนกวิชาที่มีข้อมูลสถานที่ฝึกงาน" : `เลือกแผนกวิชา (${displayedOptions.filter((d) => d.value !== "").length} แผนก)`}
-            </span>
+            <span>เลือกแผนกวิชา ({ALL_DEPARTMENTS.length - 1} แผนก)</span>
           </div>
 
-          {displayedOptions.map((dept) => {
+          {ALL_DEPARTMENTS.map((dept) => {
             const isSelected = dept.value === selectedDept.value;
-            const count = getDeptCount(dept.value);
-            const hasData = count === undefined || count > 0 || dept.value === "";
 
             return (
               <button
@@ -169,19 +116,15 @@ export default function DepartmentDropdown({
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-label-md text-label-md transition-all text-left cursor-pointer ${
                   isSelected
                     ? "bg-secondary-container text-on-secondary-container font-bold"
-                    : hasData
-                    ? "text-on-surface-variant hover:bg-surface-container-high hover:text-primary font-medium"
-                    : "text-outline/70 hover:bg-surface-container-low hover:text-on-surface-variant"
+                    : "text-on-surface-variant hover:bg-surface-container-high hover:text-primary font-medium"
                 }`}
               >
-                <div className="flex items-center gap-2.5 overflow-hidden flex-1">
+                <div className="flex items-center gap-2.5 overflow-hidden">
                   <span
                     className={`material-symbols-outlined text-[18px] shrink-0 ${
                       isSelected
                         ? "text-secondary font-bold"
-                        : hasData
-                        ? "text-on-surface-variant"
-                        : "text-outline"
+                        : "text-on-surface-variant"
                     }`}
                   >
                     {dept.icon}
@@ -189,26 +132,11 @@ export default function DepartmentDropdown({
                   <span className="truncate">{dept.label}</span>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {count !== undefined && (
-                    <span
-                      className={`text-[11px] px-2 py-0.5 rounded-md font-bold ${
-                        isSelected
-                          ? "bg-secondary text-on-secondary"
-                          : count > 0
-                          ? "bg-secondary-container/60 text-secondary"
-                          : "bg-surface-container text-on-surface-variant/60"
-                      }`}
-                    >
-                      {dept.value === "" ? `${count} แห่ง` : `${count} แห่ง`}
-                    </span>
-                  )}
-                  {isSelected && (
-                    <span className="material-symbols-outlined text-secondary font-bold text-[18px]">
-                      check
-                    </span>
-                  )}
-                </div>
+                {isSelected && (
+                  <span className="material-symbols-outlined text-secondary font-bold text-[18px] shrink-0">
+                    check
+                  </span>
+                )}
               </button>
             );
           })}

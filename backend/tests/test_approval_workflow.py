@@ -159,7 +159,6 @@ def test_user_cannot_create_multiple_reviews():
         "text_work": "ลักษณะงานที่ปฏิบัติจริงมีความท้าทายและได้เรียนรู้งานจริงมาก 12345",
         "text_pros": "พี่เลี้ยงใจดี สอนงานดีมาก",
         "text_cons": "ที่จอดรถน้อยไปหน่อย",
-        "is_anonymous": False,
     }
     res1 = client.post("/reviews", json=review_payload_1, headers=student_headers)
     assert res1.status_code == 201
@@ -179,7 +178,6 @@ def test_user_cannot_create_multiple_reviews():
         "text_work": "ลักษณะงานที่ปฏิบัติจริงมีความท้าทายและได้เรียนรู้งานจริงมาก 67890",
         "text_pros": "เพื่อนร่วมงานดี",
         "text_cons": "เบี้ยเลี้ยงน้อย",
-        "is_anonymous": False,
     }
     res2 = client.post("/reviews", json=review_payload_2, headers=student_headers)
     assert res2.status_code == 400

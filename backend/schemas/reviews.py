@@ -20,7 +20,6 @@ class ReviewCreate(BaseModel):
     text_pros: str = Field(..., min_length=1, max_length=500, description="ข้อดี สูงสุด 500 ตัวอักษร")
     text_cons: str = Field(..., min_length=1, max_length=500, description="ข้อเสีย สูงสุด 500 ตัวอักษร")
     text_advice: Optional[str] = Field(None, max_length=500, description="คำแนะนำ สูงสุด 500 ตัวอักษร")
-    is_anonymous: bool = False
 
     @model_validator(mode="after")
     def validate_dates_and_times(self):
@@ -46,7 +45,6 @@ class ReviewPublic(BaseModel):
     text_pros: Optional[str] = None
     text_cons: Optional[str] = None
     text_advice: Optional[str] = None
-    is_anonymous: bool
     author_name: Optional[str] = None
     author_department: Optional[str] = None
     photo_urls: list[str] = []

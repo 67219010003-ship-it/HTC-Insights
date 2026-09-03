@@ -45,7 +45,7 @@ interface MyReview {
   text_pros?: string;
   text_cons?: string;
   text_advice?: string;
-  is_anonymous: boolean;
+  is_anonymous?: boolean;
   photo_urls?: string[];
   status: string;
   rejection_reason?: string;
@@ -58,7 +58,7 @@ interface MyPost {
   type: string;
   department?: string;
   content: string;
-  is_anonymous: boolean;
+  is_anonymous?: boolean;
   like_count: number;
   comment_count: number;
   status: string;
@@ -71,7 +71,7 @@ interface MyComment {
   post_id: number;
   post_title?: string;
   content: string;
-  is_anonymous: boolean;
+  is_anonymous?: boolean;
   status: string;
   rejection_reason?: string;
   like_count: number;
@@ -1199,12 +1199,6 @@ export default function StudentProfilePage() {
                         <span className="material-symbols-outlined text-[14px]">star</span>
                         {r.score_overall} / 5
                       </div>
-                      {r.is_anonymous && (
-                        <span className="bg-surface-container-high px-2 py-0.5 rounded-md text-[11px] font-semibold text-on-surface-variant flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[13px]">visibility_off</span>
-                          ไม่เปิดเผยตัวตน
-                        </span>
-                      )}
                     </div>
                     <div className="text-[11px] text-on-surface-variant">ส่งเมื่อ: {r.created_at || "-"}</div>
                   </div>
@@ -1381,12 +1375,6 @@ export default function StudentProfilePage() {
                       {post.department && (
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-surface-container text-on-surface-variant">
                           {post.department}
-                        </span>
-                      )}
-                      {post.is_anonymous && (
-                        <span className="bg-surface-container-high px-2 py-0.5 rounded-md text-[10px] font-semibold text-on-surface-variant flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-[12px]">visibility_off</span>
-                          ไม่ระบุตัวตน
                         </span>
                       )}
                       <span className="text-[11px] text-on-surface-variant font-mono">

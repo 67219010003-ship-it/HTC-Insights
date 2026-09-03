@@ -13,7 +13,6 @@ export default function NewPostPage() {
   const [department, setDepartment] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [isAnonymous, setIsAnonymous] = useState(true);
   const [loading, setLoading] = useState(false);
   const [authorized, setAuthorized] = useState(() => {
     if (typeof window !== "undefined") {
@@ -83,7 +82,6 @@ export default function NewPostPage() {
         department: department || undefined,
         title: title.trim(),
         content: content.trim(),
-        is_anonymous: isAnonymous,
       });
 
       setToast({
@@ -256,38 +254,6 @@ export default function NewPostPage() {
               onChange={(e) => setContent(e.target.value)}
               className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm font-body-sm focus:outline-none focus:border-primary focus:bg-surface-container-lowest transition-all leading-relaxed"
             />
-          </div>
-
-          {/* Anonymous Switcher */}
-          <div className="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/30">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary text-[22px]">
-                {isAnonymous ? "visibility_off" : "visibility"}
-              </span>
-              <div>
-                <p className="text-sm font-bold text-primary">
-                  โพสต์แบบไม่ระบุตัวตน (Anonymous)
-                </p>
-                <p className="text-xs text-on-surface-variant">
-                  {isAnonymous
-                    ? "ชื่อและรูปของคุณจะถูกปกปิดเป็น 'นักศึกษาไม่ระบุตัวตน'"
-                    : "แสดงชื่อและแผนกวิชาจริงตามโปรไฟล์ของคุณ"}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsAnonymous(!isAnonymous)}
-              className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
-                isAnonymous ? "bg-primary" : "bg-outline-variant"
-              }`}
-            >
-              <div
-                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                  isAnonymous ? "translate-x-6" : "translate-x-0"
-                }`}
-              />
-            </button>
           </div>
 
           {/* Submit Button */}

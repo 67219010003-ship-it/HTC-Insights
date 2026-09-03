@@ -159,7 +159,7 @@ def get_company_reviews(company_id: int, db: Session = Depends(get_db)):
 
     results = []
     for r in reviews:
-        author_name = "นักศึกษาไม่ระบุตัวตน" if r.is_anonymous else (r.user.name if r.user else "นักศึกษา")
+        author_name = r.user.name if r.user else "นักศึกษา HTC"
         results.append({
             "id": r.id,
             "company_id": r.company_id,
@@ -181,7 +181,6 @@ def get_company_reviews(company_id: int, db: Session = Depends(get_db)):
             "text_pros": r.text_pros or "",
             "text_cons": r.text_cons or "",
             "text_advice": r.text_advice or "",
-            "is_anonymous": r.is_anonymous,
             "photo_urls": [p.url for p in r.photos],
             "photos": [{"id": p.id, "photo_url": p.url} for p in r.photos],
             "created_at": r.created_at.strftime("%Y-%m-%d") if r.created_at else "",

@@ -40,7 +40,6 @@ export default function WriteReviewPage() {
   const [textPros, setTextPros] = useState("");
   const [textCons, setTextCons] = useState("");
   const [textAdvice, setTextAdvice] = useState("");
-  const [isAnonymous, setIsAnonymous] = useState(true);
 
   const [existingReview, setExistingReview] = useState<any | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(true);
@@ -180,7 +179,6 @@ export default function WriteReviewPage() {
         if (match.text_pros) setTextPros(match.text_pros);
         if (match.text_cons) setTextCons(match.text_cons);
         if (match.text_advice) setTextAdvice(match.text_advice);
-        setIsAnonymous(!!match.is_anonymous);
         if (match.period_start) setPeriodStart(match.period_start);
         if (match.period_end) setPeriodEnd(match.period_end);
         if (match.photo_urls && Array.isArray(match.photo_urls)) setExistingPhotos(match.photo_urls);
@@ -260,7 +258,6 @@ export default function WriteReviewPage() {
     if (rev.text_pros) setTextPros(rev.text_pros);
     if (rev.text_cons) setTextCons(rev.text_cons);
     if (rev.text_advice) setTextAdvice(rev.text_advice);
-    setIsAnonymous(!!rev.is_anonymous);
     if (rev.period_start) setPeriodStart(rev.period_start);
     if (rev.period_end) setPeriodEnd(rev.period_end);
     if (rev.photo_urls && Array.isArray(rev.photo_urls)) setExistingPhotos(rev.photo_urls);
@@ -369,7 +366,6 @@ export default function WriteReviewPage() {
         text_pros: textPros || null,
         text_cons: textCons || null,
         text_advice: textAdvice || null,
-        is_anonymous: isAnonymous,
       };
 
       let reviewId = editingReviewId;
@@ -999,21 +995,6 @@ export default function WriteReviewPage() {
                   </div>
                 )}
               </div>
-            </div>
-
-            <div className="bg-surface-container-low border border-outline-variant rounded-2xl p-md shadow-sm">
-              <label className="flex items-center gap-md cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={isAnonymous}
-                  onChange={(e) => setIsAnonymous(e.target.checked)}
-                  className="w-5 h-5 text-secondary rounded focus:ring-secondary cursor-pointer"
-                />
-                <div>
-                  <div className="font-bold font-label-md text-label-md text-primary">เปิดโหมดไม่ระบุตัวตน (โหมดปิดบังชื่อ)</div>
-                  <div className="font-body-sm text-body-sm text-on-surface-variant">ชื่อของคุณจะแสดงเป็น "นักศึกษา HTC (ไม่ระบุตัวตน)" เพื่อความเป็นส่วนตัวสูงสุด</div>
-                </div>
-              </label>
             </div>
           </div>
         )}

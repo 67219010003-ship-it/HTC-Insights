@@ -24,10 +24,8 @@ def run_migrations():
             'ALTER TABLE employers ADD COLUMN logo_url TEXT NULL',
             'ALTER TABLE employers ADD COLUMN is_approved BOOLEAN DEFAULT FALSE',
             'ALTER TABLE reviews ADD COLUMN rejection_reason TEXT NULL',
-            'ALTER TABLE reviews ADD COLUMN anon_identity_enc VARCHAR(500) NULL',
             'ALTER TABLE community_posts ADD COLUMN status VARCHAR(20) DEFAULT \'pending\'',
             'ALTER TABLE community_posts ADD COLUMN rejection_reason TEXT NULL',
-            'ALTER TABLE community_posts ADD COLUMN anon_identity_enc VARCHAR(500) NULL',
             'ALTER TABLE job_postings ADD COLUMN status VARCHAR(20) DEFAULT \'pending\'',
             'ALTER TABLE job_postings ADD COLUMN rejection_reason TEXT NULL',
             'ALTER TABLE upgrade_requests ADD COLUMN rejection_reason TEXT NULL',
@@ -39,7 +37,12 @@ def run_migrations():
             'ALTER TABLE reports ADD COLUMN comment_id INT NULL',
             'ALTER TABLE community_comments ADD COLUMN status VARCHAR(20) DEFAULT \'pending\'',
             'ALTER TABLE community_comments ADD COLUMN rejection_reason TEXT NULL',
-            'ALTER TABLE community_comments ADD COLUMN anon_identity_enc VARCHAR(500) NULL',
+            'ALTER TABLE reviews DROP COLUMN is_anonymous',
+            'ALTER TABLE reviews DROP COLUMN anon_identity_enc',
+            'ALTER TABLE community_posts DROP COLUMN is_anonymous',
+            'ALTER TABLE community_posts DROP COLUMN anon_identity_enc',
+            'ALTER TABLE community_comments DROP COLUMN is_anonymous',
+            'ALTER TABLE community_comments DROP COLUMN anon_identity_enc',
         ]
         for stmt in statements:
             try:

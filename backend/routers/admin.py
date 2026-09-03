@@ -7,7 +7,6 @@ from models import (Review, Company, ReviewStatus, AuditLog, User, UserRole,
                     JobPosting, CommunityPost, CommunityComment, Report,
                     UpgradeRequest, UpgradeRequestStatus)
 from dependencies import require_admin, require_super_admin
-from auth import decrypt_identity
 from routers.notifications import create_notification
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -82,12 +81,8 @@ def list_reviews(status: str = Query(None),
     reviews = query.order_by(Review.created_at.desc()).all()
     result = []
     for r in reviews:
-        if r.is_anonymous:
-            author_name = "นักศึกษาไม่ระบุตัวตน (ข้อมูลถูกเข้ารหัส)"
-            author_email = "anonymous@encrypted"
-        else:
-            author_name = r.user.name if r.user else "Unknown"
-            author_email = r.user.email if r.user else "Unknown"
+        author_name = r.user.name if r.user else "Unknown"
+        author_email = r.user.email if r.user else "Unknown"
 
         result.append({
             "id": r.id,
@@ -95,7 +90,6 @@ def list_reviews(status: str = Query(None),
             "company_name": r.company.name if r.company else "Unknown",
             "real_author": author_name,
             "real_email": author_email,
-            "is_anonymous": r.is_anonymous,
             "score_overall": r.score_overall,
             "score_work": r.score_work,
             "score_env": r.score_env,
@@ -180,40 +174,6 @@ def reject_review(review_id: int, payload: dict = Body(default={}),
     payload["status"] = "rejected"
     return update_review_status(review_id, payload, db, admin)
 
-@router.get("/anonymous-reveal/{review_id}")
-def reveal_anonymous(review_id: int,
-                     reason: str = Query(default="Admin Audit"),
-                     db: Session = Depends(get_db),
-                     admin: User = Depends(require_admin)):
-    """ ถอดรหัสดูตัวตนจริงของผู้เขียนรีวิวแบบไม่ระบุชื่อ """
-    review = db.query(Review).filter(Review.id == review_id).first()
-    if not review:
-        raise HTTPException(404, "ไม่พบรีวิว")
-    if not review.is_anonymous:
-        raise HTTPException(400, "รีวิวนี้ไม่ได้ถูกตั้งค่าเป็น Anonymous")
-
-    real_user_id = None
-    if review.anon_identity_enc:
-        real_user_id = decrypt_identity(review.anon_identity_enc)
-
-    if real_user_id is None:
-        real_user_id = review.user_id
-
-    user = db.query(User).filter(User.id == real_user_id).first()
-    if not user:
-        raise HTTPException(404, "ไม่พบข้อมูลผู้ใช้ที่เชื่อมกับรีวิวนี้")
-
-    db.add(AuditLog(admin_id=admin.id, action="reveal_anonymous",
-                    target_type="review", target_id=review_id,
-                    reason=reason.strip() if reason else "Admin Audit"))
-    db.commit()
-
-    return {
-        "real_name": user.name,
-        "real_email": user.email,
-        "real_department": review.department,
-    }
-
 # --- 3. การจัดการกระทู้และคอมเมนต์ชุมชน ---
 @router.get("/posts")
 def list_admin_posts(status: str = Query(None),
@@ -233,7 +193,6 @@ def list_admin_posts(status: str = Query(None),
             "department": p.department,
             "title": p.title,
             "content": p.content,
-            "is_anonymous": p.is_anonymous,
             "status": p.status or "pending",
             "rejection_reason": p.rejection_reason,
             "is_pinned": p.is_pinned,
@@ -308,7 +267,6 @@ def list_admin_comments(status: str = Query(None),
             "author_name": c.user.name if c.user else "Unknown",
             "author_email": c.user.email if c.user else "Unknown",
             "content": c.content,
-            "is_anonymous": c.is_anonymous,
             "status": c.status or "pending",
             "rejection_reason": c.rejection_reason,
             "created_at": to_thai_str(c.created_at),
@@ -694,21 +652,18 @@ def list_reports(status: str = Query(None),
             target_id = rep.post_id
             target_title = rep.post.title
             target_content = rep.post.content
-            is_anon = rep.post.is_anonymous
         elif rep.review:
             target_type = "review"
             target_type_th = "รีวิวฝึกงาน"
             target_id = rep.review_id
             target_title = f"รีวิว {rep.review.company.name if rep.review.company else ''}"
             target_content = rep.review.text_work
-            is_anon = rep.review.is_anonymous
         elif rep.comment:
             target_type = "comment"
             target_type_th = "ความคิดเห็น"
             target_id = rep.comment_id
             target_title = f"ความคิดเห็นในกระทู้ #{rep.comment.post_id}"
             target_content = rep.comment.content
-            is_anon = rep.comment.is_anonymous
         elif rep.job:
             target_type = "job"
             target_type_th = "ประกาศรับสมัครงาน"
@@ -733,7 +688,6 @@ def list_reports(status: str = Query(None),
             "target_id": target_id,
             "target_title": target_title,
             "target_content": target_content,
-            "is_anonymous": is_anon,
             "post_id": rep.post_id,
             "review_id": rep.review_id,
             "comment_id": rep.comment_id,

@@ -48,3 +48,37 @@ h1, h2, h3, h4 {
   scrollbar-width: none;
 }
 
+/* ================= PRINT TO PDF STYLES ================= */
+@media print {
+  nav, footer, .no-print {
+    display: none !important;
+  }
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .print-border {
+    border-color: #cbd5e1 !important;
+  }
+  .print-p-0 {
+    padding: 0 !important;
+  }
+}
+
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+

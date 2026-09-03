@@ -15,7 +15,6 @@ export default function ThreadDetailPage() {
   const postId = params?.id;
   const [post, setPost] = useState<any>(null);
   const [comment, setComment] = useState("");
-  const [isAnonymous, setIsAnonymous] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6;
@@ -83,7 +82,6 @@ export default function ThreadDetailPage() {
       setSubmittingComment(true);
       await api.post(`/community/posts/${postId}/comments`, {
         content: comment.trim(),
-        is_anonymous: isAnonymous,
       });
       setComment("");
       const updated = await api.get(`/community/posts/${postId}`);
@@ -197,7 +195,7 @@ export default function ThreadDetailPage() {
 
         <div className="flex justify-between items-center pt-4 border-t border-outline-variant/20 text-xs flex-wrap gap-2">
           <span className="font-bold text-primary">
-            โดย: {post.is_anonymous ? "นักศึกษา HTC (ไม่ระบุชื่อ)" : post.author_name}
+            โดย: {post.author_name || "นักศึกษา HTC"}
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -348,16 +346,7 @@ export default function ThreadDetailPage() {
               placeholder="พิมพ์ข้อความตอบกลับ (ส่งให้ผู้ดูแลระบบตรวจสอบอนุมัติก่อนเผยแพร่)..."
               className="w-full p-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-sm mb-3 focus:outline-none focus:border-secondary"
             />
-            <div className="flex justify-between items-center">
-              <label className="flex items-center gap-2 text-xs text-on-surface-variant cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isAnonymous}
-                  onChange={(e) => setIsAnonymous(e.target.checked)}
-                  className="rounded text-secondary focus:ring-secondary"
-                />
-                ตอบแบบไม่ระบุชื่อ
-              </label>
+            <div className="flex justify-end items-center">
               <button
                 type="button"
                 disabled={submittingComment || comment.trim().length < 2}
@@ -415,7 +404,7 @@ export default function ThreadDetailPage() {
                         <div className="flex justify-between items-center text-xs text-on-surface-variant mb-1 flex-wrap gap-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-bold text-primary">
-                              {c.is_anonymous ? "นักศึกษาไม่ระบุชื่อ" : c.author_name || "นักศึกษา"}
+                              {c.author_name || "นักศึกษา"}
                             </span>
                             {isOwner && (
                               <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] rounded-md font-bold">

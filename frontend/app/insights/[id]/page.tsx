@@ -457,19 +457,13 @@ export default function CompanyDetailPage() {
                       {/* Left: Avatar & Author metadata */}
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shrink-0 shadow-inner">
-                          {r.is_anonymous ? "น" : r.author_name?.[0] || "นัก"}
+                          {r.author_name?.[0] || "น"}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-bold text-xs sm:text-sm text-primary">
-                              {r.is_anonymous ? "นักศึกษา HTC" : r.author_name}
+                              {r.author_name || "นักศึกษา HTC"}
                             </span>
-                            {r.is_anonymous && (
-                              <span className="inline-flex items-center gap-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0">
-                                <span className="material-symbols-outlined text-[13px]">visibility_off</span>
-                                ไม่ระบุตัวตน
-                              </span>
-                            )}
                           </div>
                           <div className="text-[11px] text-on-surface-variant font-medium flex items-center gap-1.5 flex-wrap mt-0.5">
                             <span className="text-secondary font-semibold">{r.department}</span>

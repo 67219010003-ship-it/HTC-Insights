@@ -6,7 +6,6 @@ from models import (CommunityPost, CommunityComment, CommunityLike,
                     Report, PostType, User, UserRole)
 from schemas.community import PostCreate, CommentCreate, CommentUpdate, ReportCreate
 from dependencies import require_student
-from auth import encrypt_identity
 from routers.notifications import create_notification
 
 router = APIRouter(prefix="/community", tags=["community"])
@@ -59,15 +58,12 @@ def create_post(data: PostCreate,
         )
 
     post_type_enum = PostType(data.type) if data.type in PostType.__members__ else PostType.experience
-    anon_enc = encrypt_identity(current_user.id) if data.is_anonymous else None
     post = CommunityPost(
         user_id=current_user.id,
         type=post_type_enum,
         department=data.department or 'แผนกวิชาช่าง',
         title=data.title,
         content=data.content,
-        is_anonymous=data.is_anonymous,
-        anon_identity_enc=anon_enc,
         status="pending",
     )
     db.add(post)
@@ -144,14 +140,11 @@ def add_comment(post_id: int, data: CommentCreate,
             detail="คุณได้แสดงความคิดเห็นในกระทู้นี้แล้ว (จำกัด 1 บัญชีผู้ใช้ ต่อ 1 ความคิดเห็นต่อกระทู้ ท่านสามารถแก้ไขความคิดเห็นเดิมได้)"
         )
     
-    anon_enc = encrypt_identity(current_user.id) if data.is_anonymous else None
     comment = CommunityComment(
         post_id=post_id,
         user_id=current_user.id,
         parent_id=data.parent_id,
         content=data.content,
-        is_anonymous=data.is_anonymous,
-        anon_identity_enc=anon_enc,
         status="pending",
     )
     db.add(comment)
@@ -245,15 +238,15 @@ def delete_comment(comment_id: int,
     return {"message": "ลบความคิดเห็นเรียบร้อยแล้ว"}
 
 def _format_post(post: CommunityPost) -> dict:
-    """ ฟังก์ชันแปลงข้อมูลกระทู้ให้อยู่ในรูปแบบ JSON พร้อมซ่อนชื่อเมื่อเลือก Anonymous """
+    """ ฟังก์ชันแปลงข้อมูลกระทู้ให้อยู่ในรูปแบบ JSON พร้อมแสดงชื่อผู้เขียนจริง """
     approved_comments_count = len([c for c in (post.comments or []) if c.status == "approved"])
     return {
         "id": post.id, "type": post.type.value if post.type else None,
         "department": post.department, "title": post.title,
-        "content": post.content, "is_anonymous": post.is_anonymous,
+        "content": post.content,
         "user_id": post.user_id,
-        "author_name": None if post.is_anonymous else post.user.name,
-        "author_department": None if post.is_anonymous else post.department,
+        "author_name": post.user.name if post.user else "นักศึกษา HTC",
+        "author_department": post.department,
         "like_count": len(post.likes),
         "comment_count": approved_comments_count,
         "is_pinned": post.is_pinned,
@@ -269,8 +262,7 @@ def _format_comment(comment: CommunityComment) -> dict:
         "post_id": comment.post_id,
         "user_id": comment.user_id,
         "content": comment.content,
-        "is_anonymous": comment.is_anonymous,
-        "author_name": None if comment.is_anonymous else (comment.user.name if comment.user else "นักศึกษา"),
+        "author_name": comment.user.name if comment.user else "นักศึกษา",
         "parent_id": comment.parent_id,
         "is_best_answer": comment.is_best_answer,
         "status": comment.status or "pending",

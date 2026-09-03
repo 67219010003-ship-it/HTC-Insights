@@ -11,7 +11,7 @@ export interface PostData {
   department: string | null;
   title: string;
   content: string;
-  is_anonymous: boolean;
+  is_anonymous?: boolean;
   author_name?: string | null;
   author_department?: string | null;
   like_count: number;
@@ -92,12 +92,12 @@ export default function PostCard({ post }: PostCardProps) {
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-full bg-secondary-container/30 border border-secondary/20 flex items-center justify-center text-secondary font-bold shadow-inner">
                 <span className="material-symbols-outlined text-[22px]">
-                  {post.is_anonymous ? "visibility_off" : "person"}
+                  person
                 </span>
               </div>
               <div>
                 <h4 className="font-label-md text-label-md text-on-surface font-semibold flex items-center gap-2 flex-wrap">
-                  <span>{post.is_anonymous ? "นักศึกษาไม่ระบุตัวตน" : post.author_name || "นักศึกษา HTC"}</span>
+                  <span>{post.author_name || "นักศึกษา HTC"}</span>
                   {post.department && (
                     <span className="px-2.5 py-0.5 bg-secondary-container text-on-secondary-container border border-secondary/20 rounded-full text-xs font-bold">
                       {post.department}

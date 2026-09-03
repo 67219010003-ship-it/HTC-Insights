@@ -6,12 +6,10 @@ class PostCreate(BaseModel):
     department: Optional[str] = Field(None, max_length=100)
     title: str = Field(..., min_length=5, max_length=60, description="หัวข้อกระทู้ 5-60 ตัวอักษร")
     content: str = Field(..., min_length=10, max_length=600, description="เนื้อหากระทู้ 10-600 ตัวอักษร")
-    is_anonymous: bool = False
 
 class CommentCreate(BaseModel):
     content: str = Field(..., min_length=2, max_length=600, description="ความคิดเห็น 2-600 ตัวอักษร")
     parent_id: Optional[int] = None
-    is_anonymous: bool = False
 
 class CommentUpdate(BaseModel):
     content: str = Field(..., min_length=2, max_length=600, description="ความคิดเห็น 2-600 ตัวอักษร")

@@ -10,7 +10,6 @@ interface InsightsSidebarFilterProps {
   onToggleStar: (star: number) => void;
   onReset: () => void;
   hasActiveFilters?: boolean;
-  departmentCounts?: Record<string, number>;
 }
 
 export default function InsightsSidebarFilter({
@@ -20,7 +19,6 @@ export default function InsightsSidebarFilter({
   onToggleStar,
   onReset,
   hasActiveFilters,
-  departmentCounts,
 }: InsightsSidebarFilterProps) {
   const showReset = hasActiveFilters ?? (Boolean(selectedDept) || selectedStars.size > 0);
 
@@ -43,7 +41,7 @@ export default function InsightsSidebarFilter({
           )}
         </div>
 
-        {/* Department Dropdown Filter (Matching real places data) */}
+        {/* Department Dropdown Filter */}
         <div className="space-y-2">
           <label className="block text-sm font-semibold text-on-surface">
             แผนกวิชาช่าง
@@ -51,8 +49,6 @@ export default function InsightsSidebarFilter({
           <DepartmentDropdown
             value={selectedDept}
             onChange={onSelectDept}
-            departmentCounts={departmentCounts}
-            onlyAvailable={false}
           />
         </div>
 

@@ -74,3 +74,5 @@ frontend/tsconfig.tsbuildinfo
 run.bat
 docs/
 htc_insights_erd.png
+*.zip
+

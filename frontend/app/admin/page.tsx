@@ -5,11 +5,11 @@ import { useEffect, useState, useCallback } from "react";
 import { isAdmin } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import RejectReasonModal from "@/components/RejectReasonModal";
-import RevealAnonymousModal from "@/components/RevealAnonymousModal";
 import AdminHeader from "@/components/AdminHeader";
 import Pagination from "@/components/Pagination";
 import AdminDetailModal from "@/components/AdminDetailModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import AdminDashboardOverview from "@/components/admin/AdminDashboardOverview";
 import { api } from "@/lib/api";
 
 interface StatsData {
@@ -20,13 +20,20 @@ interface StatsData {
   upgrades: { pending: number };
 }
 
-interface AdminReview {
+export interface AdminReview {
   id: number;
   company_name: string;
+  company_id?: number;
+  department?: string;
+  user_id?: number;
   real_author: string;
   real_email: string;
   is_anonymous?: boolean;
   score_overall: number;
+  score_work?: number | null;
+  score_env?: number | null;
+  score_mentor?: number | null;
+  score_welfare?: number | null;
   text_work: string;
   text_pros?: string;
   text_cons?: string;
@@ -144,6 +151,7 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [authorized, setAuthorized] = useState(false);
+  const [primaryMode, setPrimaryMode] = useState<"dashboard" | "screening">("dashboard");
   const [activeTab, setActiveTab] = useState<TabType>("moderation");
   const [modCategory, setModCategory] = useState<ModerationCategory>("all");
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -181,7 +189,6 @@ export default function AdminDashboardPage() {
   const [detailModalItem, setDetailModalItem] = useState<{ type: "review" | "post" | "job" | "upgrade" | "report" | "employer" | "comment"; title?: string; data: any } | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<RejectTarget | null>(null);
-  const [revealTargetId, setRevealTargetId] = useState<number | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [deleting, setDeleting] = useState<{ type: string; id: number } | null>(null);
   const [actionLoading, setActionLoading] = useState<{ type: string; id: number } | null>(null);
@@ -473,24 +480,38 @@ export default function AdminDashboardPage() {
 
 
 
-        {/* ================= TOP SEGMENTED NAVIGATION TABS (NO SIDEBAR) ================= */}
-        <div className="bg-surface-container-lowest border border-outline-variant/40 p-2 rounded-2xl shadow-xs">
-          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
+        {/* ================= PRIMARY MODE TOGGLE (แดชบอร์ด vs คัดกรอง) ================= */}
+        <div className="no-print bg-surface-container-lowest p-2 rounded-3xl border border-outline-variant/50 shadow-xs flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5 p-1 bg-surface-container/60 rounded-2xl w-full sm:w-auto">
             <button
-              onClick={() => setActiveTab("moderation")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === "moderation"
-                  ? "bg-primary text-on-primary shadow-sm"
-                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+              type="button"
+              onClick={() => setPrimaryMode("dashboard")}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all cursor-pointer ${
+                primaryMode === "dashboard"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-on-surface-variant hover:text-primary hover:bg-white/60"
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">verified</span>
-              <span>คิวรออนุมัติ</span>
+              <span className="material-symbols-outlined text-[18px]">analytics</span>
+              <span>แดชบอร์ด (Dashboard)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPrimaryMode("screening")}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all cursor-pointer ${
+                primaryMode === "screening"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-on-surface-variant hover:text-primary hover:bg-white/60"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">fact_check</span>
+              <span>คัดกรอง (Screening)</span>
               {totalPending > 0 && (
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                    activeTab === "moderation"
-                      ? "bg-secondary text-on-secondary"
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                    primaryMode === "screening"
+                      ? "bg-secondary text-white"
                       : "bg-amber-100 text-amber-900 border border-amber-300"
                   }`}
                 >
@@ -498,86 +519,13 @@ export default function AdminDashboardPage() {
                 </span>
               )}
             </button>
+          </div>
 
-            <button
-              onClick={() => setActiveTab("all_reviews")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === "all_reviews"
-                  ? "bg-primary text-on-primary shadow-sm"
-                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">rate_review</span>
-              <span>รีวิวทั้งหมด</span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-container-low text-on-surface-variant">
-                {reviews.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("all_posts")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === "all_posts"
-                  ? "bg-primary text-on-primary shadow-sm"
-                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">forum</span>
-              <span>กระทู้คอมมูนิตี้</span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-container-low text-on-surface-variant">
-                {posts.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("all_jobs")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === "all_jobs"
-                  ? "bg-primary text-on-primary shadow-sm"
-                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">business_center</span>
-              <span>ประกาศงาน</span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-container-low text-on-surface-variant">
-                {jobs.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("reports")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === "reports"
-                  ? "bg-primary text-on-primary shadow-sm"
-                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">report_problem</span>
-              <span>รายงานความผิด</span>
-              {pendingReports.length > 0 && (
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                    activeTab === "reports"
-                      ? "bg-rose-500 text-white"
-                      : "bg-rose-100 text-rose-900 border border-rose-300"
-                  }`}
-                >
-                  {pendingReports.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab("audit")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === "audit"
-                  ? "bg-primary text-on-primary shadow-sm"
-                  : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">history</span>
-              <span>ประวัติระบบ</span>
-            </button>
+          <div className="text-xs text-on-surface-variant px-3 hidden md:flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>
+              {primaryMode === "dashboard" ? "กำลังแสดง: แดชบอร์ดสรุปสถิติ & กราฟเชิงลึก" : "กำลังแสดง: รายการคัดกรองและควบคุมเนื้อหา"}
+            </span>
           </div>
         </div>
 
@@ -590,8 +538,124 @@ export default function AdminDashboardPage() {
             <p className="text-sm font-bold text-on-surface">กำลังโหลดข้อมูลระบบหลังบ้าน...</p>
             <p className="text-xs text-on-surface-variant">โปรดรอสักครู่ ระบบกำลังดึงข้อมูลล่าสุด</p>
           </div>
+        ) : primaryMode === "dashboard" ? (
+          <AdminDashboardOverview
+            stats={stats}
+            reviews={reviews}
+            posts={posts}
+            jobs={jobs}
+            onSwitchToScreening={() => setPrimaryMode("screening")}
+          />
         ) : (
           <div className="space-y-lg">
+            {/* ================= TOP SEGMENTED NAVIGATION TABS (NO SIDEBAR) ================= */}
+            <div className="bg-surface-container-lowest border border-outline-variant/40 p-2 rounded-2xl shadow-xs">
+              <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
+                <button
+                  onClick={() => setActiveTab("moderation")}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === "moderation"
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">verified</span>
+                  <span>คิวรออนุมัติ</span>
+                  {totalPending > 0 && (
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                        activeTab === "moderation"
+                          ? "bg-secondary text-on-secondary"
+                          : "bg-amber-100 text-amber-900 border border-amber-300"
+                      }`}
+                    >
+                      {totalPending}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("all_reviews")}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === "all_reviews"
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">rate_review</span>
+                  <span>รีวิวทั้งหมด</span>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-container-low text-on-surface-variant">
+                    {reviews.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("all_posts")}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === "all_posts"
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">forum</span>
+                  <span>กระทู้คอมมูนิตี้</span>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-container-low text-on-surface-variant">
+                    {posts.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("all_jobs")}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === "all_jobs"
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">business_center</span>
+                  <span>ประกาศงาน</span>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-container-low text-on-surface-variant">
+                    {jobs.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("reports")}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === "reports"
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">report_problem</span>
+                  <span>รายงานความผิด</span>
+                  {pendingReports.length > 0 && (
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                        activeTab === "reports"
+                          ? "bg-rose-500 text-white"
+                          : "bg-rose-100 text-rose-900 border border-rose-300"
+                      }`}
+                    >
+                      {pendingReports.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("audit")}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-label-md text-xs md:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === "audit"
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">history</span>
+                  <span>ประวัติระบบ</span>
+                </button>
+              </div>
+            </div>
+
             {/* ================= TAB 1: MODERATION QUEUE ================= */}
             {activeTab === "moderation" && (
               <div className="space-y-md">
@@ -697,11 +761,6 @@ export default function AdminDashboardPage() {
                                       <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-primary/10 text-primary border border-primary/20">
                                         รีวิวสถานประกอบการ
                                       </span>
-                                      {rev.is_anonymous && (
-                                        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-amber-50 text-amber-800 border border-amber-200">
-                                          โหมดไม่ระบุตัวตน
-                                        </span>
-                                      )}
                                       <span className="text-[10px] text-on-surface-variant font-mono">
                                         {rev.created_at || "-"}
                                       </span>
@@ -721,27 +780,8 @@ export default function AdminDashboardPage() {
                                 {/* Author Info */}
                                 <div className="text-xs text-on-surface-variant bg-surface-container-low/70 p-2.5 rounded-xl border border-outline-variant/30 flex items-center justify-between flex-wrap gap-2">
                                   <span>
-                                    ผู้เขียนจริง:{" "}
-                                    {rev.is_anonymous ? (
-                                      <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 text-[11px]">
-                                        <span className="material-symbols-outlined text-[13px]">lock</span>
-                                        ไม่ระบุตัวตน (ข้อมูลถูกเข้ารหัส)
-                                      </span>
-                                    ) : (
-                                      <>
-                                        <strong className="text-on-surface">{rev.real_author}</strong> ({rev.real_email})
-                                      </>
-                                    )}
+                                    ผู้เขียนจริง: <strong className="text-on-surface">{rev.real_author}</strong> ({rev.real_email})
                                   </span>
-                                  {rev.is_anonymous && (
-                                    <button
-                                      onClick={() => setRevealTargetId(rev.id)}
-                                      className="text-[11px] font-bold text-secondary hover:underline flex items-center gap-1 cursor-pointer bg-surface-container px-2.5 py-1 rounded-lg border border-outline-variant/40 hover:bg-secondary/10 transition-colors"
-                                    >
-                                      <span className="material-symbols-outlined text-[13px]">lock_open</span>
-                                      ถอดรหัสตัวตน (Audit Log)
-                                    </button>
-                                  )}
                                 </div>
 
                                 {/* Review Content */}
@@ -928,15 +968,6 @@ export default function AdminDashboardPage() {
                                   <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-label-sm bg-sky-50 text-sky-800 border border-sky-200">
                                     ความคิดเห็นในกระทู้
                                   </span>
-                                  {comm.is_anonymous ? (
-                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                      ไม่ระบุชื่อ
-                                    </span>
-                                  ) : (
-                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-container text-on-surface-variant">
-                                      ระบุชื่อ
-                                    </span>
-                                  )}
                                   <span className="text-[10px] text-on-surface-variant font-mono">
                                     {comm.created_at || "-"}
                                   </span>
@@ -1280,30 +1311,10 @@ export default function AdminDashboardPage() {
                               </span>
                             </td>
                             <td className="py-3 px-3 whitespace-nowrap text-on-surface-variant">
-                              {rev.is_anonymous ? (
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-[11px]">
-                                    <span className="material-symbols-outlined text-[13px]">lock</span>
-                                    ไม่ระบุตัวตน
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setRevealTargetId(rev.id)}
-                                    className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold rounded-md text-[10px] transition-colors cursor-pointer inline-flex items-center gap-0.5"
-                                    title="ถอดรหัสตัวตนจริง (Audit Log)"
-                                  >
-                                    <span className="material-symbols-outlined text-[12px]">lock_open</span>
-                                    ถอดรหัส
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="font-semibold text-primary">{rev.real_author}</div>
-                                  <div className="text-[10px] font-mono text-on-surface-variant/70">
-                                    {rev.real_email}
-                                  </div>
-                                </>
-                              )}
+                              <div className="font-semibold text-primary">{rev.real_author}</div>
+                              <div className="text-[10px] font-mono text-on-surface-variant/70">
+                                {rev.real_email}
+                              </div>
                             </td>
                             <td className="py-3 px-3 text-on-surface max-w-xs truncate">
                               {rev.text_work}
@@ -1694,12 +1705,6 @@ export default function AdminDashboardPage() {
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
                               {rep.target_type_th || rep.target_type || "เนื้อหา"} #{rep.target_id || rep.review_id || rep.post_id || "-"}
                             </span>
-                            {rep.is_anonymous && (
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-0.5">
-                                <span className="material-symbols-outlined text-[12px]">lock</span>
-                                ไม่ระบุตัวตน
-                              </span>
-                            )}
                             <span className="text-[11px] text-on-surface-variant font-mono">
                               {rep.created_at || "-"}
                             </span>
@@ -1878,7 +1883,6 @@ export default function AdminDashboardPage() {
         <AdminDetailModal
           isOpen={!!detailModalItem}
           item={detailModalItem}
-          onRevealAnonymous={(reviewId) => setRevealTargetId(reviewId)}
           onClose={() => setDetailModalItem(null)}
         />
       )}
@@ -1892,15 +1896,6 @@ export default function AdminDashboardPage() {
           loading={rejecting}
           onClose={() => setRejectTarget(null)}
           onConfirm={handleConfirmReject}
-        />
-      )}
-
-      {/* Reveal Anonymous Modal — z-[70] */}
-      {revealTargetId !== null && (
-        <RevealAnonymousModal
-          isOpen={revealTargetId !== null}
-          reviewId={revealTargetId}
-          onClose={() => setRevealTargetId(null)}
         />
       )}
 

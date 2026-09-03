@@ -88,8 +88,7 @@ def test_comment_edit_and_delete():
 
     # Add comment
     comm_res = client.post(f"/community/posts/{post_id}/comments", json={
-        "content": "ความคิดเห็นทดสอบเดิม",
-        "is_anonymous": False
+        "content": "ความคิดเห็นทดสอบเดิม"
     }, headers=headers)
     assert comm_res.status_code == 201
     comment_id = comm_res.json()["comment_id"]
@@ -126,8 +125,7 @@ def test_one_comment_per_post_limit_and_admin_approval():
     post_res = client.post("/community/posts", json={
         "type": "qa",
         "title": "หัวข้อทดสอบกระทู้จำกัดคอมเมนต์",
-        "content": "เนื้อหากระทู้ทดสอบที่มีความยาวเกินสิบตัวอักษรแน่นอน",
-        "is_anonymous": False
+        "content": "เนื้อหากระทู้ทดสอบที่มีความยาวเกินสิบตัวอักษรแน่นอน"
     }, headers=headers)
     assert post_res.status_code == 201
     post_id = post_res.json()["post_id"]
@@ -140,15 +138,13 @@ def test_one_comment_per_post_limit_and_admin_approval():
 
     # 1. First comment succeeds
     comm1 = client.post(f"/community/posts/{post_id}/comments", json={
-        "content": "ความคิดเห็นแรกของฉัน",
-        "is_anonymous": False
+        "content": "ความคิดเห็นแรกของฉัน"
     }, headers=headers)
     assert comm1.status_code == 201
 
     # 2. Second comment by same user fails (1 comment limit)
     comm2 = client.post(f"/community/posts/{post_id}/comments", json={
-        "content": "พยายามพิมพ์ความคิดเห็นที่สอง",
-        "is_anonymous": False
+        "content": "พยายามพิมพ์ความคิดเห็นที่สอง"
     }, headers=headers)
     assert comm2.status_code == 400
     assert "จำกัด 1 บัญชีผู้ใช้ ต่อ 1 ความคิดเห็น" in comm2.json()["detail"]

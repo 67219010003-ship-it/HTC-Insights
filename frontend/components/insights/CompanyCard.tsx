@@ -84,21 +84,6 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                 ({company.review_count} รีวิว)
               </span>
             </div>
-
-            {/* Department Tags from Real Reviews */}
-            {company.departments && company.departments.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {company.departments.map((dept, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-secondary-container/70 text-on-secondary-container text-[11px] font-bold rounded-lg"
-                  >
-                    <span className="material-symbols-outlined text-[13px] text-secondary">school</span>
-                    {dept.replace("แผนกวิชา", "").trim()}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
