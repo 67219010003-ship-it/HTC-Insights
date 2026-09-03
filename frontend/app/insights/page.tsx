@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
@@ -63,6 +63,18 @@ function InsightsPageContent() {
   useEffect(() => {
     fetchCompanies();
   }, [fetchCompanies]);
+
+  const departmentCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    companies.forEach((c) => {
+      c.departments?.forEach((d) => {
+        if (d) {
+          counts[d] = (counts[d] || 0) + 1;
+        }
+      });
+    });
+    return counts;
+  }, [companies]);
 
   const toggleStarFilter = (star: number) => {
     const next = new Set(selectedStars);
@@ -157,6 +169,7 @@ function InsightsPageContent() {
           onToggleStar={toggleStarFilter}
           onReset={handleResetFilters}
           hasActiveFilters={hasActiveFilters}
+          departmentCounts={departmentCounts}
         />
 
         {/* Right Main Content (75% on Desktop) */}

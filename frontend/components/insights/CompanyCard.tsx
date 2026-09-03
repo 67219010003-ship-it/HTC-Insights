@@ -45,7 +45,6 @@ export default function CompanyCard({ company }: CompanyCardProps) {
               </div>
             )}
 
-
             {/* Allowance Tag */}
             {company.avg_daily_allowance && (
               <div className="absolute bottom-3 right-3 bg-primary/90 backdrop-blur-md text-on-primary px-3 py-1 rounded-xl text-xs font-bold shadow-md">
@@ -68,7 +67,7 @@ export default function CompanyCard({ company }: CompanyCardProps) {
               )}
             </div>
 
-            {/* Rating (Original Theme Color: text-secondary active-tab) */}
+            {/* Rating */}
             <div className="flex items-center gap-2">
               <div className="flex items-center text-secondary">
                 <span
@@ -85,6 +84,21 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                 ({company.review_count} รีวิว)
               </span>
             </div>
+
+            {/* Department Tags from Real Reviews */}
+            {company.departments && company.departments.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {company.departments.map((dept, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-secondary-container/70 text-on-secondary-container text-[11px] font-bold rounded-lg"
+                  >
+                    <span className="material-symbols-outlined text-[13px] text-secondary">school</span>
+                    {dept.replace("แผนกวิชา", "").trim()}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

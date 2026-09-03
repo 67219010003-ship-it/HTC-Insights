@@ -17,9 +17,16 @@ export default function StudentHomeView() {
 
   useEffect(() => {
     // Fetch real live data from backend API
-    api.get("/companies?limit=6").then((res) => setCompanies(res.data)).catch(() => {});
+    api.get("/companies?limit=100").then((res) => setCompanies(res.data)).catch(() => {});
     api.get("/reviews?limit=3").then((res) => setRecentReviews(res.data)).catch(() => {});
   }, []);
+
+  const departmentCounts = companies.reduce((acc: Record<string, number>, c: any) => {
+    c.departments?.forEach((d: string) => {
+      if (d) acc[d] = (acc[d] || 0) + 1;
+    });
+    return acc;
+  }, {});
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,7 +135,7 @@ export default function StudentHomeView() {
             
             {/* Department Filter Custom Dropdown */}
             <div className="w-full md:w-72">
-              <DepartmentDropdown value={department} onChange={setDepartment} />
+              <DepartmentDropdown value={department} onChange={setDepartment} departmentCounts={departmentCounts} />
             </div>
 
             <button
