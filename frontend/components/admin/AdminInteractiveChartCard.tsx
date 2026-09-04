@@ -164,9 +164,9 @@ export default function AdminInteractiveChartCard({
   ];
 
   return (
-    <div className="bg-surface-container-lowest p-5 md:p-6 rounded-3xl border border-outline-variant/30 shadow-sm print:p-4 print:rounded-2xl print:border-slate-300 print:shadow-none print-avoid-break space-y-3">
+    <div className="bg-surface-container-lowest p-5 md:p-6 rounded-3xl border border-outline-variant/30 shadow-sm print:p-4 print:rounded-2xl print:border-slate-300 print:shadow-none print-avoid-break space-y-3 h-full flex flex-col justify-between">
       {/* Top Header with Title and the 4 Capsule Pills (as in Image 3) */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-outline-variant/20 pb-3">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 border-b border-outline-variant/20 pb-3">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-secondary/10 text-secondary rounded-full text-xs font-bold mb-1">
             <span className="material-symbols-outlined text-[15px]">show_chart</span>
@@ -180,8 +180,8 @@ export default function AdminInteractiveChartCard({
           </p>
         </div>
 
-        {/* Legend Pills (Exactly like Image 3: White capsules with colored dots and values) */}
-        <div className="flex items-center gap-2 flex-wrap self-start lg:self-center">
+        {/* Legend Pills (White capsules with colored dots and values) */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap self-start xl:self-center">
           {lines.map((line) => {
             const val =
               hoveredPointIndex !== null
@@ -197,7 +197,7 @@ export default function AdminInteractiveChartCard({
             return (
               <div
                 key={line.key}
-                className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-outline-variant/40 shadow-xs text-xs"
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-full border border-outline-variant/40 shadow-xs text-[11px] sm:text-xs"
               >
                 <span
                   className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -209,7 +209,7 @@ export default function AdminInteractiveChartCard({
                 <span className="font-extrabold text-primary">
                   {val}
                 </span>
-                <span className="text-[11px] text-on-surface-variant">
+                <span className="text-[10px] sm:text-[11px] text-on-surface-variant">
                   {line.unit}
                 </span>
               </div>
@@ -218,11 +218,12 @@ export default function AdminInteractiveChartCard({
         </div>
       </div>
 
-      {/* SVG Multi-Line Chart Canvas (All 4 lines always visible at 100% opacity) */}
-      <div className="relative w-full overflow-x-auto hide-scrollbar bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-2">
+      {/* SVG Multi-Line Chart Canvas (Fluid, scalable vector) */}
+      <div className="relative w-full overflow-x-auto print:overflow-visible hide-scrollbar bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-2 my-auto">
         <svg
-          className="w-full h-auto min-w-[580px] max-h-[250px]"
+          className="w-full h-auto min-w-0 max-h-[250px]"
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+          preserveAspectRatio="xMidYMid meet"
         >
           <defs>
             <filter id="pointShadow" x="-20%" y="-20%" width="140%" height="140%">

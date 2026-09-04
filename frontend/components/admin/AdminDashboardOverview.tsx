@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import AdminInteractiveChartCard from "./AdminInteractiveChartCard";
+import AdminUserDistributionCard from "./AdminUserDistributionCard";
 
 interface StatsData {
   users?: {
@@ -280,15 +281,22 @@ export default function AdminDashboardOverview({
         </div>
       </div>
 
-      {/* ================= 1. LARGE MULTI-LINE CHART CARD ================= */}
-      <AdminInteractiveChartCard
-        stats={stats}
-        reviews={reviews}
-        posts={posts}
-        jobs={jobs}
-        users={users}
-        metrics={metrics}
-      />
+      {/* ================= 1. ANALYTICS CHARTS (GROWTH TRENDS & USER DISTRIBUTION) ================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 print:grid-cols-12 print:gap-3 print-avoid-break items-stretch">
+        <div className="lg:col-span-7 xl:col-span-8 print:col-span-7">
+          <AdminInteractiveChartCard
+            stats={stats}
+            reviews={reviews}
+            posts={posts}
+            jobs={jobs}
+            users={users}
+            metrics={metrics}
+          />
+        </div>
+        <div className="lg:col-span-5 xl:col-span-4 print:col-span-5">
+          <AdminUserDistributionCard stats={stats} users={users} />
+        </div>
+      </div>
 
       {/* ================= 2. THE 4 PRIMARY KPI CARDS (STATIC SNAPSHOT) ================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2 print-avoid-break">
