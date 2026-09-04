@@ -283,7 +283,7 @@ export default function AdminDashboardOverview({
 
       {/* ================= 1. ANALYTICS CHARTS (GROWTH TRENDS & USER DISTRIBUTION) ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 print:grid-cols-12 print:gap-3 print-avoid-break items-stretch">
-        <div className="lg:col-span-7 xl:col-span-8 print:col-span-7">
+        <div className="lg:col-span-7 xl:col-span-8 print:col-span-7 min-w-0">
           <AdminInteractiveChartCard
             stats={stats}
             reviews={reviews}
@@ -293,7 +293,7 @@ export default function AdminDashboardOverview({
             metrics={metrics}
           />
         </div>
-        <div className="lg:col-span-5 xl:col-span-4 print:col-span-5">
+        <div className="lg:col-span-5 xl:col-span-4 print:col-span-5 min-w-0">
           <AdminUserDistributionCard stats={stats} users={users} />
         </div>
       </div>
